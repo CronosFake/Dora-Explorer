@@ -2,6 +2,8 @@
 
 Releitura para Windows do **X-plore File Manager**, o gerenciador de arquivos de dois painéis para Android da [Lonely Cat Games](https://www.lonelycatgames.com/apps/xplore). O Dora Explorer é um projeto independente: não tem vínculo com a Lonely Cat Games nem foi aprovado por ela, e "X-plore" é nome do app dela.
 
+Esta releitura foi feita com ajuda de inteligência artificial, usando o [Cursor](https://cursor.com) e o [Claude Code](https://claude.com/claude-code).
+
 Reúne dois painéis lado a lado, navegação em árvore unificada (pastas e ficheiros no mesmo nível), ícones do sistema, barra de caminho, menu central de operações, cliente e servidor de rede (FTP, SFTP, SCP, TFTP) e opções de visibilidade por painel.
 
 > English: a short summary is in the [English](#english) section at the end of this file.
@@ -277,6 +279,8 @@ O código está público para leitura, mas não traz licença de uso: todos os d
 ## English
 
 **Dora Explorer** is a Windows reimagining of **X-plore File Manager**, the dual-pane file manager for Android by [Lonely Cat Games](https://www.lonelycatgames.com/apps/xplore). It is an independent project: it is not affiliated with or endorsed by Lonely Cat Games, and "X-plore" is the name of their app.
+
+This reimagining was made with the help of artificial intelligence, using [Cursor](https://cursor.com) and [Claude Code](https://claude.com/claude-code).
 
 It brings two side-by-side panes, a unified tree view (folders and files at the same level), system icons, a path bar, a central operations menu, a network client and server (FTP, SFTP, SCP, TFTP) and visibility options for each pane. It is a WPF application on .NET 8 (MVVM). The interface is in Brazilian Portuguese.
 
