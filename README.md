@@ -6,6 +6,8 @@ Esta releitura foi feita com ajuda de inteligência artificial, usando o [Cursor
 
 Reúne dois painéis lado a lado, navegação em árvore unificada (pastas e ficheiros no mesmo nível), ícones do sistema, barra de caminho, menu central de operações, cliente e servidor de rede (FTP, SFTP, SCP, TFTP) e opções de visibilidade por painel.
 
+Versão atual: **0.85**. Ela é declarada num lugar só, o `<Version>` de `src\DoraExplorer.App\DoraExplorer.App.csproj`, e aparece em **Ajuda → Sobre**, no executável (propriedades do arquivo) e no log de cada execução.
+
 > English: a short summary is in the [English](#english) section at the end of this file.
 
 ## Requisitos
@@ -286,6 +288,7 @@ This reimagining was made with the help of artificial intelligence, using [Curso
 
 It brings two side-by-side panes, a unified tree view (folders and files at the same level), system icons, a path bar, a central operations menu, a network client and server (FTP, SFTP, SCP, TFTP) and visibility options for each pane. It is a WPF application on .NET 8 (MVVM). The interface is in Brazilian Portuguese.
 
+- **Current version:** 0.85.
 - **Requirements:** Windows 10 or later. To build, the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (the runtime alone is not enough).
 - **Run:** `Start.bat` at the project root. It closes a previous instance, builds in Release mode and starts the app.
 - **Tests:** `dotnet test DoraExplorer.sln -c Release`.

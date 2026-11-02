@@ -99,6 +99,10 @@ $areas = @(
         'Painel ativo, area de transferencia de copiar e cortar, regras que recusam transferencias sem sentido, arrastar e soltar, ordenacao nos dois lados e lembrar o caminho ao abrir.' `
         @('MainWindowViewModel', 'RememberPathSettingsService', 'PaneDisplaySettingsService', 'TransferOutcome', 'DragPolicy') `
         @('MainWindowViewModelTests', 'DragPolicyTests')),
+    (New-Area 'Versao do programa' `
+        'A versao fica num lugar so, o <Version> do csproj do app: o executavel informa essa mesma versao (a tela Sobre le a versao informacional) e o README a cita; mudar uma e esquecer a outra quebra o teste.' `
+        @('AboutDialog') `
+        @('AppVersionTests')),
     (New-Area 'Acesso negado e reiniciar como administrador' `
         'Mensagens de falha em portugues (sem o prefixo \\?\ do .NET), falta de permissao criada de verdade com regra NTFS de negar (excluir, renomear, criar pasta, copiar, mover, compactar), quando perguntar se quer reiniciar como administrador, como o app reinicia e espera o processo antigo sair, e pasta que o Windows nao deixa listar (nao vira "vazia" no cache e a linha mostra um cadeado no lugar das contagens e a barra de status diz "sem permissao para abrir").' `
         @('FileErrorText', 'ElevationPrompt', 'ElevationService', 'IElevationService', 'StartupArguments', 'TransferAccessDeniedException') `

@@ -16,6 +16,8 @@
 
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
 
+    <Version>0.85</Version>
+
     <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
 
     <EnableNETAnalyzers>true</EnableNETAnalyzers>

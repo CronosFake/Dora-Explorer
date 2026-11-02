@@ -3,7 +3,7 @@
 # Uso, a partir da raiz do repositorio (o app NAO pode estar aberto: a trava de instancia unica impede duas copias):
 #   powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario basic [-Prefix nome] [-Build] [-OutDir pasta]
 #
-# Roteiros: basic sort density min nav windows rede dialogs picker openwith comfort light reload flicker blink delfocus multisel dragdrop
+# Roteiros: basic sort density min nav windows rede dialogs picker openwith comfort light reload flicker blink delfocus multisel dragdrop about
 #   reload  : fecha uma pasta com clique, cria uma pasta por fora e reabre; confere que a listagem se atualiza
 #   flicker : fotografa a janela em alta frequencia ao reabrir "Program Files" e conta quedas de conteudo (o "pisca")
 #   blink   : abre pastas pela setinha com clique REAL do mouse e mede se a arvore despenca de uma vez (o "pisca" ao abrir
@@ -26,7 +26,9 @@
 #             temporario so seu: os navegadores abertos do usuario nao sao tocados. O app vai para o canto da tela e as outras janelas
 #             ficam ao lado dele. Mesmo formato de resultado, de pasta de teste e de restauracao do estado do usuario de delfocus e
 #             multisel (AGENTS.md, armadilha 20).
-#   delfocus, multisel e dragdrop guardam %AppData%\DoraExplorer (configuracoes, favoritos, indice) antes de abrir o app e devolvem igual no
+#   about   : abre Ajuda > Sobre e confere que a tela mostra a versao declarada em <Version> no csproj do app (AGENTS.md: versao).
+#             Mesmo formato de resultado e de restauracao do estado do usuario dos outros roteiros com [OK] e [FALHOU].
+#   delfocus, multisel, dragdrop e about guardam %AppData%\DoraExplorer (configuracoes, favoritos, indice) antes de abrir o app e devolvem igual no
 #             fim; o cursor do mouse tambem volta ao lugar. O app precisa ficar em primeiro plano durante o teste.
 # Capturas: PNG em -OutDir (padrao %TEMP%\dora-dev). Os roteiros so leem a tela; 'reload' cria e remove a pasta -TestFolder.
 # Este arquivo e ASCII de proposito: o Windows PowerShell 5.1 le .ps1 sem BOM como ANSI.
@@ -206,7 +208,7 @@ function Menu-Invoke($root, $top, $like, $mid = $null) {
 $uiFailures = 0
 $uiRoot = $null
 $userState = $null
-if ($Scenario -in 'delfocus', 'multisel', 'dragdrop') {
+if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about') {
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -TypeDefinition @'
 using System; using System.Runtime.InteropServices;
@@ -848,6 +850,25 @@ public static class FrameCount {
             }
             Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
         }
+        'about' {
+            # A tela Sobre mostra a versao declarada no csproj do app: uma versao so, em um lugar so.
+            $csproj = [xml](Get-Content -LiteralPath (Join-Path $repoRoot 'src\DoraExplorer.App\DoraExplorer.App.csproj') -Raw)
+            $declared = @($csproj.Project.PropertyGroup.Version | Where-Object { $_ })[0]
+            Check 'o csproj do app declara a versao' (-not [string]::IsNullOrWhiteSpace($declared)) "$declared"
+            [void](Menu-Invoke $root 'Ajuda' 'Sobre*')
+            $dlg = [IntPtr]::Zero; $sw = [Diagnostics.Stopwatch]::StartNew()
+            while ($dlg -eq [IntPtr]::Zero -and $sw.ElapsedMilliseconds -lt 6000) { $dlg = [UiCap]::FindByTitle([uint32]$proc.Id, 'Sobre o Dora Explorer'); Start-Sleep -Milliseconds 200 }
+            Check 'a janela Sobre abriu' ($dlg -ne [IntPtr]::Zero)
+            if ($dlg -ne [IntPtr]::Zero) {
+                $dialog = $AE::FromHandle($dlg)
+                $texts = @($dialog.FindAll($TS::Descendants, (Cond $CT::Text)) | ForEach-Object { $_.Current.Name })
+                Snap $dlg 'about-sobre'
+                Check "a tela Sobre mostra a versao $declared" (@($texts | Where-Object { $_ -match ('^Vers.o ' + [regex]::Escape($declared) + '$') }).Count -eq 1) ($texts -join ' | ')
+                $ok = $dialog.FindAll($TS::Descendants, (Cond $CT::Button)) | Where-Object { $_.Current.Name -eq 'OK' } | Select-Object -First 1
+                if ($ok) { $ok.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 800 }
+            }
+            Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
+        }
         'windows' {
             $c = (TopItems $root)[0]; Expand $c
             $w = Child $c 'Windows'; if ($w) { try { Expand $w } catch { "expandir Windows: $($_.Exception.Message)" } }
@@ -856,11 +877,11 @@ public static class FrameCount {
     }
 } catch { "erro: $($_.Exception.Message) (linha $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim()))" }
 [void]$proc.CloseMainWindow(); [void]$proc.WaitForExit(10000); 'app fechado: ' + $proc.HasExited
-if (($Scenario -in 'delfocus', 'multisel', 'dragdrop') -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; 'o app nao fechou sozinho (ficou uma janela aberta?): encerrado a forca'; Start-Sleep -Seconds 1 }
+if (($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about') -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; 'o app nao fechou sozinho (ficou uma janela aberta?): encerrado a forca'; Start-Sleep -Seconds 1 }
 foreach ($path in $cleanup) { Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue }
 if ($Scenario -eq 'blink' -and $blinkRoot) { Clear-BlinkIndexRows $blinkRoot }
 if ($userState) { Restore-UserState }
-if ($Scenario -in 'delfocus', 'multisel', 'dragdrop') {
+if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about') {
     [void][Kb]::SetCursorPos($cursor0.X, $cursor0.Y)
     'pasta de teste removida: ' + (-not (Test-Path -LiteralPath $uiRoot))
     "verificacoes com falha: $uiFailures"

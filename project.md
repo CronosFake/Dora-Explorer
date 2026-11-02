@@ -2,7 +2,7 @@
 
 > Auto-gerado por scripts/generate-project-map.ps1 (o Start.bat roda a cada execucao). Nao edite a mao.
 > Regras, comandos e armadilhas: AGENTS.md. Visao do produto e limitacoes conhecidas: README.md.
-> Ultima atualizacao: 2026-11-02 03:31
+> Ultima atualizacao: 2026-11-02 03:38
 
 ## Como usar este mapa
 
@@ -380,6 +380,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 
 - `AccessDeniedOperationTests.cs` (159) - AccessDeniedOperationTests
 - `AccessDenyScope.cs` (63) - AccessDenyScope
+- `AppVersionTests.cs` (54) - AppVersionTests
 - `ArchiveListingTests.cs` (407) - ArchiveListingTests
 - `DirectoryIndexTests.cs` (430) - DirectoryIndexTests
 - `DragPolicyTests.cs` (38) - DragPolicyTests

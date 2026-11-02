@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-02 03:31
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-02 03:38
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -22,10 +22,10 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 
 | Item | Valor |
 |------|-------|
-| Areas | 23 |
-| Classes de teste | 64 |
-| Metodos de teste | 493 |
-| Casos (cada InlineData conta um) | 740 |
+| Areas | 24 |
+| Classes de teste | 65 |
+| Metodos de teste | 496 |
+| Casos (cada InlineData conta um) | 743 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -183,6 +183,14 @@ Painel ativo, area de transferencia de copiar e cortar, regras que recusam trans
 - Testes (22 casos): MainWindowViewModelTests [MainWindowViewModelTests.cs], DragPolicyTests [DragPolicyTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~MainWindowViewModelTests|FullyQualifiedName~DragPolicyTests"`
 
+### Versao do programa
+
+A versao fica num lugar so, o <Version> do csproj do app: o executavel informa essa mesma versao (a tela Sobre le a versao informacional) e o README a cita; mudar uma e esquecer a outra quebra o teste.
+
+- Codigo: AboutDialog
+- Testes (3 casos): AppVersionTests [AppVersionTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~AppVersionTests"`
+
 ### Acesso negado e reiniciar como administrador
 
 Mensagens de falha em portugues (sem o prefixo \\?\ do .NET), falta de permissao criada de verdade com regra NTFS de negar (excluir, renomear, criar pasta, copiar, mover, compactar), quando perguntar se quer reiniciar como administrador, como o app reinicia e espera o processo antigo sair, e pasta que o Windows nao deixa listar (nao vira "vazia" no cache e a linha mostra um cadeado no lugar das contagens e a barra de status diz "sem permissao para abrir").
@@ -219,6 +227,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 
 | Tipo | Area |
 |------|------|
+| AboutDialog | Versao do programa |
 | AppSettingsService | Seguranca de senhas e configuracoes |
 | ArchiveFormat | Arquivos compactados (abrir como pasta) |
 | ArchivePathHelper | Arquivos compactados (abrir como pasta) |
@@ -333,6 +342,12 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - A_raw_executable_name_from_the_shell_is_replaced_by_the_description_of_the_program
 - Application_names_never_show_the_executable_extension (8 casos)
 - Packaged_app_ids_are_told_apart_from_programs_and_paths (7 casos)
+
+### AppVersionTests (AppVersionTests.cs)
+
+- The_built_app_reports_the_version_declared_in_the_project_file
+- The_project_file_declares_the_version_in_the_major_dot_minor_format
+- The_readme_states_the_current_version
 
 ### ArchiveExtractionPathTests (SecurityTests.cs)
 
