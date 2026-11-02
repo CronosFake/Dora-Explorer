@@ -77,6 +77,13 @@ internal static partial class FileErrorText
             return $"{name}: '{shown}' não existe mais.";
         }
 
+        // Directory.Delete(recursive) avisa a falta de permissão com um IOException comum, sem código do Windows (por compatibilidade
+        // com o .NET Framework): só a frase da mensagem a denuncia. Sem este caso, C:\inetpub saía em inglês e sem oferecer administrador.
+        if (exception is IOException && DeniedSentence().IsMatch(exception.Message))
+        {
+            return AccessDenied(itemPath, inner);
+        }
+
         return Win32CodeOf(exception) switch
         {
             ErrorAccessDenied => AccessDenied(itemPath, inner),
@@ -175,4 +182,8 @@ internal static partial class FileErrorText
 
     [GeneratedRegex("'([^']+)'")]
     private static partial Regex QuotedPath();
+
+    /// <summary>A frase de "acesso negado" do .NET, em inglês e em português: <c>Access to the path '...' is denied.</c></summary>
+    [GeneratedRegex(@"^(Access to the path|O acesso ao caminho) '.+' (is denied|foi negado)\.?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex DeniedSentence();
 }

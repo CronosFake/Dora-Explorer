@@ -1,6 +1,6 @@
 # Dora Explorer - Metodos dos arquivos grandes
 
-> Auto-gerado por scripts/generate-project-map.ps1. Nao edite a mao. Atualizacao: 2026-11-01 23:18
+> Auto-gerado por scripts/generate-project-map.ps1. Nao edite a mao. Atualizacao: 2026-11-02 01:53
 > Use junto com project.md: ache o metodo aqui e leia so o trecho (Read com offset/limit). Linhas mudam a cada edicao: confirme com Grep.
 
 ## src/DoraExplorer.App/ViewModels/FilePaneViewModel.cs (3457 linhas)

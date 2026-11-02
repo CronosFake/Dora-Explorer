@@ -45,6 +45,28 @@ public sealed class FileErrorTextTests : IDisposable
         FileErrorText.Describe(exception, @"C:\inetpub").Should().Be(Marked(@"inetpub: acesso negado a 'C:\inetpub'."));
     }
 
+    // Directory.Delete(recursive) avisa a falta de permissão com um IOException comum (não UnauthorizedAccessException), e o único
+    // sinal é a frase da mensagem. Foi o que apareceu em inglês, com \\?\ e sem oferecer administrador, ao excluir C:\inetpub.
+    [Theory]
+    [InlineData(@"Access to the path '\\?\C:\inetpub' is denied.")]
+    [InlineData(@"O acesso ao caminho '\\?\C:\inetpub' foi negado.")]
+    public void A_plain_IO_exception_that_says_the_path_is_denied_is_access_denied(string runtimeMessage)
+    {
+        var text = FileErrorText.Describe(new IOException(runtimeMessage), @"C:\inetpub");
+
+        text.Should().Be(Marked(@"inetpub: acesso negado a 'C:\inetpub'."));
+        FileErrorText.IsAccessDenied(text).Should().BeTrue();
+    }
+
+    [Fact]
+    public void A_plain_IO_exception_about_something_else_is_not_taken_for_access_denied()
+    {
+        var text = FileErrorText.Describe(new IOException("O disco não respondeu."), @"C:\Dados\a.txt");
+
+        FileErrorText.IsAccessDenied(text).Should().BeFalse();
+        text.Should().Contain("não foi possível concluir a operação");
+    }
+
     [Fact]
     public void Without_a_path_in_the_message_the_item_itself_is_named()
     {

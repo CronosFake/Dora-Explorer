@@ -70,6 +70,23 @@ public sealed class AccessDeniedOperationTests : IDisposable
     }
 
     [Fact]
+    public void Deleting_a_folder_that_refuses_to_be_removed_is_denied_in_portuguese_and_offers_administrator()
+    {
+        // Como C:\inetpub: a própria pasta não deixa ser apagada. Nesse caso o .NET não lança UnauthorizedAccessException,
+        // e sim um IOException comum, e a mensagem saía em inglês, com \\?\ e sem a marca que faz o app oferecer elevação.
+        var parent = Directory.CreateDirectory(Path.Combine(_work, "raiz")).FullName;
+        var folder = Directory.CreateDirectory(Path.Combine(parent, "inetpub")).FullName;
+        _deny.Deny(folder, FileSystemRights.Delete);
+        _deny.Deny(parent, FileSystemRights.DeleteSubdirectoriesAndFiles);
+
+        new FileOperationService().TryDeletePermanently([folder], out var error).Should().BeFalse();
+
+        ShouldBePortugueseAccessDenied(error, "inetpub");
+        error.Should().Contain(folder);
+        Directory.Exists(folder).Should().BeTrue();
+    }
+
+    [Fact]
     public void Creating_a_folder_where_it_is_not_allowed_is_denied_in_portuguese()
     {
         var parent = Directory.CreateDirectory(Path.Combine(_work, "somente-leitura")).FullName;

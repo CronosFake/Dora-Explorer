@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-02 00:41
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-02 01:53
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -24,8 +24,8 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 |------|-------|
 | Areas | 23 |
 | Classes de teste | 63 |
-| Metodos de teste | 463 |
-| Casos (cada InlineData conta um) | 709 |
+| Metodos de teste | 466 |
+| Casos (cada InlineData conta um) | 713 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -188,7 +188,7 @@ Painel ativo, area de transferencia de copiar e cortar, regras que recusam trans
 Mensagens de falha em portugues (sem o prefixo \\?\ do .NET), falta de permissao criada de verdade com regra NTFS de negar (excluir, renomear, criar pasta, copiar, mover, compactar), quando perguntar se quer reiniciar como administrador, como o app reinicia e espera o processo antigo sair, e pasta que o Windows nao deixa listar (nao vira "vazia" no cache e a linha mostra um cadeado no lugar das contagens e a barra de status diz "sem permissao para abrir").
 
 - Codigo: FileErrorText, ElevationPrompt, ElevationService, IElevationService, StartupArguments, TransferAccessDeniedException
-- Testes (49 casos): FileErrorTextTests [FileErrorTextTests.cs], AccessDeniedOperationTests [AccessDeniedOperationTests.cs], ElevationTests [ElevationTests.cs], DeniedFolderRowTests [InterfaceTests.cs]
+- Testes (53 casos): FileErrorTextTests [FileErrorTextTests.cs], AccessDeniedOperationTests [AccessDeniedOperationTests.cs], ElevationTests [ElevationTests.cs], DeniedFolderRowTests [InterfaceTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~FileErrorTextTests|FullyQualifiedName~AccessDeniedOperationTests|FullyQualifiedName~ElevationTests|FullyQualifiedName~DeniedFolderRowTests"`
 
 ### Start.bat: fechar o app antes de compilar (stop-dora)
@@ -317,6 +317,7 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Compressing_into_a_folder_that_refuses_new_files_is_denied_in_portuguese
 - Copying_into_a_folder_that_refuses_new_files_is_denied_in_portuguese
 - Creating_a_folder_where_it_is_not_allowed_is_denied_in_portuguese
+- Deleting_a_folder_that_refuses_to_be_removed_is_denied_in_portuguese_and_offers_administrator
 - Deleting_a_folder_with_a_protected_file_inside_names_the_folder_and_a_path_inside_it
 - Deleting_a_protected_file_permanently_is_denied_in_portuguese
 - Moving_a_protected_file_is_denied_in_portuguese_and_keeps_it_in_place
@@ -449,6 +450,8 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 - A_missing_item_is_explained
 - A_path_that_is_too_long_is_explained
+- A_plain_IO_exception_about_something_else_is_not_taken_for_access_denied
+- A_plain_IO_exception_that_says_the_path_is_denied_is_access_denied (2 casos)
 - A_read_only_file_is_explained_and_is_not_offered_elevation
 - Access_denied_names_the_inner_path_in_portuguese_and_is_marked
 - Access_denied_texts_built_without_an_exception_are_marked_too

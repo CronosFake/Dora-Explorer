@@ -2,7 +2,7 @@
 
 > Auto-gerado por scripts/generate-project-map.ps1 (o Start.bat roda a cada execucao). Nao edite a mao.
 > Regras, comandos e armadilhas: AGENTS.md. Visao do produto e limitacoes conhecidas: README.md.
-> Ultima atualizacao: 2026-11-01 23:18
+> Ultima atualizacao: 2026-11-02 01:53
 
 ## Como usar este mapa
 
@@ -29,7 +29,7 @@ src/DoraExplorer.App/
   Contracts/       11 arquivos    322 linhas  # Interfaces dos servicos (DI e testes)
   Controls/        13 arquivos   7118 linhas  # Controles WPF: paineis, toolbar, arvore, animacoes
   Converters/       5 arquivos    123 linhas  # IValueConverter do WPF
-  Infrastructure/  15 arquivos   1125 linhas  # DI, caminhos seguros, timeouts, instancia unica, colecao em bloco, enxugador de memoria
+  Infrastructure/  15 arquivos   1136 linhas  # DI, caminhos seguros, timeouts, instancia unica, colecao em bloco, enxugador de memoria
   Models/          26 arquivos    603 linhas  # DTOs, enums e opcoes
   Resources/        6 arquivos   1421 linhas  # Temas e estilos XAML
   Services/        57 arquivos  17912 linhas  # Arquivos, rede, indice, tema, icones, logs, arquivos compactados
@@ -160,7 +160,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: For, OfferText, AlreadyElevatedText
 - `Infrastructure/ExpectedFailures.cs` (52) - **ExpectedFailures**
   - Metodos: IsFileSystem, IsLockedVolume, IsShellInterop, IsIndexStore
-- `Infrastructure/FileErrorText.cs` (178) - **FileErrorText**
+- `Infrastructure/FileErrorText.cs` (189) - **FileErrorText**
   - Metodos: DisplayPath, Describe, AccessDenied, AccessDeniedForSome, ListingDenied, IsAccessDenied, WithoutMarker, IsAccessDeniedCode
 - `Infrastructure/MemoryTrimmer.cs` (44) - **MemoryTrimmer**
   - Metodos: ScheduleAfterLargeLoad, Dispose
@@ -376,13 +376,13 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 
 ## Testes (tests/DoraExplorer.App.Tests)
 
-- `AccessDeniedOperationTests.cs` (142) - AccessDeniedOperationTests
+- `AccessDeniedOperationTests.cs` (159) - AccessDeniedOperationTests
 - `AccessDenyScope.cs` (63) - AccessDenyScope
 - `ArchiveListingTests.cs` (407) - ArchiveListingTests
 - `DirectoryIndexTests.cs` (430) - DirectoryIndexTests
-- `ElevationTests.cs` (197) - ElevationTests
+- `ElevationTests.cs` (196) - ElevationTests
 - `FavoritesServiceTests.cs` (204) - FavoritesServiceTests
-- `FileErrorTextTests.cs` (149) - FileErrorTextTests
+- `FileErrorTextTests.cs` (171) - FileErrorTextTests
 - `FileOperationTests.cs` (342) - FileOperationTests
 - `FilePaneViewModelTests.cs` (580) - FilePaneViewModelTests
 - `HealthServiceTests.cs` (186) - HealthServiceTests
