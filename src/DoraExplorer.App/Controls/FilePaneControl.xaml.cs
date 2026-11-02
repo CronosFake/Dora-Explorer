@@ -2806,11 +2806,46 @@ public partial class FilePaneControl : UserControl
             return;
         }
 
-        if (!ViewModel.TryDeleteItems(paths, mode, out var error) &&
-            !string.IsNullOrWhiteSpace(error))
+        // Escolhido antes de apagar: a pasta é recarregada e o item que tinha o foco deixa de existir, e sem foco as setas não respondem.
+        var neighbour = ViewModel.GetPathToSelectAfterRemoving(paths);
+
+        if (ViewModel.TryDeleteItems(paths, mode, out var error))
+        {
+            FocusAfterRemoval(neighbour, attempt: 0);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(error))
         {
             MessageDialog.Show(owner, error, "Excluir");
         }
+    }
+
+    /// <summary>
+    /// Depois de apagar, seleciona o vizinho e devolve a ele o foco do teclado. Espera a árvore ser refeita (a pasta foi recarregada)
+    /// e tenta de novo algumas vezes; se o vizinho não aparecer, o foco ao menos volta para a lista.
+    /// </summary>
+    private void FocusAfterRemoval(string? path, int attempt)
+    {
+        const int maxAttempts = 6;
+
+        Dispatcher.BeginInvoke(() =>
+        {
+            var node = string.IsNullOrWhiteSpace(path) ? null : ViewModel?.FindNodeByPath(path);
+            if (node is not null && FindTreeViewItemForNode(NavigationTree, node) is TreeViewItem item)
+            {
+                FocusNavigationItem(item, keyboardNavigation: true);
+                return;
+            }
+
+            if (node is not null && attempt < maxAttempts)
+            {
+                FocusAfterRemoval(path, attempt + 1);
+                return;
+            }
+
+            NavigationTree.Focus();
+        }, DispatcherPriority.Loaded);
     }
 
     private void ActivateSelectedItem()

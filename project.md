@@ -2,7 +2,7 @@
 
 > Auto-gerado por scripts/generate-project-map.ps1 (o Start.bat roda a cada execucao). Nao edite a mao.
 > Regras, comandos e armadilhas: AGENTS.md. Visao do produto e limitacoes conhecidas: README.md.
-> Ultima atualizacao: 2026-11-02 01:53
+> Ultima atualizacao: 2026-11-02 02:11
 
 ## Como usar este mapa
 
@@ -27,13 +27,13 @@ src/DoraExplorer.App/
   App.xaml.cs, MainWindow.xaml(.cs)   # inicializacao, DI, janela principal com dois paineis
   Assets/           0 arquivos      0 linhas  # Icones
   Contracts/       11 arquivos    322 linhas  # Interfaces dos servicos (DI e testes)
-  Controls/        13 arquivos   7118 linhas  # Controles WPF: paineis, toolbar, arvore, animacoes
+  Controls/        13 arquivos   7153 linhas  # Controles WPF: paineis, toolbar, arvore, animacoes
   Converters/       5 arquivos    123 linhas  # IValueConverter do WPF
   Infrastructure/  15 arquivos   1136 linhas  # DI, caminhos seguros, timeouts, instancia unica, colecao em bloco, enxugador de memoria
   Models/          26 arquivos    603 linhas  # DTOs, enums e opcoes
   Resources/        6 arquivos   1421 linhas  # Temas e estilos XAML
   Services/        57 arquivos  17912 linhas  # Arquivos, rede, indice, tema, icones, logs, arquivos compactados
-  ViewModels/       9 arquivos   6013 linhas  # MVVM (CommunityToolkit.Mvvm)
+  ViewModels/       9 arquivos   6050 linhas  # MVVM (CommunityToolkit.Mvvm)
   Views/           19 arquivos   1866 linhas  # Dialogos do menu central
 tests/DoraExplorer.App.Tests/   # testes xUnit
 scripts/                        # stop-dora.ps1, generate-project-map.ps1
@@ -94,8 +94,8 @@ CommunityToolkit.Mvvm 8.4.2, FluentFTP 51.1.0, Microsoft.Data.Sqlite 10.0.14, Mi
 
 Metodos com numero de linha: project-metodos.md.
 
-- `src/DoraExplorer.App/ViewModels/FilePaneViewModel.cs` - 3457 linhas
-- `src/DoraExplorer.App/Controls/FilePaneControl.xaml.cs` - 3455 linhas
+- `src/DoraExplorer.App/ViewModels/FilePaneViewModel.cs` - 3494 linhas
+- `src/DoraExplorer.App/Controls/FilePaneControl.xaml.cs` - 3490 linhas
 - `src/DoraExplorer.App/Services/NavigationTreeService.cs` - 1634 linhas
 - `src/DoraExplorer.App/Services/FtpServer.cs` - 1588 linhas
 - `src/DoraExplorer.App/Services/ArchiveService.cs` - 1111 linhas
@@ -134,7 +134,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `Controls/CenterToolbarControl.xaml` (360)
 - `Controls/CenterToolbarControl.xaml.cs` (196) - **CenterToolbarControl**
 - `Controls/FilePaneControl.xaml` (1072)
-- `Controls/FilePaneControl.xaml.cs` (3455) - **FilePaneControl**
+- `Controls/FilePaneControl.xaml.cs` (3490) - **FilePaneControl**
 - `Controls/SmoothScrollAnimator.cs` (355) - **SmoothScrollAnimator**
   - Metodos: HandleMouseWheel, ScrollTo, SyncTarget
 - `Controls/ThumbnailHoverPreview.cs` (192) - **ThumbnailHoverPreview**
@@ -335,8 +335,8 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `ViewModels/CenterToolbarViewModel.cs` (536) - **CenterToolbarViewModel**
   - Metodos: RefreshNetworkServiceStatus, RefreshSearchContext, RunSearchWithPattern, OpenSearchResult, ApplySortOptions
 - `ViewModels/FileItemViewModel.cs` (72) - **FileItemViewModel**
-- `ViewModels/FilePaneViewModel.cs` (3457) - **FilePaneViewModel**
-  - Metodos: RestorePath, CompleteInitialPathRestore, ClearCenterNavigatedNode, UpdateResponsiveLayout, OnNavigationNodeExpanding, OnNavigationNodeExpanded, OnNavigationNodeCollapsed, OnNavigationNodeSelected, NavigateToPath, RefreshForViewOptionsChange, BeginDisplayMenu, CommitDisplayMenu, ClearItemSelection, SetSingleItemSelection, HandleShiftItemSelection, SelectSiblingItems, ShareSelectionParent, GetSelectableSiblings, GetParentNode, GetVisibleSelectableNodes, SelectSiblingRange, HasOpenableFilesInSelection, GetPrimarySelectedNode, HasActivatableSelection, GetOpenableFilePaths, OpenSelectedFiles, OpenArchiveExternally, GetSelectedItemPath, GetDeletableItemPaths, GetTransferableItemPaths (+39)
+- `ViewModels/FilePaneViewModel.cs` (3494) - **FilePaneViewModel**
+  - Metodos: RestorePath, CompleteInitialPathRestore, ClearCenterNavigatedNode, UpdateResponsiveLayout, OnNavigationNodeExpanding, OnNavigationNodeExpanded, OnNavigationNodeCollapsed, OnNavigationNodeSelected, NavigateToPath, RefreshForViewOptionsChange, BeginDisplayMenu, CommitDisplayMenu, ClearItemSelection, SetSingleItemSelection, HandleShiftItemSelection, SelectSiblingItems, ShareSelectionParent, GetSelectableSiblings, GetParentNode, GetVisibleSelectableNodes, SelectSiblingRange, HasOpenableFilesInSelection, GetPrimarySelectedNode, HasActivatableSelection, GetOpenableFilePaths, OpenSelectedFiles, OpenArchiveExternally, GetSelectedItemPath, GetDeletableItemPaths, GetPathToSelectAfterRemoving (+41)
 - `ViewModels/FilePaneViewModel.Remote.cs` (387) - **FilePaneViewModel**
 - `ViewModels/MainWindowViewModel.cs` (788) - **MainWindowViewModel**
   - Metodos: OppositePane, GetPaneWithSelection, ApplyGlobalSortOptions, TryResolveTransfer, TryValidateTransfer, ExecuteDropTransferAsync, TryStageTransfer, TryPasteTransferAsync, ExecuteTransferAsync, ExecuteCompressAsync, ClearTransferClipboard, OnWindowLoaded, PersistPanePaths
@@ -384,7 +384,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `FavoritesServiceTests.cs` (204) - FavoritesServiceTests
 - `FileErrorTextTests.cs` (171) - FileErrorTextTests
 - `FileOperationTests.cs` (342) - FileOperationTests
-- `FilePaneViewModelTests.cs` (580) - FilePaneViewModelTests
+- `FilePaneViewModelTests.cs` (652) - FilePaneViewModelTests
 - `HealthServiceTests.cs` (186) - HealthServiceTests
 - `InfrastructureTests.cs` (379) - PathSafetyServiceTests, NetworkFileServiceTests, FileOpenServiceTests, OperationTrackerTests, ExpectedFailuresTests, SqliteSecurityTests, MemoryTrimmerTests, RangeObservableCollectionTests
 - `InterfaceTests.cs` (374) - StorageUsageTests, DeniedFolderRowTests, SelectionStatusFormatterTests, ThemeUsageColorsTests, ApplicationNameTests, DefaultApplicationOverridesTests

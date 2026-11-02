@@ -1496,6 +1496,43 @@ public partial class FilePaneViewModel : ObservableObject
             .ToList();
     }
 
+    /// <summary>
+    /// Caminho do item que deve ficar selecionado depois de remover <paramref name="removedPaths"/>: o próximo irmão que não sai
+    /// junto, senão o anterior, senão a pasta que continha os removidos (o conteúdo de uma pasta removida sai com ela). Tem de ser
+    /// pedido antes de apagar, porque depois a pasta é recarregada e os nós são outros; sem um vizinho selecionado o foco se perde
+    /// e as setas deixam de funcionar. <see langword="null"/> se nenhum dos caminhos está na lista visível.
+    /// </summary>
+    public string? GetPathToSelectAfterRemoving(IReadOnlyCollection<string> removedPaths)
+    {
+        var removed = removedPaths
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => path.TrimEnd('\\', '/'))
+            .ToList();
+
+        bool GoesAway(NavigationTreeNodeViewModel node) =>
+            node.TargetPath is { Length: > 0 } path && removed.Any(gone =>
+                string.Equals(path, gone, StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith(gone + '\\', StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith(gone + '/', StringComparison.OrdinalIgnoreCase));
+
+        var first = GetVisibleSelectableNodes().FirstOrDefault(GoesAway);
+        if (first is null)
+        {
+            return null;
+        }
+
+        var siblings = GetSelectableSiblings(first);
+        var firstIndex = siblings.ToList().FindIndex(GoesAway);
+        var lastIndex = siblings.ToList().FindLastIndex(GoesAway);
+
+        var neighbour =
+            siblings.Skip(lastIndex + 1).FirstOrDefault(node => !GoesAway(node) && !string.IsNullOrWhiteSpace(node.TargetPath)) ??
+            siblings.Take(firstIndex).LastOrDefault(node => !GoesAway(node) && !string.IsNullOrWhiteSpace(node.TargetPath)) ??
+            GetParentNode(first);
+
+        return string.IsNullOrWhiteSpace(neighbour?.TargetPath) ? null : neighbour.TargetPath;
+    }
+
     public IReadOnlyList<string> GetTransferableItemPaths()
     {
         var fromSelection = SelectedItems
@@ -3299,7 +3336,7 @@ public partial class FilePaneViewModel : ObservableObject
         PaneContentRefreshed?.Invoke(this, EventArgs.Empty);
     }
 
-    private NavigationTreeNodeViewModel? FindNodeByPath(string path)
+    public NavigationTreeNodeViewModel? FindNodeByPath(string path)
     {
         foreach (var root in NavigationRoots)
         {

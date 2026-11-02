@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-02 01:53
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-02 02:11
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -24,8 +24,8 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 |------|-------|
 | Areas | 23 |
 | Classes de teste | 63 |
-| Metodos de teste | 466 |
-| Casos (cada InlineData conta um) | 713 |
+| Metodos de teste | 472 |
+| Casos (cada InlineData conta um) | 719 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -172,7 +172,7 @@ Excluir ou restaurar so vale para o que esta mesmo na lixeira; a lixeira e o pro
 Abrir numa pasta, navegar, criar pasta, renomear, excluir, copiar e mover (inclusive de dentro de ZIP, que pode ser alterado, e de .gz, .7z e .rar, que sao somente leitura), ordenar e marcar favoritos.
 
 - Codigo: FilePaneViewModel, NavigationTreeNodeViewModel, BreadcrumbSegmentViewModel, FileOperationService
-- Testes (39 casos): FilePaneViewModelTests [FilePaneViewModelTests.cs]
+- Testes (45 casos): FilePaneViewModelTests [FilePaneViewModelTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~FilePaneViewModelTests"`
 
 ### Janela principal (copiar e colar entre os paineis)
@@ -306,6 +306,7 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 | Abrir pasta sem piscar (a lista cresce enquanto os filhos entram em cascata; TreeExpansionRevealAnimator) | Depende do WPF, do tempo e da tela: sem janela nao ha como testar. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario blink: cada pasta precisa sair ok (maior queda em UM quadro abaixo de 20% do conteudo). Antes da correcao a pasta grande dava 76% (PISCA). |
 | Reiniciar como administrador de verdade (aviso do Windows/UAC) e as janelas "Reiniciar como administrador / Agora nao" | O aviso do Windows roda em outra area de trabalho e pede uma pessoa; o app so e testado ate chamar o Windows (ElevationTests) e a regra de quando perguntar (ElevationPrompt). | Tentar excluir um item de C:\Windows ou C:\Program Files: a janela deve falar de acesso negado, em portugues, e perguntar. Escolher Reiniciar, confirmar o aviso do Windows e ver o app abrir de novo (Gerenciador de Tarefas: Elevado = Sim); repetir a operacao. |
 | Aviso ao abrir uma pasta que o Windows nao deixa listar (duplo clique, Enter ou seta para a direita) | O teste de unidade cobre o no marcado (ListingDenied) e a mensagem, nao o gesto no TreeView real: um clique so seleciona a linha, e o cadeado so e conferido no app real (os testes cobrem a marca no no e a troca das contagens, nao o desenho do XAML). | Criar uma pasta com um arquivo e negar a leitura dela: icacls <pasta> /deny "%USERNAME%:(RD)". Abrir o app: a linha da pasta mostra um cadeado no lugar de 0 pastas / 0 arquivos (passe o mouse: "Sem permissao para abrir esta pasta"), e ao selecionar a pasta a barra de status diz "sem permissao para abrir", nas linhas compactas e nas confortaveis (Exibir > Linhas compactas em colunas). Dar duplo clique na pasta: aparece "Sem permissao para abrir ..." com Reiniciar como administrador / Agora nao. Abrir a mesma pasta de novo (seta para a direita) nao repete o aviso. Remover a regra: icacls <pasta> /remove:d %USERNAME%. |
+| Foco e setas depois de apagar pelo teclado (Shift+Delete) | O vizinho a selecionar e testado (FilePaneViewModelTests), mas o foco do WPF so existe com a janela aberta. | UI Automation no app real (AGENTS.md, armadilha 18): AutomationElement.FocusedElement deve ser o TreeItem do vizinho e Baixo/Cima devem mover o foco sem clicar. |
 | Janelas de dialogo (progresso, conexao de rede, ordenar, excluir) | Janelas WPF; sem teste automatico. | Abrir cada uma no app. |
 | Restaurar e excluir de verdade da Lixeira | Mexe na lixeira real do usuario; so as travas sao testadas. | Com arquivos de teste, na tela. |
 | Start.bat e scripts de apoio | O fechamento do app esta em teste automatico (StopDoraScriptTests, com processos de mentira); o Start.bat inteiro (compilar e abrir) e o caso de um app aberto como administrador, que pede o UAC, nao. | Rodar Start.bat e conferir que o app abre. Com o app aberto, rodar de novo: ele fecha sozinho (o log termina com "encerrado") e reabre. Com o app aberto como administrador (Reiniciar como administrador), o Start.bat deve parar com o aviso de que nao consegue fecha-lo, sem compilar. |
@@ -498,7 +499,13 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 - A_folder_name_that_is_empty_or_cannot_exist_is_refused (5 casos)
 - A_folder_that_can_be_listed_is_not_marked
+- A_path_that_is_not_in_the_list_gives_no_neighbour
 - A_subfolder_the_user_may_not_list_is_marked_from_the_parent_listing_without_opening_it
+- After_removing_an_item_the_next_one_in_the_list_is_the_one_to_select
+- After_removing_an_open_folder_the_items_inside_it_are_skipped
+- After_removing_every_item_the_folder_that_held_them_is_the_one_to_select
+- After_removing_several_items_the_neighbour_is_outside_the_removed_group
+- After_removing_the_last_item_the_previous_one_is_the_one_to_select
 - An_entry_of_a_read_only_archive_cannot_be_deleted_and_the_archive_stays_intact
 - An_entry_of_a_zip_can_be_deleted_and_leaves_the_rest
 - Copying_a_file_leaves_the_original_and_never_overwrites_the_destination

@@ -113,6 +113,78 @@ public sealed class FilePaneViewModelTests : IDisposable
         File.Exists(file).Should().BeTrue();
     }
 
+    // Depois de apagar pelo teclado a seleção tem de ir para um vizinho, senão o foco se perde e as setas deixam de funcionar.
+    // O vizinho é escolhido antes de apagar, porque depois a pasta é recarregada e os nós são outros.
+    private FilePaneViewModel PaneWithFiles(out string folder, out string[] files)
+    {
+        var root = _h.Folder("base");
+        string[] names = ["a.txt", "b.txt", "c.txt"];
+        folder = root;
+        files = names.Select(name => PaneTestHarness.File(root, name)).ToArray();
+        var pane = _h.CreatePane(root);
+        pane.NavigateToPath(root);
+        var last = files[^1];
+        PaneTestHarness.Eventually(() => PaneTestHarness.Find(pane, last) is not null).Should().BeTrue("a pasta abriu e listou os arquivos");
+        return pane;
+    }
+
+    [Fact]
+    public void After_removing_an_item_the_next_one_in_the_list_is_the_one_to_select()
+    {
+        var pane = PaneWithFiles(out _, out var files);
+
+        pane.GetPathToSelectAfterRemoving([files[1]]).Should().Be(files[2]);
+        pane.GetPathToSelectAfterRemoving([files[0]]).Should().Be(files[1]);
+    }
+
+    [Fact]
+    public void After_removing_the_last_item_the_previous_one_is_the_one_to_select()
+    {
+        var pane = PaneWithFiles(out _, out var files);
+
+        pane.GetPathToSelectAfterRemoving([files[2]]).Should().Be(files[1]);
+    }
+
+    [Fact]
+    public void After_removing_several_items_the_neighbour_is_outside_the_removed_group()
+    {
+        var pane = PaneWithFiles(out _, out var files);
+
+        pane.GetPathToSelectAfterRemoving([files[0], files[1]]).Should().Be(files[2]);
+        pane.GetPathToSelectAfterRemoving([files[1], files[2]]).Should().Be(files[0]);
+    }
+
+    [Fact]
+    public void After_removing_every_item_the_folder_that_held_them_is_the_one_to_select()
+    {
+        var pane = PaneWithFiles(out var folder, out var files);
+
+        pane.GetPathToSelectAfterRemoving(files).Should().Be(folder);
+    }
+
+    [Fact]
+    public void After_removing_an_open_folder_the_items_inside_it_are_skipped()
+    {
+        var folder = _h.Folder("base");
+        var sub = Directory.CreateDirectory(Path.Combine(folder, "d")).FullName;
+        var inside = PaneTestHarness.File(sub, "dentro.txt");
+        var after = PaneTestHarness.File(folder, "f.txt");
+        var pane = _h.CreatePane(folder);
+        pane.NavigateToPath(sub);
+        PaneTestHarness.Eventually(() => PaneTestHarness.Find(pane, inside) is not null).Should().BeTrue("a subpasta abriu");
+
+        pane.GetPathToSelectAfterRemoving([sub]).Should().Be(after, "o que estava dentro da pasta apagada some junto");
+    }
+
+    [Fact]
+    public void A_path_that_is_not_in_the_list_gives_no_neighbour()
+    {
+        var pane = PaneWithFiles(out var folder, out _);
+
+        pane.GetPathToSelectAfterRemoving([Path.Combine(folder, "nao-existe.txt")]).Should().BeNull();
+        pane.GetPathToSelectAfterRemoving([]).Should().BeNull();
+    }
+
     [Fact]
     public void Opening_a_folder_the_user_may_not_list_marks_the_node_instead_of_showing_it_as_plainly_empty()
     {

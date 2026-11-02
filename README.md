@@ -86,7 +86,7 @@ O **book de testes** (`tests\BOOKTEST.md`, gerado por `scripts\generate-booktest
 | **Enter** | Abre o item selecionado |
 | **F2** | Renomeia o item selecionado |
 | **F5** | Atualiza a pasta |
-| **Delete** (**Shift+Delete**) | Exclui a seleção (escolha entre Lixeira e exclusão definitiva) |
+| **Delete** (**Shift+Delete**) | Exclui a seleção (escolha entre Lixeira e exclusão definitiva). Depois de excluir, a seleção e o foco vão para o item seguinte (ou o anterior, se era o último) e as setas continuam funcionando sem precisar clicar |
 | **Ctrl+D** | Marca ou desmarca como favorito |
 | **Ctrl+Shift+N** | Nova pasta |
 | **Ctrl+C**, **Ctrl+X**, **Ctrl+V** | Marca a seleção para copiar ou mover e a cola na pasta aberta no painel oposto, como os botões **Copiar** e **Mover** (também em *Colar*, no menu de contexto) |
