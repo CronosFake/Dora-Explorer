@@ -140,8 +140,7 @@ public sealed class ElevationTests
         var expected = new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
 
         new ElevationService().IsElevated.Should().Be(expected);
-        IElevationService contract = new ElevationService();
-        contract.IsElevated.Should().Be(expected);
+        new ElevationService().Should().BeAssignableTo<IElevationService>().Which.IsElevated.Should().Be(expected);
     }
 
     // ---- o processo novo espera o antigo sair (senão a trava de instância única o recusaria) -------------------------
