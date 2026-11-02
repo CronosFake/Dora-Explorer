@@ -1624,6 +1624,40 @@ public partial class FilePaneViewModel : ObservableObject
         return [];
     }
 
+    /// <summary>
+    /// Os itens que a janela Propriedades mostra: a seleção, ou, sem seleção, a linha atual. Itens da Lixeira ficam de fora (têm o menu
+    /// próprio e o caminho real deles é interno do Windows).
+    /// </summary>
+    public IReadOnlyList<NavigationTreeNodeViewModel> GetPropertiesNodes()
+    {
+        var selected = SelectedItems.Where(node => node.IsSelectableItem && !node.IsRecycleBinEntry).ToList();
+        if (selected.Count > 0)
+        {
+            return selected;
+        }
+
+        return SelectedNode is { IsSelectableItem: true, IsRecycleBinEntry: false } current ? [current] : [];
+    }
+
+    /// <summary>
+    /// Texto da entrada de favoritos do menu de contexto: "Remover dos favoritos" se tudo o que está selecionado já é favorito, senão
+    /// "Adicionar aos favoritos" (a mesma regra do botão Favorito e do Ctrl+D). <see langword="null"/> quando a seleção não tem arquivo
+    /// no disco: itens de servidor ou de dentro de arquivos compactados não entram nos favoritos.
+    /// </summary>
+    public string? GetFavoriteMenuLabel()
+    {
+        var paths = GetFavoriteableItemPaths()
+            .Where(path => !IsRemotePath(path) && !ArchivePathHelper.IsVirtualArchivePath(path))
+            .ToList();
+
+        if (paths.Count == 0)
+        {
+            return null;
+        }
+
+        return paths.All(FavoritesService.IsFavorite) ? "Remover dos favoritos" : "Adicionar aos favoritos";
+    }
+
     public bool TryToggleFavorites(IReadOnlyList<string> paths, out bool added, out string? errorMessage)
     {
         added = false;

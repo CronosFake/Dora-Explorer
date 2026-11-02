@@ -1631,6 +1631,20 @@ public partial class FilePaneControl : UserControl
             }
         }
 
+        // Adicionar ou remover dos favoritos: a mesma regra do botão Favorito e do Ctrl+D (se tudo já é favorito, remove).
+        if (ViewModel?.GetFavoriteMenuLabel() is { } favoriteLabel)
+        {
+            if (!addedSecondaryItems)
+            {
+                menu.Items.Add(new Separator());
+            }
+
+            var favoriteItem = new MenuItem { Header = favoriteLabel };
+            favoriteItem.Click += (_, _) => ToggleFavoriteFromContextMenu();
+            menu.Items.Add(favoriteItem);
+            addedSecondaryItems = true;
+        }
+
         if (ViewModel?.GetDeletableItemPaths().Count > 0)
         {
             if (!addedSecondaryItems)
@@ -1658,7 +1672,29 @@ public partial class FilePaneControl : UserControl
             menu.Items.Add(deleteItem);
         }
 
+        // Propriedades fica por último, depois de um separador, como no Windows. A janela não é modal: abre ao lado dos painéis.
+        if (ViewModel?.GetPropertiesNodes() is { Count: > 0 } propertyNodes)
+        {
+            menu.Items.Add(new Separator());
+            var propertiesItem = new MenuItem { Header = "Propriedades" };
+            propertiesItem.Click += (_, _) => PropertiesDialog.Show(Window.GetWindow(this), propertyNodes);
+            menu.Items.Add(propertiesItem);
+        }
+
         return menu;
+    }
+
+    /// <summary>
+    /// O botão direito já ativou este painel e selecionou a linha, então o comando do botão Favorito (o mesmo do Ctrl+D) age sobre ela:
+    /// marca ou desmarca, avisa se não der e mantém o outro painel em dia.
+    /// </summary>
+    private void ToggleFavoriteFromContextMenu()
+    {
+        NotifyPaneActivated();
+        if (GetMainViewModel()?.CenterToolbar.FavoriteCommand is { } favorite && favorite.CanExecute(null))
+        {
+            favorite.Execute(null);
+        }
     }
 
     private ContextMenu BuildNetworkClientProfileContextMenu(NavigationTreeNodeViewModel node)

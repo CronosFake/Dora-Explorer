@@ -30,6 +30,8 @@ public sealed class ExplorerViewSettingsService
 
     public void SetShowExternalDrives(bool value) => Update(o => o.ShowExternalDrives = value, Options.ShowExternalDrives, value);
 
+    public void SetShowLockedDrives(bool value) => Update(o => o.ShowLockedDrives = value, Options.ShowLockedDrives, value);
+
     public void SetShowUnmappedPartitions(bool value) =>
         Update(o => o.ShowUnmappedPartitions = value, Options.ShowUnmappedPartitions, value);
 

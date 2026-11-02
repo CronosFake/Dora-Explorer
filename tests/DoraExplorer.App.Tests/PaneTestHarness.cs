@@ -34,7 +34,8 @@ internal sealed class PaneTestHarness : IDisposable
         ViewSettings = new ExplorerViewSettingsService(Settings);
         PaneSettings = new PaneDisplaySettingsService(Settings);
         RememberPath = new RememberPathSettingsService(Settings);
-        Index = new DirectoryIndexService(Path.Combine(Root, "index.db"));
+        Administrator = new AdministratorStartupService(Settings, Elevation);
+        Index =new DirectoryIndexService(Path.Combine(Root, "index.db"));
         Files = new LocalFileSystemService(ViewSettings, Index);
         Tree = new NavigationTreeService(Index, ViewSettings, Archives);
         Health = new NetworkClientHealthService(NetworkFiles);
@@ -53,6 +54,11 @@ internal sealed class PaneTestHarness : IDisposable
     public PaneDisplaySettingsService PaneSettings { get; }
 
     public RememberPathSettingsService RememberPath { get; }
+
+    /// <summary>Elevação de mentira: o aviso do Windows (UAC) nunca é acionado pelos testes.</summary>
+    public FakeElevationService Elevation { get; } = new();
+
+    public AdministratorStartupService Administrator { get; }
 
     public DirectoryIndexService Index { get; }
 
@@ -159,6 +165,7 @@ internal sealed class PaneTestHarness : IDisposable
             ViewSettings,
             PaneSettings,
             RememberPath,
+            Administrator,
             Files,
             Tree,
             Sessions,

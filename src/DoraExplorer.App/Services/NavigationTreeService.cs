@@ -48,6 +48,11 @@ public sealed class NavigationTreeService : INavigationTreeService
             var drive = drives[i];
             var (isReady, volumeLabel, freeBytes, totalBytes, unavailableReason) = snapshots[i];
 
+            if (!ShouldShowDrive(viewOptions.ShowLockedDrives, unavailableReason))
+            {
+                continue;
+            }
+
             yield return CreateDriveNode(
                 drive.Name,
                 string.IsNullOrWhiteSpace(volumeLabel)
@@ -1550,13 +1555,29 @@ public sealed class NavigationTreeService : INavigationTreeService
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             AppLogService.Warning($"Unidade {drive.Name} indisponível: {ex.Message}");
-            return (false, null, 0, 0, IsBitLockerLocked(ex) ? BitLockerLockedText : UnavailableText);
+            return (false, null, 0, 0, DescribeFailure(ex));
         }
     }
 
-    private const string BitLockerLockedText = "Bloqueada (BitLocker)";
+    private static string DescribeFailure(Exception exception) =>
+        IsBitLockerLocked(exception) ? BitLockerLockedText
+        : exception is UnauthorizedAccessException ? AccessLockedText
+        : UnavailableText;
+
+    internal const string BitLockerLockedText = "Bloqueada (BitLocker)";
+
+    /// <summary>Outra trava: o Windows nega o acesso à raiz da unidade (criptografia de outro programa, política de segurança...).</summary>
+    internal const string AccessLockedText = "Bloqueada (sem acesso)";
 
     private const string UnavailableText = "Indisponível";
+
+    /// <summary>A unidade está travada (BitLocker bloqueado ou acesso negado), e não só sem mídia ou desligada.</summary>
+    internal static bool IsLockedDrive(string? unavailableReason) =>
+        unavailableReason is BitLockerLockedText or AccessLockedText;
+
+    /// <summary>Desligar "Exibir unidades bloqueadas" esconde as travadas; as demais (inclusive "Indisponível" e "Sem mídia") continuam.</summary>
+    internal static bool ShouldShowDrive(bool showLockedDrives, string? unavailableReason) =>
+        showLockedDrives || !IsLockedDrive(unavailableReason);
 
     /// <summary>Explica por que a unidade não está pronta, para o usuário não ver uma entrada "muda".</summary>
     private static string DescribeUnavailable(DriveInfo drive)
@@ -1577,6 +1598,10 @@ public sealed class NavigationTreeService : INavigationTreeService
             catch (Exception ex) when (IsBitLockerLocked(ex))
             {
                 return BitLockerLockedText;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return AccessLockedText;
             }
             catch (Exception ex) when (ExpectedFailures.IsFileSystem(ex))
             {

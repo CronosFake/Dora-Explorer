@@ -199,7 +199,7 @@ public sealed class ThemeUsageColorsTests
             themeXaml.IndexOf("AutomationProperties.Name", StringComparison.Ordinal));
     }
 
-    private static string LocateSource(string relativePath)
+    internal static string LocateSource(string relativePath)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)

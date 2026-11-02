@@ -23,6 +23,7 @@ public static class ServiceRegistration
         services.AddSingleton<IRemoteFileService, RemoteFileService>();
         services.AddSingleton<NetworkClientHealthService>();
         services.AddSingleton<IElevationService, ElevationService>();
+        services.AddSingleton<AdministratorStartupService>();
         services.AddSingleton<IFileOperationService, FileOperationService>();
         services.AddSingleton<IArchiveService, ArchiveService>();
         services.AddSingleton<ILocalFileSystemService, LocalFileSystemService>();

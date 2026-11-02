@@ -3,7 +3,7 @@
 # Uso, a partir da raiz do repositorio (o app NAO pode estar aberto: a trava de instancia unica impede duas copias):
 #   powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario basic [-Prefix nome] [-Build] [-OutDir pasta]
 #
-# Roteiros: basic sort density min nav windows rede dialogs picker openwith comfort light reload flicker blink delfocus multisel dragdrop about
+# Roteiros: basic sort density min nav windows rede dialogs picker openwith comfort light reload flicker blink delfocus multisel dragdrop about favmenu props menu
 #   reload  : fecha uma pasta com clique, cria uma pasta por fora e reabre; confere que a listagem se atualiza
 #   flicker : fotografa a janela em alta frequencia ao reabrir "Program Files" e conta quedas de conteudo (o "pisca")
 #   blink   : abre pastas pela setinha com clique REAL do mouse e mede se a arvore despenca de uma vez (o "pisca" ao abrir
@@ -28,7 +28,15 @@
 #             multisel (AGENTS.md, armadilha 20).
 #   about   : abre Ajuda > Sobre e confere que a tela mostra a versao declarada em <Version> no csproj do app (AGENTS.md: versao).
 #             Mesmo formato de resultado e de restauracao do estado do usuario dos outros roteiros com [OK] e [FALHOU].
-#   delfocus, multisel, dragdrop e about guardam %AppData%\DoraExplorer (configuracoes, favoritos, indice) antes de abrir o app e devolvem igual no
+#   favmenu : clica com o botao direito de verdade num arquivo, numa pasta e num favorito da pasta Favoritos, le as entradas do menu de
+#             contexto e usa Adicionar aos favoritos e Remover dos favoritos, conferindo o favorites.json (AGENTS.md, armadilha 21).
+#   props   : botao direito > Propriedades num arquivo, numa pasta, em dois itens e numa unidade; le as linhas da janela pelo UI Automation,
+#             confere contra o disco (o SHA-256 contra o Get-FileHash) e fotografa nos temas escuro e claro (AGENTS.md, armadilha 22).
+#   menu    : confere o menu superior (Exibir, Temas, Preferencia, Ajuda; sem Arquivo nem Ferramentas), as entradas novas de Exibir e de
+#             Preferencia com o estado de cada check, e liga e desliga "Exibir unidades bloqueadas" de verdade (confere o settings.json).
+#             NUNCA aciona "Iniciar sempre como administrador": marcar pede o aviso do Windows (UAC), que roda numa area protegida e nao
+#             pode ser aceito nem recusado por roteiro; so le o estado do check e confere que o settings.json nao mudou.
+#   delfocus, multisel, dragdrop, about, favmenu, props e menu guardam %AppData%\DoraExplorer (configuracoes, favoritos, indice) antes de abrir o app e devolvem igual no
 #             fim; o cursor do mouse tambem volta ao lugar. O app precisa ficar em primeiro plano durante o teste.
 # Capturas: PNG em -OutDir (padrao %TEMP%\dora-dev). Os roteiros so leem a tela; 'reload' cria e remove a pasta -TestFolder.
 # Este arquivo e ASCII de proposito: o Windows PowerShell 5.1 le .ps1 sem BOM como ANSI.
@@ -208,7 +216,7 @@ function Menu-Invoke($root, $top, $like, $mid = $null) {
 $uiFailures = 0
 $uiRoot = $null
 $userState = $null
-if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about') {
+if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu') {
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -TypeDefinition @'
 using System; using System.Runtime.InteropServices;
@@ -227,7 +235,7 @@ public static class Kb {
     $uiRoot = Join-Path (Split-Path -Parent $TestFolder) ('DoraUi' + (Get-Date -Format 'HHmmss'))
     $cleanup.Add($uiRoot)
     New-Item -ItemType Directory -Path $uiRoot -Force | Out-Null
-    $fileCount = switch ($Scenario) { 'delfocus' { 5 } 'multisel' { 6 } default { 0 } }
+    $fileCount = switch ($Scenario) { 'delfocus' { 5 } 'multisel' { 6 } 'favmenu' { 2 } 'props' { 2 } default { 0 } }
     if ($fileCount -gt 0) { 1..$fileCount | ForEach-Object { Set-Content -LiteralPath (Join-Path $uiRoot "arq$_.txt") -Value ('x' * ($_ * 100)) -Encoding Ascii } }
     if ($Scenario -eq 'dragdrop') {
         New-Item -ItemType Directory -Path (Join-Path $uiRoot 'src') -Force | Out-Null
@@ -241,7 +249,7 @@ public static class Kb {
         New-Item -ItemType Directory -Path (Join-Path $uiRoot 'web') -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $uiRoot 'web\w1.txt') -Value 'para o navegador' -Encoding Ascii
     }
-    if ($Scenario -eq 'multisel') {
+    if ($Scenario -in 'multisel', 'favmenu', 'props') {
         New-Item -ItemType Directory -Path (Join-Path $uiRoot 'pasta') -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $uiRoot 'pasta\dentro.txt') -Value 'x' -Encoding Ascii
     }
@@ -434,6 +442,94 @@ public static class Kb {
         $sw = [Diagnostics.Stopwatch]::StartNew()
         while ($sw.ElapsedMilliseconds -lt $ms) { if ((Has-Arrow $rootEl $treeIndex $leaf) -eq $want) { return $true }; Start-Sleep -Milliseconds 250 }
         return ((Has-Arrow $rootEl $treeIndex $leaf) -eq $want)
+    }
+    # Entradas do menu de contexto aberto: o UI Automation as expoe como filhas de uma janela SEM NOME dentro da janela principal
+    # (a barra de menus do app, Arquivo/Exibir/..., nao fica dentro de uma janela dessas).
+    function Popup-MenuItems($hwnd) {
+        $main = $AE::FromHandle($hwnd)
+        foreach ($w in $main.FindAll($TS::Descendants, (Cond $CT::Window))) {
+            foreach ($m in $w.FindAll($TS::Descendants, (Cond $CT::MenuItem))) { $m }
+        }
+    }
+    # Clique com o botao DIREITO de verdade na linha e as entradas do menu de contexto que abriu. Esc fecha o menu.
+    function Right-Click-Menu($hwnd, $row, $procId, $firstLine = $false) {
+        if (-not (Ensure-Foreground $hwnd)) { return @() }
+        $r = $row.Current.BoundingRectangle
+        # uma pasta ou unidade expandida tem o retangulo da subarvore inteira: o meio dele cai num filho, e o botao direito agiria sobre ele
+        $y = if ($firstLine) { [int]($r.Top + 14) } else { [int]($r.Top + $r.Height / 2) }
+        [void][Kb]::SetCursorPos([int]($r.Left + 120), $y); Start-Sleep -Milliseconds 250
+        [Kb]::mouse_event(8, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 120
+        [Kb]::mouse_event(16, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 900
+        return @(Popup-MenuItems $hwnd | ForEach-Object { $_.Current.Name })
+    }
+    function Pick-Menu-Entry($procId, $hwnd, $name) {
+        $m = Popup-MenuItems $hwnd | Where-Object { $_.Current.Name -eq $name } | Select-Object -First 1
+        if (-not $m) { return $false }
+        $m.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 1200
+        return $true
+    }
+    function Close-Menu { [Kb]::Tap(0x1B); Start-Sleep -Milliseconds 500 }
+    # Menu superior: o item de topo pelo nome, aberto, e as entradas dele (so leitura; nada e acionado).
+    function Open-TopMenu($rootEl, $top) {
+        $m = $rootEl.FindAll($TS::Descendants, (Cond $CT::MenuItem)) | Where-Object { $_.Current.Name -eq $top } | Select-Object -First 1
+        if (-not $m) { return @() }
+        $m.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Expand(); Start-Sleep -Milliseconds 700
+        return @($m.FindAll($TS::Descendants, (Cond $CT::MenuItem)))
+    }
+    function Drive-Names($rootEl, $treeIndex) { @(TopItems $rootEl $treeIndex | ForEach-Object { $_.Current.Name } | Where-Object { $_ -match '^[A-Z]:' }) }
+    function Has-Drive($rootEl, $treeIndex, $letter) { @(Drive-Names $rootEl $treeIndex | Where-Object { $_ -match ('^' + [regex]::Escape($letter) + '( |$)') }).Count -gt 0 }
+    function Toggle-State($el) { try { return ('' + $el.GetCurrentPattern([Windows.Automation.TogglePattern]::Pattern).Current.ToggleState) } catch { return 'sem-check' } }
+    function Entry($entries, $name) { $entries | Where-Object { $_.Current.Name -eq $name } | Select-Object -First 1 }
+    function Snap-Screen($hwnd, $name) {
+        $r = New-Object UiCap+RECT; [void][UiCap]::GetWindowRect($hwnd, [ref]$r)
+        $bm = New-Object System.Drawing.Bitmap ($r.Right - $r.Left), ($r.Bottom - $r.Top); $g = [System.Drawing.Graphics]::FromImage($bm)
+        $g.CopyFromScreen($r.Left, $r.Top, 0, 0, $bm.Size); $g.Dispose()
+        $file = Join-Path $outDir "$Prefix-$name.png"; $bm.Save($file, [System.Drawing.Imaging.ImageFormat]::Png); $bm.Dispose()
+        "captura $Prefix-$name.png"
+    }
+    function Setting-Value($section, $name) {
+        $f = Join-Path $appData 'settings.json'
+        if (-not (Test-Path -LiteralPath $f)) { return $null }
+        $j = Get-Content -LiteralPath $f -Raw | ConvertFrom-Json
+        $target = if ($section) { $j.$section } else { $j }
+        if ($null -eq $target) { return $null }
+        return $target.$name
+    }
+    function Favorites-Paths { $f = Join-Path $appData 'favorites.json'; if (Test-Path -LiteralPath $f) { @((Get-Content -LiteralPath $f -Raw | ConvertFrom-Json) | Where-Object { $_ }) } else { @() } }
+    # As linhas da janela Propriedades: cada valor (uma caixa de texto somente leitura) com o rotulo que vem logo antes dele.
+    function Read-Props($dialog) {
+        $or = New-Object Windows.Automation.OrCondition((Cond $CT::Text), (Cond $CT::Edit))
+        $map = [ordered]@{}; $last = $null
+        foreach ($e in $dialog.FindAll($TS::Descendants, $or)) {
+            if ($e.Current.ControlType.Id -eq $CT::Edit.Id) {
+                $v = try { $e.GetCurrentPattern([Windows.Automation.ValuePattern]::Pattern).Current.Value } catch { $e.Current.Name }
+                if ($last) { $map[$last] = $v }
+            } else { $last = $e.Current.Name }
+        }
+        return $map
+    }
+    function Prop($map, $labelRegex) { foreach ($k in $map.Keys) { if ($k -match $labelRegex) { return $map[$k] } }; return $null }
+    function Wait-Dialog($procId, $title, $ms = 8000) {
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        while ($sw.ElapsedMilliseconds -lt $ms) {
+            $d = [UiCap]::FindByTitle([uint32]$procId, $title)
+            if ($d -ne [IntPtr]::Zero) { Start-Sleep -Milliseconds 700; return $d }
+            Start-Sleep -Milliseconds 200
+        }
+        return [IntPtr]::Zero
+    }
+    # Botao direito na linha, confere que Propriedades e a ULTIMA entrada do menu, usa-a e devolve o identificador da janela aberta.
+    function Open-Properties($hwnd, $row, $procId, $title, $firstLine = $false) {
+        $entries = @(Right-Click-Menu $hwnd $row $procId $firstLine)
+        # o texto do Check vai para a tela (Write-Host): se fosse para o fluxo, a funcao devolveria a linha junto com o identificador da janela
+        Write-Host (Check "o menu de '$title' termina com Propriedades" (($entries.Count -gt 0) -and ($entries[-1] -eq 'Propriedades')) ($entries -join ' | '))
+        if (-not (Pick-Menu-Entry $procId $hwnd 'Propriedades')) { return [IntPtr]::Zero }
+        return (Wait-Dialog $procId $title)
+    }
+    function Press-DialogButton($dlg, $name) {
+        $b = $AE::FromHandle($dlg).FindAll($TS::Descendants, (Cond $CT::Button)) | Where-Object { $_.Current.Name -eq $name } | Select-Object -First 1
+        if ($b) { $b.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 900; return $true }
+        return $false
     }
     function Names-In($folder) { (@(Get-ChildItem -LiteralPath $folder -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) -join ',') }
     function Status-Lines($rootEl) { @($rootEl.FindAll($TS::Descendants, (Cond $CT::Text)) | ForEach-Object { $_.Current.Name } | Where-Object { $_ -match 'itens selecionados' }) }
@@ -869,6 +965,178 @@ public static class FrameCount {
             }
             Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
         }
+        'favmenu' {
+            # Botao direito: o menu de contexto tem de oferecer Adicionar aos favoritos (arquivo e pasta) e, num favorito, Remover.
+            $file1 = Join-Path $uiRoot 'arq1.txt'; $folder1 = Join-Path $uiRoot 'pasta'
+            $left = Open-UiTree $root 0
+            $right = Open-UiTree $root 1
+            if (-not $left -or -not $right) { 'a pasta de teste nao apareceu nos dois paineis'; break }
+            Check 'o app comeca sem favoritos de teste' (-not (@(Favorites-Paths) -contains $file1))
+
+            $row = Wait-Row (Ui-Item $root 0) 'arq1.txt'
+            $entries = @(Right-Click-Menu $h $row $proc.Id)
+            Snap $h 'favmenu-arquivo'
+            Check 'o menu de um arquivo oferece Adicionar aos favoritos' ($entries -contains 'Adicionar aos favoritos') ($entries -join ' | ')
+            Check 'o menu de um arquivo nao oferece Remover dos favoritos (ainda nao e favorito)' (-not ($entries -contains 'Remover dos favoritos')) ($entries -join ' | ')
+            Check 'usar Adicionar aos favoritos grava o arquivo em favorites.json' ((Pick-Menu-Entry $proc.Id $h 'Adicionar aos favoritos') -and (@(Favorites-Paths) -contains $file1)) ((Favorites-Paths) -join ' ; ')
+
+            $entries = @(Right-Click-Menu $h (Wait-Row (Ui-Item $root 0) 'arq1.txt') $proc.Id)
+            Check 'depois de favoritado, o mesmo arquivo passa a oferecer Remover dos favoritos' (($entries -contains 'Remover dos favoritos') -and -not ($entries -contains 'Adicionar aos favoritos')) ($entries -join ' | ')
+            Close-Menu
+
+            $entries = @(Right-Click-Menu $h (Row (Ui-Item $root 0) 'pasta') $proc.Id)
+            Check 'o menu de uma pasta oferece Adicionar aos favoritos' ($entries -contains 'Adicionar aos favoritos') ($entries -join ' | ')
+            Check 'usar Adicionar aos favoritos numa pasta grava a pasta em favorites.json' ((Pick-Menu-Entry $proc.Id $h 'Adicionar aos favoritos') -and (@(Favorites-Paths) -contains $folder1)) ((Favorites-Paths) -join ' ; ')
+
+            # na pasta Favoritos (painel da direita, que o painel da esquerda manteve em dia): o favorito oferece Remover
+            $favRoot = @(TopItems $root 1) | Where-Object { $_.Current.Name -eq 'Favoritos' } | Select-Object -First 1
+            Check 'a pasta Favoritos existe no painel da direita' ($null -ne $favRoot)
+            if ($favRoot) {
+                try { Expand $favRoot } catch { 'a pasta Favoritos esta vazia (nada para expandir)' }
+                $entry = Wait-Row $favRoot 'arq1.txt'
+                Check 'o favorito arq1.txt aparece na pasta Favoritos do outro painel' ($null -ne $entry)
+                if ($entry) {
+                    $entries = @(Right-Click-Menu $h $entry $proc.Id)
+                    Snap $h 'favmenu-favorito'
+                    Check 'o menu de um favorito na pasta Favoritos oferece Remover dos favoritos' (($entries -contains 'Remover dos favoritos') -and -not ($entries -contains 'Adicionar aos favoritos')) ($entries -join ' | ')
+                    Check 'usar Remover dos favoritos tira arq1.txt de favorites.json e mantem a pasta' ((Pick-Menu-Entry $proc.Id $h 'Remover dos favoritos') -and -not (@(Favorites-Paths) -contains $file1) -and (@(Favorites-Paths) -contains $folder1)) ((Favorites-Paths) -join ' ; ')
+                }
+            }
+            Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
+        }
+        'menu' {
+            $Preferencia = 'Prefer' + [char]0xEA + 'ncia'
+            $bar = $root.FindAll($TS::Descendants, (Cond $CT::Menu)) | Select-Object -First 1
+            $tops = if ($bar) { @($bar.FindAll($TS::Children, (Cond $CT::MenuItem)) | ForEach-Object { $_.Current.Name }) } else { @() }
+            Check 'o menu superior tem Exibir, Temas, Preferencia e Ajuda, nessa ordem' (($tops -join '|') -eq ('Exibir|Temas|' + $Preferencia + '|Ajuda')) ($tops -join ' | ')
+            Check 'o menu Arquivo nao existe mais' (($tops.Count -gt 0) -and -not ($tops -contains 'Arquivo')) ($tops -join ' | ')
+            Check 'o menu Ferramentas nao existe mais' (($tops.Count -gt 0) -and -not ($tops -contains 'Ferramentas')) ($tops -join ' | ')
+
+            $locked = @([IO.DriveInfo]::GetDrives() | Where-Object { -not $_.IsReady -and ($_.DriveType -eq 'Fixed' -or $_.DriveType -eq 'Removable') } | ForEach-Object { $_.Name.TrimEnd('\') })
+            "unidades travadas nesta maquina: " + $(if ($locked.Count) { $locked -join ', ' } else { 'nenhuma (as verificacoes da arvore ficam de fora)' })
+            foreach ($letter in $locked) { foreach ($ti in 0, 1) { Check "com a opcao ligada (padrao), $letter aparece no painel $ti" (Has-Drive $root $ti $letter) ((Drive-Names $root $ti) -join ' | ') } }
+            $adminBefore = Setting-Value $null 'StartAsAdministrator'
+            $lockedBefore = Setting-Value 'ExplorerView' 'ShowLockedDrives'
+
+            $pref = Open-TopMenu $root $Preferencia
+            $prefNames = @($pref | ForEach-Object { $_.Current.Name })
+            Snap-Screen $h 'menu-preferencia'
+            Check 'Preferencia lista Lembrar caminho e Iniciar sempre como administrador, nessa ordem' (($prefNames -join '|') -eq 'Lembrar caminho|Iniciar sempre como administrador') ($prefNames -join ' | ')
+            $adminItem = Entry $pref 'Iniciar sempre como administrador'
+            Check 'o item de administrador e um check (tem estado ligado/desligado)' ($adminItem -and (Toggle-State $adminItem) -in 'On', 'Off') (Toggle-State $adminItem)
+            $expectedAdmin = if ($adminBefore -eq $true) { 'On' } else { 'Off' }
+            Check "o check de administrador reflete a configuracao guardada ($expectedAdmin)" ($adminItem -and (Toggle-State $adminItem) -eq $expectedAdmin) (Toggle-State $adminItem)
+            Close-Menu
+
+            $view = Open-TopMenu $root 'Exibir'
+            $viewNames = @($view | ForEach-Object { $_.Current.Name })
+            Snap-Screen $h 'menu-exibir'
+            $iExt = $viewNames.IndexOf('Exibir unidades externas'); $iLock = $viewNames.IndexOf('Exibir unidades bloqueadas')
+            Check 'Exibir lista "Exibir unidades bloqueadas" logo depois de "Exibir unidades externas"' (($iExt -ge 0) -and ($iLock -eq $iExt + 1)) ($viewNames -join ' | ')
+            $lockItem = Entry $view 'Exibir unidades bloqueadas'
+            $expectedLock = if ($lockedBefore -eq $false) { 'Off' } else { 'On' }
+            Check "o check de unidades bloqueadas vem $expectedLock (padrao ligado)" ($lockItem -and (Toggle-State $lockItem) -eq $expectedLock) (Toggle-State $lockItem)
+            Close-Menu
+
+            # desliga de verdade: o clique passa pelo comando, grava o settings.json e o check acompanha
+            [void](Menu-Invoke $root 'Exibir' 'Exibir unidades bloqueadas')
+            Check 'desmarcar grava ShowLockedDrives = false no settings.json' ((Setting-Value 'ExplorerView' 'ShowLockedDrives') -eq $false) ('' + (Setting-Value 'ExplorerView' 'ShowLockedDrives'))
+            $lockItem = Entry (Open-TopMenu $root 'Exibir') 'Exibir unidades bloqueadas'
+            Check 'o check fica desmarcado depois do clique' ($lockItem -and (Toggle-State $lockItem) -eq 'Off') (Toggle-State $lockItem)
+            Close-Menu
+            Start-Sleep -Milliseconds 800
+            foreach ($letter in $locked) { foreach ($ti in 0, 1) { Check "com a opcao desligada, $letter some do painel $ti" (-not (Has-Drive $root $ti $letter)) ((Drive-Names $root $ti) -join ' | ') } }
+            Check 'com as bloqueadas ocultas as unidades prontas continuam nos dois paineis' ((@(Drive-Names $root 0).Count -ge 1) -and (@(Drive-Names $root 1).Count -ge 1)) ((Drive-Names $root 0) -join ' | ')
+            Snap-Screen $h 'menu-bloqueadas-ocultas'
+
+            [void](Menu-Invoke $root 'Exibir' 'Exibir unidades bloqueadas')
+            Check 'marcar de novo grava ShowLockedDrives = true no settings.json' ((Setting-Value 'ExplorerView' 'ShowLockedDrives') -eq $true) ('' + (Setting-Value 'ExplorerView' 'ShowLockedDrives'))
+            $lockItem = Entry (Open-TopMenu $root 'Exibir') 'Exibir unidades bloqueadas'
+            Check 'o check volta a marcado' ($lockItem -and (Toggle-State $lockItem) -eq 'On') (Toggle-State $lockItem)
+            Close-Menu
+            Start-Sleep -Milliseconds 800
+            foreach ($letter in $locked) { foreach ($ti in 0, 1) { Check "ligando de novo, $letter volta ao painel $ti" (Has-Drive $root $ti $letter) ((Drive-Names $root $ti) -join ' | ') } }
+            Snap-Screen $h 'menu-bloqueadas-visiveis'
+
+            # ausente no arquivo = desligado: o app grava false ao salvar qualquer outra opcao
+            Check 'o roteiro nao mexeu em StartAsAdministrator' (([bool](Setting-Value $null 'StartAsAdministrator')) -eq ([bool]$adminBefore)) ('' + (Setting-Value $null 'StartAsAdministrator'))
+            Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
+        }
+        'props' {
+            # Botao direito > Propriedades: o que a janela mostra tem de bater com o disco, no tema escuro e no claro.
+            $file1 = Join-Path $uiRoot 'arq1.txt'; $folder1 = Join-Path $uiRoot 'pasta'
+            $left = Open-UiTree $root 0
+            if (-not $left) { 'a pasta de teste nao apareceu no painel da esquerda'; break }
+            $info1 = Get-Item -LiteralPath $file1
+
+            # ---- um arquivo ----
+            $dlg = Open-Properties $h (Wait-Row (Ui-Item $root 0) 'arq1.txt') $proc.Id 'Propriedades de arq1.txt'
+            Check 'a janela Propriedades de arq1.txt abriu' ($dlg -ne [IntPtr]::Zero)
+            if ($dlg -ne [IntPtr]::Zero) {
+                $m = Read-Props ($AE::FromHandle($dlg))
+                Check 'o caminho mostrado e o do arquivo' ((Prop $m '^Caminho') -eq $file1) ($m.Keys -join ' | ')
+                Check "o tamanho mostrado bate com o disco ($($info1.Length) bytes)" ((Prop $m '^Tamanho$') -match ('\(' + [regex]::Escape($info1.Length.ToString('N0', [Globalization.CultureInfo]::GetCultureInfo('pt-BR'))) + ' bytes\)')) (Prop $m '^Tamanho$')
+                Check 'o tamanho em disco aparece' ((Prop $m '^Tamanho em disco') -match 'bytes\)') (Prop $m '^Tamanho em disco')
+                Check 'a data de modificacao tem dia da semana e hora' ((Prop $m '^Modificado') -match '^\w+-?\w*, \d+ de \w+ de \d{4}, \d{2}:\d{2}:\d{2}$') (Prop $m '^Modificado')
+                Check 'o proprietario aparece' (-not [string]::IsNullOrWhiteSpace((Prop $m '^Propriet'))) (Prop $m '^Propriet')
+                Check 'o aplicativo padrao aparece (Abre com)' (-not [string]::IsNullOrWhiteSpace((Prop $m '^Abre com'))) (Prop $m '^Abre com')
+                Check 'o tipo mostra a extensao' ((Prop $m '^Tipo$') -match '\(\.txt\)$') (Prop $m '^Tipo$')
+                Snap $dlg 'props-arquivo-escuro'
+                # SHA-256 sob demanda, conferido contra o Windows
+                Check 'o botao Calcular SHA-256 existe' (Press-DialogButton $dlg 'Calcular SHA-256')
+                $expected = (Get-FileHash -LiteralPath $file1 -Algorithm SHA256).Hash.ToLowerInvariant()
+                $sw = [Diagnostics.Stopwatch]::StartNew(); $hash = $null
+                while ($sw.ElapsedMilliseconds -lt 8000) { $hash = Prop (Read-Props ($AE::FromHandle($dlg))) '^SHA-256'; if ($hash -match '^[0-9a-f]{64}$') { break }; Start-Sleep -Milliseconds 300 }
+                Check 'o SHA-256 mostrado e o mesmo do Get-FileHash' ($hash -eq $expected) "$hash"
+                # tema claro: a janela aberta muda junto?
+                [void](Menu-Invoke $root 'Temas' 'Claro' 'Tema')
+                Start-Sleep -Milliseconds 800
+                Snap $dlg 'props-arquivo-claro'
+                [void](Menu-Invoke $root 'Temas' 'Escuro' 'Tema')
+                Check 'o botao OK fecha a janela' ((Press-DialogButton $dlg 'OK') -and ([UiCap]::FindByTitle([uint32]$proc.Id, 'Propriedades de arq1.txt') -eq [IntPtr]::Zero))
+            }
+
+            # ---- uma pasta (o que ha dentro chega depois) ----
+            $dlg = Open-Properties $h (Row (Ui-Item $root 0) 'pasta') $proc.Id 'Propriedades de pasta'
+            Check 'a janela Propriedades de pasta abriu' ($dlg -ne [IntPtr]::Zero)
+            if ($dlg -ne [IntPtr]::Zero) {
+                $sw = [Diagnostics.Stopwatch]::StartNew(); $m = $null
+                while ($sw.ElapsedMilliseconds -lt 8000) { $m = Read-Props ($AE::FromHandle($dlg)); if ((Prop $m '^Conte.do') -match '^\d+ arquivo') { break }; Start-Sleep -Milliseconds 300 }
+                Check 'o conteudo da pasta e contado (1 arquivo, 0 pastas)' ((Prop $m '^Conte.do') -eq '1 arquivo, 0 pastas') (Prop $m '^Conte.do')
+                Check 'o tamanho da pasta e a soma do que ha dentro' ((Prop $m '^Tamanho$') -match '\(3 bytes\)') (Prop $m '^Tamanho$')
+                Check 'a pasta nao tem o botao SHA-256' (-not (Press-DialogButton $dlg 'Calcular SHA-256'))
+                Snap $dlg 'props-pasta'
+                [void](Press-DialogButton $dlg 'OK')
+            }
+
+            # ---- dois itens ----
+            [void](Click-With $h (Row (Ui-Item $root 0) 'arq1.txt') 'none')
+            [void](Click-With $h (Row (Ui-Item $root 0) 'arq2.txt') 'ctrl')
+            $dlg = Open-Properties $h (Row (Ui-Item $root 0) 'arq2.txt') $proc.Id 'Propriedades de 2 itens'
+            Check 'a janela Propriedades de 2 itens abriu' ($dlg -ne [IntPtr]::Zero)
+            if ($dlg -ne [IntPtr]::Zero) {
+                $total = (Get-Item -LiteralPath $file1).Length + (Get-Item -LiteralPath (Join-Path $uiRoot 'arq2.txt')).Length
+                $sw = [Diagnostics.Stopwatch]::StartNew(); $m = $null
+                while ($sw.ElapsedMilliseconds -lt 8000) { $m = Read-Props ($AE::FromHandle($dlg)); if ((Prop $m '^Tamanho$') -match 'bytes\)') { break }; Start-Sleep -Milliseconds 300 }
+                Check "o tamanho de dois itens e a soma ($total bytes)" ((Prop $m '^Tamanho$') -match ('\(' + [regex]::Escape($total.ToString('N0', [Globalization.CultureInfo]::GetCultureInfo('pt-BR'))) + ' bytes\)')) (Prop $m '^Tamanho$')
+                Check 'o local comum aparece' ((Prop $m '^Local$') -eq $uiRoot) (Prop $m '^Local$')
+                [void](Press-DialogButton $dlg 'OK')
+            }
+
+            # ---- uma unidade ----
+            $driveRow = (TopItems $root 0)[0]
+            $dlg = Open-Properties $h $driveRow $proc.Id ('Propriedades de ' + $driveRow.Current.Name) $true
+            Check 'a janela Propriedades da unidade abriu' ($dlg -ne [IntPtr]::Zero) ('janelas do app: ' + (($AE::RootElement.FindAll($TS::Children, (New-Object Windows.Automation.PropertyCondition($AE::ProcessIdProperty, $proc.Id))) | ForEach-Object { $_.Current.Name }) -join ' | ') + '; linha: ' + $driveRow.Current.Name)
+            if ($dlg -eq [IntPtr]::Zero) { Snap-Screen $h 'props-unidade-falha' }
+            if ($dlg -ne [IntPtr]::Zero) {
+                $m = Read-Props ($AE::FromHandle($dlg))
+                Check 'a unidade mostra o sistema de arquivos' ((Prop $m '^Sistema de arquivos') -match '^\w+$') (Prop $m '^Sistema de arquivos')
+                Check 'a unidade mostra a capacidade' ((Prop $m '^Capacidade') -match 'bytes\)') (Prop $m '^Capacidade')
+                Snap $dlg 'props-unidade'
+                [void](Press-DialogButton $dlg 'OK')
+            }
+            Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
+        }
         'windows' {
             $c = (TopItems $root)[0]; Expand $c
             $w = Child $c 'Windows'; if ($w) { try { Expand $w } catch { "expandir Windows: $($_.Exception.Message)" } }
@@ -877,11 +1145,11 @@ public static class FrameCount {
     }
 } catch { "erro: $($_.Exception.Message) (linha $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim()))" }
 [void]$proc.CloseMainWindow(); [void]$proc.WaitForExit(10000); 'app fechado: ' + $proc.HasExited
-if (($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about') -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; 'o app nao fechou sozinho (ficou uma janela aberta?): encerrado a forca'; Start-Sleep -Seconds 1 }
+if (($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu') -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; 'o app nao fechou sozinho (ficou uma janela aberta?): encerrado a forca'; Start-Sleep -Seconds 1 }
 foreach ($path in $cleanup) { Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue }
 if ($Scenario -eq 'blink' -and $blinkRoot) { Clear-BlinkIndexRows $blinkRoot }
 if ($userState) { Restore-UserState }
-if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about') {
+if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu') {
     [void][Kb]::SetCursorPos($cursor0.X, $cursor0.Y)
     'pasta de teste removida: ' + (-not (Test-Path -LiteralPath $uiRoot))
     "verificacoes com falha: $uiFailures"

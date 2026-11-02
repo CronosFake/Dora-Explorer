@@ -321,6 +321,86 @@ public sealed class MainWindowViewModelTests : IDisposable
     }
 
     [Fact]
+    public void The_menu_option_for_locked_drives_flips_and_is_saved()
+    {
+        var main = _h.CreateMain();
+        main.ShowLockedDrives.Should().BeTrue("o padrão é mostrar as unidades bloqueadas");
+
+        main.ToggleShowLockedDrivesCommand.Execute(null);
+        main.ShowLockedDrives.Should().BeFalse();
+        _h.ViewSettings.Options.ShowLockedDrives.Should().BeFalse();
+        new Services.AppSettingsService(Path.Combine(_h.Root, "settings.json")).LoadExplorerViewOptions().ShowLockedDrives.Should().BeFalse();
+
+        main.ToggleShowLockedDrivesCommand.Execute(null);
+        main.ShowLockedDrives.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Checking_always_administrator_asks_for_access_right_away_and_keeps_the_check_on()
+    {
+        _h.Elevation.RestartSucceeds = true;
+        var main = _h.CreateMain();
+        main.StartAsAdministrator.Should().BeFalse("o padrão é não pedir administrador");
+        var notified = new List<string?>();
+        main.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
+
+        main.ToggleStartAsAdministratorCommand.Execute(null);
+
+        _h.Elevation.RestartRequests.Should().Be(1, "marcar pede o acesso de administrador imediatamente");
+        main.StartAsAdministrator.Should().BeTrue();
+        notified.Should().Contain(nameof(MainWindowViewModel.StartAsAdministrator));
+        new Services.AppSettingsService(Path.Combine(_h.Root, "settings.json")).LoadStartAsAdministrator().Should().BeTrue();
+    }
+
+    [Fact]
+    public void Refusing_the_windows_confirmation_puts_the_check_back_to_off_without_a_message()
+    {
+        _h.Elevation.RestartSucceeds = false;
+        var main = _h.CreateMain();
+        var messages = new List<string>();
+        main.MessageRequested += (_, message) => messages.Add(message);
+        var notified = new List<string?>();
+        main.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
+
+        main.ToggleStartAsAdministratorCommand.Execute(null);
+
+        main.StartAsAdministrator.Should().BeFalse();
+        messages.Should().BeEmpty("recusar o aviso do Windows é uma escolha do usuário");
+        notified.Should().Contain(nameof(MainWindowViewModel.StartAsAdministrator),
+            "o clique já tinha marcado o item; é a notificação que o desmarca de volta");
+    }
+
+    [Fact]
+    public void A_failure_to_restart_as_administrator_shows_the_reason()
+    {
+        _h.Elevation.RestartSucceeds = false;
+        _h.Elevation.RestartError = "Não foi possível reiniciar como administrador.";
+        var main = _h.CreateMain();
+        var messages = new List<string>();
+        main.MessageRequested += (_, message) => messages.Add(message);
+
+        main.ToggleStartAsAdministratorCommand.Execute(null);
+
+        main.StartAsAdministrator.Should().BeFalse();
+        messages.Should().Equal("Não foi possível reiniciar como administrador.");
+    }
+
+    [Fact]
+    public void Unchecking_always_administrator_only_saves_the_choice()
+    {
+        _h.Elevation.IsElevated = true;
+        var main = _h.CreateMain();
+        main.ToggleStartAsAdministratorCommand.Execute(null);
+        main.StartAsAdministrator.Should().BeTrue();
+
+        main.ToggleStartAsAdministratorCommand.Execute(null);
+
+        main.StartAsAdministrator.Should().BeFalse();
+        _h.Elevation.RestartRequests.Should().Be(0, "já era administrador: nada a pedir");
+        new Services.AppSettingsService(Path.Combine(_h.Root, "settings.json")).LoadStartAsAdministrator().Should().BeFalse();
+    }
+
+    [Fact]
     public void Panes_open_where_they_were_left_when_remembering_the_path_is_on_and_the_folder_still_exists()
     {
         var left = _h.Folder("esquerda");

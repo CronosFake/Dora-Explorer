@@ -16,6 +16,7 @@ public partial class MainWindow
         InitializeComponent();
         DataContext = viewModel;
         Closing += MainWindow_Closing;
+        viewModel.MessageRequested += (_, message) => MessageDialog.Show(this, message);
         Loaded += (_, _) => ViewModel.OnWindowLoaded();
         LeftPaneControl.PaneActivated += (_, _) => ViewModel.IsLeftPaneActive = true;
         RightPaneControl.PaneActivated += (_, _) => ViewModel.IsLeftPaneActive = false;
@@ -75,6 +76,4 @@ public partial class MainWindow
     }
 
     private void About_Click(object sender, RoutedEventArgs e) => AboutDialog.Show(this);
-
-    private void Exit_Click(object sender, RoutedEventArgs e) => Close();
 }

@@ -24,11 +24,6 @@
     </Window.InputBindings>
     <DockPanel LastChildFill="True">
         <Menu DockPanel.Dock="Top">
-            <MenuItem Header="_Arquivo">
-                <MenuItem Header="_Sair"
-                          InputGestureText="Alt+F4"
-                          Click="Exit_Click" />
-            </MenuItem>
             <MenuItem Header="_Exibir">
                 <MenuItem Header="Exibir arquivos ocultos"
                           IsCheckable="True"
@@ -42,6 +37,10 @@
                           IsCheckable="True"
                           IsChecked="{Binding ShowExternalDrives, Mode=OneWay}"
                           Command="{Binding ToggleShowExternalDrivesCommand}" />
+                <MenuItem Header="Exibir unidades bloqueadas"
+                          IsCheckable="True"
+                          IsChecked="{Binding ShowLockedDrives, Mode=OneWay}"
+                          Command="{Binding ToggleShowLockedDrivesCommand}" />
                 <MenuItem Header="Exibir partições não mapeadas"
                           IsCheckable="True"
                           IsChecked="{Binding ShowUnmappedPartitions, Mode=OneWay}"
@@ -98,11 +97,15 @@
                     </MenuItem.ItemTemplate>
                 </MenuItem>
             </MenuItem>
-            <MenuItem Header="_Ferramentas">
+            <MenuItem Header="_Preferência">
                 <MenuItem Header="Lembrar caminho"
                           IsCheckable="True"
                           IsChecked="{Binding RememberPath, Mode=OneWay}"
                           Command="{Binding ToggleRememberPathCommand}" />
+                <MenuItem Header="Iniciar sempre como administrador"
+                          IsCheckable="True"
+                          IsChecked="{Binding StartAsAdministrator, Mode=OneWay}"
+                          Command="{Binding ToggleStartAsAdministratorCommand}" />
             </MenuItem>
             <MenuItem Header="_Ajuda">
                 <MenuItem Header="_Sobre..." Click="About_Click" />

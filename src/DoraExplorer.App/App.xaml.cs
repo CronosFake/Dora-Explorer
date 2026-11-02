@@ -71,7 +71,17 @@ public partial class App : Application
             PaneDisplaySettings.Load();
             RememberPathSettings = Services.GetRequiredService<RememberPathSettingsService>();
             RememberPathSettings.Load();
-            DirectoryIndex = Services.GetRequiredService<DirectoryIndexService>();
+
+            // "Iniciar sempre como administrador": confere o acesso antes de qualquer outro trabalho e, se for preciso,
+            // reabre elevado (a confirmação do Windows aparece agora); esta abertura então para, sem criar a janela.
+            var administratorStartup = Services.GetRequiredService<AdministratorStartupService>();
+            administratorStartup.Load();
+            if (administratorStartup.TryElevateOnStartup(e.Args))
+            {
+                return;
+            }
+
+            DirectoryIndex =Services.GetRequiredService<DirectoryIndexService>();
             DirectoryIndex.ScheduleMaintenance();
             ThemeManager.Initialize();
 

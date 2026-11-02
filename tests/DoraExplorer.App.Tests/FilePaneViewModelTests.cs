@@ -838,6 +838,137 @@ public sealed class FilePaneViewModelTests : IDisposable
         Services.FavoritesService.IsFavorite(file).Should().BeFalse();
     }
 
+    // ---- menu de contexto (botão direito): a entrada de favoritos que faltava ----
+
+    private FilePaneViewModel PaneForFavoritesMenu(out NavigationTreeNodeViewModel[] files, out NavigationTreeNodeViewModel folder)
+    {
+        var root = _h.Folder("base");
+        var sub = Directory.CreateDirectory(Path.Combine(root, "pasta")).FullName;
+        string[] names = ["a.txt", "b.txt"];
+        var paths = names.Select(name => PaneTestHarness.File(root, name)).ToArray();
+        var pane = _h.CreatePane(root);
+        pane.NavigateToPath(root);
+        PaneTestHarness.Eventually(() => PaneTestHarness.Find(pane, paths[^1]) is not null && PaneTestHarness.Find(pane, sub) is not null)
+            .Should().BeTrue("a pasta abriu e listou os itens");
+        files = paths.Select(path => PaneTestHarness.Find(pane, path)!).ToArray();
+        folder = PaneTestHarness.Find(pane, sub)!;
+        return pane;
+    }
+
+    [Fact]
+    public void The_context_menu_offers_to_add_a_file_or_a_folder_to_the_favorites()
+    {
+        var pane = PaneForFavoritesMenu(out var files, out var folder);
+
+        pane.SetSingleItemSelection(files[0]);
+        pane.GetFavoriteMenuLabel().Should().Be("Adicionar aos favoritos");
+
+        pane.SetSingleItemSelection(folder);
+        pane.GetFavoriteMenuLabel().Should().Be("Adicionar aos favoritos");
+    }
+
+    [Fact]
+    public void The_context_menu_offers_to_remove_what_is_already_a_favorite()
+    {
+        var pane = PaneForFavoritesMenu(out var files, out _);
+        pane.TryToggleFavorites([files[0].TargetPath!], out _, out _).Should().BeTrue();
+
+        pane.SetSingleItemSelection(files[0]);
+        pane.GetFavoriteMenuLabel().Should().Be("Remover dos favoritos");
+
+        pane.SetSingleItemSelection(files[1]);
+        pane.GetFavoriteMenuLabel().Should().Be("Adicionar aos favoritos", "o outro arquivo ainda não é favorito");
+    }
+
+    [Fact]
+    public void The_context_menu_adds_when_only_some_of_the_selected_items_are_favorites()
+    {
+        var pane = PaneForFavoritesMenu(out var files, out _);
+        pane.TryToggleFavorites([files[0].TargetPath!], out _, out _).Should().BeTrue();
+
+        pane.SetSingleItemSelection(files[0]);
+        pane.ToggleItemSelection(files[1]);
+
+        // É a regra do botão Favorito: se nem todos são favoritos, marca todos; só desmarca quando todos já são.
+        pane.GetFavoriteMenuLabel().Should().Be("Adicionar aos favoritos");
+    }
+
+    [Fact]
+    public void The_context_menu_has_no_favorites_entry_for_items_with_no_file_on_the_disk()
+    {
+        var pane = PaneForFavoritesMenu(out _, out _);
+        var zip = _h.Zip("pacote.zip", ("x.txt", "x"));
+        var insideArchive = new NavigationTreeNodeViewModel("x.txt", NavigationNodeKind.File) { TargetPath = ArchivePathHelper.Combine(zip, "x.txt") };
+
+        pane.SetSingleItemSelection(insideArchive);
+
+        pane.GetFavoriteMenuLabel().Should().BeNull("uma entrada de dentro de um arquivo compactado não pode ser favorita");
+    }
+
+    [Fact]
+    public void An_entry_in_the_favorites_folder_offers_to_remove_it_from_the_favorites()
+    {
+        var root = _h.Folder("base");
+        var file = PaneTestHarness.File(root, "a.txt");
+        var options = PaneTestHarness.BareOptions();
+        options.ShowFavorites = true;
+        var pane = _h.CreatePane(root, options);
+        pane.TryToggleFavorites([file], out _, out _).Should().BeTrue();
+        var favorites = pane.NavigationRoots.First(node => node.Kind == NavigationNodeKind.Favorites);
+        favorites.IsExpanded = true;
+        pane.RefreshFavoritesNode();
+
+        PaneTestHarness.Eventually(() => favorites.Children.Any(child => child.IsFavoriteEntry)).Should().BeTrue("a pasta Favoritos lista o favorito");
+        var entry = favorites.Children.First(child => child.IsFavoriteEntry);
+        pane.SetSingleItemSelection(entry);
+
+        pane.GetFavoriteMenuLabel().Should().Be("Remover dos favoritos");
+    }
+
+    // ---- menu de contexto: Propriedades ----
+
+    [Fact]
+    public void The_properties_window_gets_every_selected_item()
+    {
+        var pane = PaneForFavoritesMenu(out var files, out var folder);
+        pane.SetSingleItemSelection(files[0]);
+        pane.ToggleItemSelection(folder);
+
+        pane.GetPropertiesNodes().Should().BeEquivalentTo([files[0], folder]);
+    }
+
+    [Fact]
+    public void Without_a_selection_the_properties_window_gets_the_current_row()
+    {
+        var pane = PaneForFavoritesMenu(out var files, out _);
+        pane.ClearItemSelection();
+        pane.SelectedNode = files[1];
+
+        pane.GetPropertiesNodes().Should().ContainSingle().Which.Should().BeSameAs(files[1]);
+    }
+
+    [Fact]
+    public void Nothing_selected_means_no_properties_to_show()
+    {
+        var pane = PaneForFavoritesMenu(out _, out _);
+        pane.ClearItemSelection();
+        pane.SelectedNode = null;
+
+        pane.GetPropertiesNodes().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Items_in_the_recycle_bin_are_left_out_of_the_properties_window()
+    {
+        var pane = PaneForFavoritesMenu(out var files, out _);
+        var trashed = new NavigationTreeNodeViewModel("velho.txt", NavigationNodeKind.File, @"C:\$Recycle.Bin\S-1\$R1.txt") { IsRecycleBinEntry = true };
+
+        pane.SetSingleItemSelection(files[0]);
+        pane.ToggleItemSelection(trashed);
+
+        pane.GetPropertiesNodes().Should().OnlyContain(node => !node.IsRecycleBinEntry);
+    }
+
     [Fact]
     public void Only_paths_that_exist_on_this_computer_count_as_local_paths()
     {

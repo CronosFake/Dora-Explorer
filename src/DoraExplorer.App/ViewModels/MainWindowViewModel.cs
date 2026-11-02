@@ -18,6 +18,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly ThemeManager _themeManager;
     private readonly ExplorerViewSettingsService _viewSettings;
     private readonly RememberPathSettingsService _rememberPathSettings;
+    private readonly AdministratorStartupService _administratorStartup;
     private bool _pathPersistenceEnabled;
 
     public MainWindowViewModel(
@@ -25,6 +26,7 @@ public partial class MainWindowViewModel : ObservableObject
         ExplorerViewSettingsService viewSettings,
         PaneDisplaySettingsService paneDisplaySettings,
         RememberPathSettingsService rememberPathSettings,
+        AdministratorStartupService administratorStartup,
         ILocalFileSystemService fileSystemService,
         INavigationTreeService navigationTreeService,
         INetworkSessionStore networkSessions,
@@ -40,13 +42,15 @@ public partial class MainWindowViewModel : ObservableObject
         _themeManager = themeManager;
         _viewSettings = viewSettings;
         _rememberPathSettings = rememberPathSettings;
+        _administratorStartup = administratorStartup;
         _themeManager.ThemeChanged += OnThemeChanged;
         _viewSettings.Changed += OnViewSettingsChanged;
         _viewSettings.DefaultApplicationVisibilityChanged += OnDefaultApplicationVisibilityChanged;
         _viewSettings.RowDensityChanged += (_, _) => OnPropertyChanged(nameof(CompactRows));
         _rememberPathSettings.Changed += OnRememberPathSettingsChanged;
+        _administratorStartup.Changed += (_, _) => OnPropertyChanged(nameof(StartAsAdministrator));
 
-        var defaultPath = DriveInfo.GetDrives().FirstOrDefault(d => d.IsReady)?.Name ?? @"C:\";
+        var defaultPath =DriveInfo.GetDrives().FirstOrDefault(d => d.IsReady)?.Name ?? @"C:\";
         var leftInitialPath = _rememberPathSettings.IsEnabled
             ? ResolveInitialPath(_rememberPathSettings.LeftPanePath, defaultPath)
             : string.Empty;
@@ -610,11 +614,18 @@ public partial class MainWindowViewModel : ObservableObject
 
     public bool ShowUnmappedPartitions => _viewSettings.Options.ShowUnmappedPartitions;
 
+    public bool ShowLockedDrives => _viewSettings.Options.ShowLockedDrives;
+
     public bool ShowDefaultApplication => _viewSettings.Options.ShowDefaultApplication;
 
     public bool CompactRows => _viewSettings.Options.CompactRows;
 
     public bool RememberPath => _rememberPathSettings.IsEnabled;
+
+    public bool StartAsAdministrator => _administratorStartup.IsEnabled;
+
+    /// <summary>O pedido de administrador falhou de verdade (recusar a confirmação do Windows não conta): a janela mostra o motivo.</summary>
+    public event EventHandler<string>? MessageRequested;
 
     public void OnWindowLoaded()
     {
@@ -713,6 +724,25 @@ public partial class MainWindowViewModel : ObservableObject
     private void OnRememberPathSettingsChanged(object? sender, EventArgs e) =>
         OnPropertyChanged(nameof(RememberPath));
 
+    /// <summary>
+    /// Marcar pede o acesso de administrador na hora (o app reabre elevado); desmarcar só guarda a escolha. Recusada a confirmação
+    /// do Windows a opção continua desligada; a notificação extra devolve o check ao valor real, que o clique já tinha invertido.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleStartAsAdministrator()
+    {
+        if (StartAsAdministrator)
+        {
+            _administratorStartup.Disable();
+        }
+        else if (!_administratorStartup.TryEnable(out var error) && error is not null)
+        {
+            MessageRequested?.Invoke(this, error);
+        }
+
+        OnPropertyChanged(nameof(StartAsAdministrator));
+    }
+
     [RelayCommand]
     private void SetLightTheme()
     {
@@ -763,6 +793,12 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ToggleShowLockedDrives()
+    {
+        _viewSettings.SetShowLockedDrives(!ShowLockedDrives);
+    }
+
+    [RelayCommand]
     private void ToggleShowUnmappedPartitions()
     {
         _viewSettings.SetShowUnmappedPartitions(!ShowUnmappedPartitions);
@@ -791,6 +827,7 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowHiddenFiles));
         OnPropertyChanged(nameof(ShowSystemFiles));
         OnPropertyChanged(nameof(ShowExternalDrives));
+        OnPropertyChanged(nameof(ShowLockedDrives));
         OnPropertyChanged(nameof(ShowUnmappedPartitions));
         LeftPane.RefreshForViewOptionsChange();
         RightPane.RefreshForViewOptionsChange();

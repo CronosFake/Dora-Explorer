@@ -96,6 +96,15 @@ public sealed class AppSettingsService
         return (settings.RememberPath, settings.LeftPanePath, settings.RightPanePath);
     }
 
+    public bool LoadStartAsAdministrator() => LoadSettings().StartAsAdministrator;
+
+    public void SaveStartAsAdministrator(bool value)
+    {
+        var settings = LoadSettings();
+        settings.StartAsAdministrator = value;
+        SaveSettings(settings);
+    }
+
     public void SaveThemeMode(AppThemeMode themeMode)
     {
         var settings = LoadSettings();
@@ -357,6 +366,8 @@ public sealed class AppSettingsService
         public PaneDisplayOptions RightPaneDisplay { get; set; } = new();
 
         public bool RememberPath { get; set; }
+
+        public bool StartAsAdministrator { get; set; }
 
         public string? LeftPanePath { get; set; }
 

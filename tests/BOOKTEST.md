@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-02 03:38
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-02 04:23
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -22,10 +22,10 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 
 | Item | Valor |
 |------|-------|
-| Areas | 24 |
-| Classes de teste | 65 |
-| Metodos de teste | 496 |
-| Casos (cada InlineData conta um) | 743 |
+| Areas | 27 |
+| Classes de teste | 70 |
+| Metodos de teste | 574 |
+| Casos (cada InlineData conta um) | 841 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -172,7 +172,7 @@ Excluir ou restaurar so vale para o que esta mesmo na lixeira; a lixeira e o pro
 Abrir numa pasta, navegar, criar pasta, renomear, excluir, copiar e mover (inclusive de dentro de ZIP, que pode ser alterado, e de .gz, .7z e .rar, que sao somente leitura), ordenar e marcar favoritos.
 
 - Codigo: FilePaneViewModel, NavigationTreeNodeViewModel, BreadcrumbSegmentViewModel, FileOperationService
-- Testes (60 casos): FilePaneViewModelTests [FilePaneViewModelTests.cs]
+- Testes (69 casos): FilePaneViewModelTests [FilePaneViewModelTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~FilePaneViewModelTests"`
 
 ### Janela principal (copiar e colar entre os paineis)
@@ -180,8 +180,32 @@ Abrir numa pasta, navegar, criar pasta, renomear, excluir, copiar e mover (inclu
 Painel ativo, area de transferencia de copiar e cortar, regras que recusam transferencias sem sentido, arrastar e soltar, ordenacao nos dois lados e lembrar o caminho ao abrir.
 
 - Codigo: MainWindowViewModel, RememberPathSettingsService, PaneDisplaySettingsService, TransferOutcome, DragPolicy
-- Testes (22 casos): MainWindowViewModelTests [MainWindowViewModelTests.cs], DragPolicyTests [DragPolicyTests.cs]
+- Testes (27 casos): MainWindowViewModelTests [MainWindowViewModelTests.cs], DragPolicyTests [DragPolicyTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~MainWindowViewModelTests|FullyQualifiedName~DragPolicyTests"`
+
+### Janela Propriedades (botao direito)
+
+O que a janela mostra para um arquivo, uma pasta, varios itens, uma unidade e um item fora do disco: tamanho e espaco em disco, datas, atributos, dono, versao de executavel, dimensoes de imagem, soma do conteudo das pastas (sem seguir links, contando o que nao foi lido, cancelavel), SHA-256 (cancelavel) e que fechar a janela cancela o que estava rodando.
+
+- Codigo: ItemPropertiesService, ItemPropertiesViewModel, PropertyRowViewModel, PropertySectionViewModel, PropertiesDialog
+- Testes (47 casos): ItemPropertiesServiceTests [ItemPropertiesServiceTests.cs], ItemPropertiesViewModelTests [ItemPropertiesViewModelTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~ItemPropertiesServiceTests|FullyQualifiedName~ItemPropertiesViewModelTests"`
+
+### Menu superior: Exibir (unidades bloqueadas) e Preferencia
+
+Estrutura do menu lida do XAML (sem o menu Arquivo, Ferramentas renomeado para Preferencia, itens novos ligados ao comando certo) e "Exibir unidades bloqueadas": ligado por padrao, lembrado entre execucoes, esconde so as unidades travadas (BitLocker ou sem acesso) e nunca as sem midia ou indisponiveis.
+
+- Codigo: ExplorerViewOptions, NavigationTreeService
+- Testes (23 casos): MainMenuTests [MainMenuTests.cs], LockedDrivesOptionTests [LockedDrivesOptionTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~MainMenuTests|FullyQualifiedName~LockedDrivesOptionTests"`
+
+### Iniciar sempre como administrador
+
+Marcar pede o administrador na hora e grava antes de reiniciar; recusar o aviso do Windows ou falhar desliga o check de volta; ao abrir com a opcao ligada o app pede o acesso (ou segue normalmente se recusar) e nunca pede de novo quando foi reaberto pelo proprio pedido. O aviso do Windows e trocado por uma elevacao de mentira.
+
+- Codigo: AdministratorStartupService
+- Testes (13 casos): AdministratorStartupServiceTests [AdministratorStartupServiceTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~AdministratorStartupServiceTests"`
 
 ### Versao do programa
 
@@ -212,7 +236,7 @@ Pede para a janela fechar e espera (o app pode perguntar sobre uma operacao em a
 Todo servico registrado tem as dependencias registradas; um servico novo esquecido estouraria so ao abrir o app.
 
 - Codigo: ServiceRegistration
-- Testes (9 casos): ServiceRegistrationTests [ServiceRegistrationTests.cs]
+- Testes (10 casos): ServiceRegistrationTests [ServiceRegistrationTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~ServiceRegistrationTests"`
 
 ### Falhas esperadas do sistema
@@ -228,6 +252,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | Tipo | Area |
 |------|------|
 | AboutDialog | Versao do programa |
+| AdministratorStartupService | Iniciar sempre como administrador |
 | AppSettingsService | Seguranca de senhas e configuracoes |
 | ArchiveFormat | Arquivos compactados (abrir como pasta) |
 | ArchivePathHelper | Arquivos compactados (abrir como pasta) |
@@ -240,6 +265,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | ElevationService | Acesso negado e reiniciar como administrador |
 | ExpectedFailures | Falhas esperadas do sistema |
 | ExplorerThemeResources | Tema, cores e interface |
+| ExplorerViewOptions | Menu superior: Exibir (unidades bloqueadas) e Preferencia |
 | ExplorerViewSettingsService | Tema, cores e interface |
 | FavoritesService | Lixeira e Favoritos |
 | FileAssociationService | Abrir com e programas padrao |
@@ -253,6 +279,8 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | FtpTlsCertificate | Confianca em servidores (chaves, certificados, login do cliente) |
 | HostKeyVerifier | Confianca em servidores (chaves, certificados, login do cliente) |
 | IElevationService | Acesso negado e reiniciar como administrador |
+| ItemPropertiesService | Janela Propriedades (botao direito) |
+| ItemPropertiesViewModel | Janela Propriedades (botao direito) |
 | KnownHostsStore | Confianca em servidores (chaves, certificados, login do cliente) |
 | LoginThrottle | Servidor SFTP e SCP |
 | MainWindowViewModel | Janela principal (copiar e colar entre os paineis) |
@@ -261,7 +289,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | NavigationHistory | Navegacao e caminhos |
 | NavigationNodeKind | Pasta Rede na arvore |
 | NavigationTreeNodeViewModel | Painel de arquivos (um lado da janela) |
-| NavigationTreeService | Pasta Rede na arvore; Arquivos compactados (abrir como pasta) |
+| NavigationTreeService | Pasta Rede na arvore; Arquivos compactados (abrir como pasta); Menu superior: Exibir (unidades bloqueadas) e Preferencia |
 | NetworkClientHealthService | Clientes de rede (sessoes, copia entre servidores, saude dos perfis) |
 | NetworkFileService | Clientes de rede (sessoes, copia entre servidores, saude dos perfis) |
 | NetworkPortGuard | Travas dos servidores locais (pasta raiz e portas) |
@@ -272,6 +300,9 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | PaneDisplaySettingsService | Janela principal (copiar e colar entre os paineis) |
 | PathNavigation | Navegacao e caminhos |
 | PathSafetyService | Navegacao e caminhos |
+| PropertiesDialog | Janela Propriedades (botao direito) |
+| PropertyRowViewModel | Janela Propriedades (botao direito) |
+| PropertySectionViewModel | Janela Propriedades (botao direito) |
 | ProtectedStringJsonConverter | Seguranca de senhas e configuracoes |
 | RangeObservableCollection | Cache de pastas e carga sem piscar |
 | RecycleBinService | Lixeira e Favoritos |
@@ -319,6 +350,9 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 | Foco e setas depois de apagar pelo teclado (Shift+Delete) | O vizinho a selecionar e testado (FilePaneViewModelTests), mas o foco do WPF so existe com a janela aberta. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario delfocus (app fechado; AGENTS.md, armadilha 18): cada verificacao sai [OK] ou [FALHOU]; o foco deve ir para o vizinho e Baixo/Cima mover o foco sem clicar. |
 | Ctrl+clique e Shift+clique para selecionar varios itens | A regra da selecao (ligar, desligar, intervalo, outra pasta) e testada no modelo, mas o clique com o modificador segurado so existe com a janela aberta. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario multisel (app fechado; AGENTS.md, armadilha 19): Shift+clique (intervalo) e Ctrl+clique (itens soltos), lendo "N itens selecionados" na barra de status; cada verificacao sai [OK] ou [FALHOU]. |
 | Arrastar e soltar entre os paineis, para o Windows Explorer e para navegadores (e do Explorer para o app) | O destino do soltar e o que sai da janela sao testados no modelo, mas o arrasto de verdade depende do mouse, do OLE e das janelas de outros programas. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario dragdrop (app fechado; AGENTS.md, armadilha 20): mouse de verdade, janela real do Explorer, Chrome, Edge e Firefox com perfil temporario; cada verificacao sai [OK] ou [FALHOU]. |
+| Menu de contexto (botao direito): Adicionar e Remover dos favoritos em arquivo, pasta e favorito da pasta Favoritos | O texto da entrada e testado no modelo, mas o menu so existe com a janela aberta e o clique direito. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario favmenu (app fechado; AGENTS.md, armadilha 21): botao direito de verdade, le as entradas do menu pelo UI Automation e confere o favorites.json; cada verificacao sai [OK] ou [FALHOU]. |
+| Janela Propriedades: abrir pelo botao direito, o visual nos temas escuro e claro e os valores contra o disco | Os dados e o texto sao testados sem janela, mas a janela, o menu e o visual so existem com o app aberto. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario props (app fechado; AGENTS.md, armadilha 22): botao direito de verdade num arquivo, numa pasta, em dois itens e numa unidade, le as linhas pelo UI Automation, confere o SHA-256 contra o Get-FileHash e fotografa nos dois temas; cada verificacao sai [OK] ou [FALHOU]. |
+| Menu superior na tela (Exibir, Temas, Preferencia, Ajuda) e o aviso do Windows de "Iniciar sempre como administrador" | A estrutura do menu e as ligacoes sao testadas pelo XAML, mas o menu aberto so existe com a janela; o aviso do Windows (UAC) roda numa area protegida e nenhum roteiro consegue aceita-lo ou recusa-lo. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario menu (app fechado; AGENTS.md, armadilha 23) confere os menus, o estado dos checks e liga e desliga "Exibir unidades bloqueadas" de verdade (uma unidade travada some e volta nos dois paineis), sem nunca acionar o administrador. A mao: o menu superior mostra Exibir, Temas, Preferencia e Ajuda (sem Arquivo), com "Exibir unidades bloqueadas" em Exibir e "Iniciar sempre como administrador" em Preferencia. Marcar o administrador: o Windows pede a confirmacao; recusar deixa o check desmarcado, aceitar reabre o app (Gerenciador de Tarefas: Elevado = Sim) e, fechando e abrindo de novo, o aviso aparece ao abrir. Desmarcar nao pede nada. |
 | Janelas de dialogo (progresso, conexao de rede, ordenar, excluir) | Janelas WPF; sem teste automatico. | Abrir cada uma no app. |
 | Restaurar e excluir de verdade da Lixeira | Mexe na lixeira real do usuario; so as travas sao testadas. | Com arquivos de teste, na tela. |
 | Start.bat e scripts de apoio | O fechamento do app esta em teste automatico (StopDoraScriptTests, com processos de mentira); o Start.bat inteiro (compilar e abrir) e o caso de um app aberto como administrador, que pede o UAC, nao. | Rodar Start.bat e conferir que o app abre. Com o app aberto, rodar de novo: ele fecha sozinho (o log termina com "encerrado") e reabre. Com o app aberto como administrador (Reiniciar como administrador), o Start.bat deve parar com o aviso de que nao consegue fecha-lo, sem compilar. |
@@ -335,6 +369,22 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Deleting_a_protected_file_permanently_is_denied_in_portuguese
 - Moving_a_protected_file_is_denied_in_portuguese_and_keeps_it_in_place
 - Renaming_a_protected_file_is_denied_in_portuguese
+
+### AdministratorStartupServiceTests (AdministratorStartupServiceTests.cs)
+
+- A_failure_to_restart_leaves_the_option_off_and_reports_why
+- An_app_that_was_just_reopened_by_the_elevation_never_asks_again_so_there_is_no_loop
+- At_startup_refusing_the_windows_confirmation_opens_the_app_normally_and_keeps_the_option
+- At_startup_with_the_option_off_nothing_is_asked
+- At_startup_with_the_option_on_and_already_administrator_nothing_is_asked
+- At_startup_with_the_option_on_and_no_administrator_access_it_asks_for_it_and_stops_this_start
+- It_is_off_by_default_and_a_settings_file_from_before_the_option_keeps_it_off
+- On_the_next_run_the_saved_choice_is_loaded
+- Refusing_the_windows_confirmation_leaves_the_option_off_so_the_check_matches_reality
+- The_option_is_saved_before_the_restart_because_the_old_process_closes_right_after
+- Turning_it_off_is_remembered_and_never_asks_for_anything
+- Turning_it_on_asks_for_administrator_access_right_away_and_remembers_the_choice
+- Turning_it_on_when_already_administrator_only_saves_and_does_not_restart
 
 ### ApplicationNameTests (InterfaceTests.cs)
 
@@ -531,6 +581,7 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - After_removing_every_item_the_folder_that_held_them_is_the_one_to_select
 - After_removing_several_items_the_neighbour_is_outside_the_removed_group
 - After_removing_the_last_item_the_previous_one_is_the_one_to_select
+- An_entry_in_the_favorites_folder_offers_to_remove_it_from_the_favorites
 - An_entry_inside_an_archive_has_no_file_on_the_disk_to_drag_out
 - An_entry_of_a_read_only_archive_cannot_be_deleted_and_the_archive_stays_intact
 - An_entry_of_a_zip_can_be_deleted_and_leaves_the_rest
@@ -551,12 +602,14 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Dropping_on_a_folder_row_lands_in_that_folder
 - Dropping_on_empty_space_lands_in_the_folder_the_pane_has_open
 - Folders_cannot_be_created_inside_an_archive
+- Items_in_the_recycle_bin_are_left_out_of_the_properties_window
 - Marking_favorites_from_the_pane_adds_and_removes_them
 - Moving_a_file_takes_it_out_of_the_source
 - Moving_out_of_a_read_only_archive_only_copies_and_the_archive_keeps_the_entry
 - Moving_out_of_a_zip_extracts_the_entry_and_removes_it_from_the_zip
 - Navigating_to_a_file_leaves_the_pane_in_the_folder_that_holds_it
 - Navigating_to_another_folder_changes_where_the_pane_is
+- Nothing_selected_means_no_properties_to_show
 - Only_files_that_can_really_be_deleted_are_offered_for_deletion
 - Only_paths_that_exist_on_this_computer_count_as_local_paths
 - Opening_a_folder_the_user_may_not_list_marks_the_node_instead_of_showing_it_as_plainly_empty
@@ -568,15 +621,21 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Shift_click_from_a_folder_reaches_the_files_below_it
 - Shift_click_selects_every_item_between_the_anchor_and_the_clicked_one
 - Sorting_by_name_descending_reorders_what_is_listed
+- The_context_menu_adds_when_only_some_of_the_selected_items_are_favorites
+- The_context_menu_has_no_favorites_entry_for_items_with_no_file_on_the_disk
+- The_context_menu_offers_to_add_a_file_or_a_folder_to_the_favorites
+- The_context_menu_offers_to_remove_what_is_already_a_favorite
 - The_mark_goes_away_when_the_subfolder_can_be_listed_again
 - The_new_folder_shortcut_creates_Nova_pasta_when_the_name_is_free
 - The_new_folder_shortcut_finds_the_first_free_number_among_folders_and_files
 - The_new_folder_shortcut_skips_a_file_that_is_called_Nova_pasta
 - The_new_folder_shortcut_skips_a_Nova_pasta_that_already_exists
 - The_pane_opens_on_the_initial_folder
+- The_properties_window_gets_every_selected_item
 - The_status_bar_counts_the_items_picked_with_Ctrl_click
 - The_status_bar_of_a_selected_folder_follows_the_lock_mark
 - The_tree_lists_folders_before_files_and_everything_that_is_on_disk
+- Without_a_selection_the_properties_window_gets_the_current_row
 
 ### FileThumbnailServiceTests (ThumbnailTests.cs)
 
@@ -645,6 +704,51 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Work_that_keeps_reporting_is_never_cut_off_even_when_it_runs_longer_than_the_idle_time
 - Work_that_stops_making_progress_is_cancelled_after_the_idle_time
 
+### ItemPropertiesServiceTests (ItemPropertiesServiceTests.cs)
+
+- A_broken_image_does_not_break_reading_the_other_properties
+- A_cancelled_count_stops_instead_of_finishing
+- A_cancelled_sha256_stops_instead_of_finishing
+- A_drive_reports_its_format_and_space
+- A_drive_that_is_not_a_valid_root_has_no_details
+- A_file_reports_its_name_location_size_and_dates
+- A_folder_counts_every_file_and_folder_inside_it_and_their_bytes
+- A_folder_has_no_size_of_its_own_and_is_flagged_as_a_directory
+- A_folder_the_user_may_not_list_is_counted_as_unreadable_and_the_rest_still_adds_up
+- A_junction_is_counted_as_a_folder_but_is_not_followed_so_nothing_is_counted_twice_or_forever
+- A_path_that_no_longer_exists_has_no_properties
+- A_plain_text_file_has_no_executable_details_and_no_image_size
+- An_empty_folder_has_nothing_inside
+- An_executable_or_library_reports_its_version_details
+- An_image_reports_its_width_and_height_in_pixels
+- Attributes_reflect_what_is_set_on_the_file
+- Loose_files_in_the_selection_count_as_files_next_to_the_folder_contents
+- Rounding_a_size_up_to_the_cluster (5 casos)
+- The_owner_of_a_file_created_by_this_user_is_this_user
+- The_sha256_of_known_content_matches_the_published_value (2 casos)
+- The_sha256_reports_progress_up_to_the_end
+- The_size_on_disk_is_the_size_rounded_up_to_whole_clusters
+
+### ItemPropertiesViewModelTests (ItemPropertiesViewModelTests.cs)
+
+- A_drive_shows_its_format_and_how_full_it_is
+- A_file_shows_the_general_dates_attributes_security_and_verification_sections
+- A_file_that_cannot_be_read_explains_it_in_the_sha256_row
+- A_file_that_is_a_favorite_says_so
+- A_file_that_is_gone_says_so_instead_of_showing_empty_rows
+- A_folder_shows_what_is_inside_it_once_the_count_finishes
+- A_library_shows_a_details_section_with_its_version
+- An_empty_folder_says_it_is_empty
+- An_item_inside_an_archive_shows_only_what_the_listing_knows_and_explains_why
+- Asking_again_while_the_sha256_runs_cancels_it
+- Attribute_names (4 casos)
+- Attributes_are_listed_by_name_in_portuguese
+- Closing_the_window_while_a_folder_is_being_counted_stops_quietly
+- Computing_the_sha256_fills_its_row_and_gives_the_button_back
+- Items_from_different_folders_say_there_are_several_locations
+- Several_items_are_summed_and_the_common_folder_is_shown
+- Sizes_are_written_in_the_app_format_followed_by_the_exact_bytes
+
 ### LegacyPasswordMigrationTests (SecurityTests.cs)
 
 - Already_protected_file_is_left_untouched
@@ -652,32 +756,54 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Saving_leaves_no_temporary_file_behind
 - Unreadable_settings_are_kept_aside_instead_of_being_overwritten
 
+### LockedDrivesOptionTests (LockedDrivesOptionTests.cs)
+
+- A_settings_file_from_before_the_option_existed_still_shows_locked_drives
+- Changing_the_option_tells_the_panes_to_redraw_and_setting_the_same_value_does_not
+- Hiding_locked_drives_is_remembered_between_runs
+- Locked_drives_are_shown_by_default_so_nothing_changes_for_existing_users
+- Only_locked_drives_are_hidden_when_the_option_is_off (8 casos)
+- What_counts_as_a_locked_drive (5 casos)
+
 ### LoginThrottleTests (SshServerTests.cs)
 
 - A_good_login_clears_the_failures
 - Blocks_after_the_limit_and_unblocks_after_the_penalty
 - Old_failures_do_not_count
 
+### MainMenuTests (MainMenuTests.cs)
+
+- The_File_menu_and_the_old_Tools_name_are_gone
+- The_new_options_are_checkable_and_bound_to_their_property_and_command (2 casos)
+- The_Preferences_menu_lists_remember_path_and_always_administrator
+- The_top_menus_are_View_Themes_Preferences_and_Help_in_that_order
+- The_View_menu_lists_locked_drives_right_after_external_drives
+
 ### MainWindowViewModelTests (MainWindowViewModelTests.cs)
 
+- A_failure_to_restart_as_administrator_shows_the_reason
 - A_folder_that_was_empty_gets_its_expand_arrow_in_both_panes_after_a_drop_between_them
 - A_folder_that_was_empty_gets_its_expand_arrow_in_both_panes_after_a_drop_from_another_program
 - A_remembered_folder_that_no_longer_exists_falls_back_to_a_drive_instead_of_failing
 - A_transfer_takes_the_selection_of_the_active_pane_to_the_folder_of_the_other
 - A_transfer_without_a_selection_says_what_is_missing
 - Activating_the_right_pane_swaps_source_and_destination_and_tells_the_screen
+- Checking_always_administrator_asks_for_access_right_away_and_keeps_the_check_on
 - Copy_and_paste_puts_a_copy_in_the_other_pane_and_keeps_the_clipboard
 - Cut_and_paste_moves_the_file_and_empties_the_clipboard
 - Dropping_files_on_the_other_pane_copies_or_moves_them_there
 - Dropping_onto_the_same_folder_is_refused_without_touching_the_file
 - Panes_open_where_they_were_left_when_remembering_the_path_is_on_and_the_folder_still_exists
 - Pasting_with_nothing_staged_reports_it
+- Refusing_the_windows_confirmation_puts_the_check_back_to_off_without_a_message
 - Staging_without_a_selection_names_the_action_that_was_asked_for
 - The_chosen_sort_order_applies_to_both_panes
 - The_folder_a_file_was_moved_out_of_loses_its_arrow_in_both_panes
 - The_left_pane_starts_active_and_the_right_one_is_the_destination
+- The_menu_option_for_locked_drives_flips_and_is_saved
 - The_pane_with_a_selection_is_the_one_used_and_the_active_one_wins_a_tie
 - Transfers_are_validated_before_anything_is_touched
+- Unchecking_always_administrator_only_saves_the_choice
 - Without_remembering_the_panes_do_not_restore_a_path
 
 ### MemoryTrimmerTests (InfrastructureTests.cs)
@@ -863,6 +989,7 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 - Each_contract_is_served_by_its_implementation (7 casos)
 - Every_registered_service_has_all_its_dependencies_registered
+- The_administrator_startup_option_is_one_shared_object_so_the_menu_and_the_app_start_agree
 - The_main_window_gets_a_fresh_view_model_each_time
 
 ### SftpServerSessionTests (SshServerTests.cs)

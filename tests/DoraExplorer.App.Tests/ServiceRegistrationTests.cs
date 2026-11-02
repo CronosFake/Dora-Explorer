@@ -48,6 +48,17 @@ public sealed class ServiceRegistrationTests
     }
 
     [Fact]
+    public void The_administrator_startup_option_is_one_shared_object_so_the_menu_and_the_app_start_agree()
+    {
+        var services = new ServiceCollection().AddDoraExplorerServices();
+
+        var registration = services.Single(d => d.ServiceType == typeof(AdministratorStartupService));
+
+        registration.ImplementationType.Should().Be(typeof(AdministratorStartupService));
+        registration.Lifetime.Should().Be(ServiceLifetime.Singleton);
+    }
+
+    [Fact]
     public void The_main_window_gets_a_fresh_view_model_each_time()
     {
         var services = new ServiceCollection().AddDoraExplorerServices();

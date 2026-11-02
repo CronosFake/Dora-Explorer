@@ -261,7 +261,8 @@ public static class ShellIconService
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern int SHQueryRecycleBin(string pszRootPath, ref Shqueryrbinfo pSHQueryRBInfo);
 
-    public static ImageSource? GetFileIcon(string path, bool isDirectory, int size = 16, bool touchDisk = true)
+    /// <param name="large">Pede o ícone grande (32 px) ao Windows, para usar em tamanhos maiores sem esticar o de 16 px.</param>
+    public static ImageSource? GetFileIcon(string path, bool isDirectory, int size = 16, bool touchDisk = true, bool large = false)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -269,7 +270,7 @@ public static class ShellIconService
         }
 
         var shfi = new Shfileinfo();
-        var flags = ShgfiIcon | ShgfiSmallIcon;
+        var flags = large ? ShgfiIcon : ShgfiIcon | ShgfiSmallIcon;
         var queryPath = path;
 
         if (isDirectory && !queryPath.EndsWith('\\'))
