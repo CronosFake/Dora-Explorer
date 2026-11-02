@@ -18,6 +18,14 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      # O runner traz SDKs mais novos e o dotnet usa o mais novo, de analisadores mais rígidos que os do SDK 8 em que o projeto é
+      # desenvolvido (a CA1859 em ElevationTests quebrou o build assim). O global.json existe só nesta execução e não vai para o repositório.
+      - name: Fixar o SDK 8
+        shell: pwsh
+        run: |
+          '{ "sdk": { "version": "8.0.100", "rollForward": "latestFeature" } }' | Set-Content global.json
+          dotnet --version
+
       - name: Restore
         run: dotnet restore DoraExplorer.sln
 
