@@ -3,7 +3,7 @@
 # Uso, a partir da raiz do repositorio (o app NAO pode estar aberto: a trava de instancia unica impede duas copias):
 #   powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario basic [-Prefix nome] [-Build] [-OutDir pasta]
 #
-# Roteiros: basic sort density min nav windows rede dialogs picker openwith comfort light reload flicker blink delfocus multisel
+# Roteiros: basic sort density min nav windows rede dialogs picker openwith comfort light reload flicker blink delfocus multisel dragdrop
 #   reload  : fecha uma pasta com clique, cria uma pasta por fora e reabre; confere que a listagem se atualiza
 #   flicker : fotografa a janela em alta frequencia ao reabrir "Program Files" e conta quedas de conteudo (o "pisca")
 #   blink   : abre pastas pela setinha com clique REAL do mouse e mede se a arvore despenca de uma vez (o "pisca" ao abrir
@@ -20,7 +20,13 @@
 #             se alguma falhar.
 #   multisel: Ctrl+clique (liga e desliga itens) e Shift+clique (intervalo) com o modificador segurado de verdade, lendo "N itens
 #             selecionados" na barra de status (AGENTS.md, armadilha 19). Mesmo formato de resultado e de pasta de teste.
-#   delfocus e multisel guardam %AppData%\DoraExplorer (configuracoes, favoritos, indice) antes de abrir o app e devolvem igual no
+#   dragdrop: arrasta de verdade com o mouse (botao apertado, cursor andando, botao solto) e confere o resultado: 1) entre os dois
+#             paineis do app (um item, e dois marcados com Ctrl para copiar); 2) do app para uma janela real do Windows Explorer e dela
+#             de volta para o app; 3) do app para uma pagina em cada navegador instalado (Chrome, Edge, Firefox), cada um com um perfil
+#             temporario so seu: os navegadores abertos do usuario nao sao tocados. O app vai para o canto da tela e as outras janelas
+#             ficam ao lado dele. Mesmo formato de resultado, de pasta de teste e de restauracao do estado do usuario de delfocus e
+#             multisel (AGENTS.md, armadilha 20).
+#   delfocus, multisel e dragdrop guardam %AppData%\DoraExplorer (configuracoes, favoritos, indice) antes de abrir o app e devolvem igual no
 #             fim; o cursor do mouse tambem volta ao lugar. O app precisa ficar em primeiro plano durante o teste.
 # Capturas: PNG em -OutDir (padrao %TEMP%\dora-dev). Os roteiros so leem a tela; 'reload' cria e remove a pasta -TestFolder.
 # Este arquivo e ASCII de proposito: o Windows PowerShell 5.1 le .ps1 sem BOM como ANSI.
@@ -200,7 +206,7 @@ function Menu-Invoke($root, $top, $like, $mid = $null) {
 $uiFailures = 0
 $uiRoot = $null
 $userState = $null
-if ($Scenario -in 'delfocus', 'multisel') {
+if ($Scenario -in 'delfocus', 'multisel', 'dragdrop') {
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -TypeDefinition @'
 using System; using System.Runtime.InteropServices;
@@ -219,8 +225,20 @@ public static class Kb {
     $uiRoot = Join-Path (Split-Path -Parent $TestFolder) ('DoraUi' + (Get-Date -Format 'HHmmss'))
     $cleanup.Add($uiRoot)
     New-Item -ItemType Directory -Path $uiRoot -Force | Out-Null
-    $fileCount = if ($Scenario -eq 'delfocus') { 5 } else { 6 }
-    1..$fileCount | ForEach-Object { Set-Content -LiteralPath (Join-Path $uiRoot "arq$_.txt") -Value ('x' * ($_ * 100)) -Encoding Ascii }
+    $fileCount = switch ($Scenario) { 'delfocus' { 5 } 'multisel' { 6 } default { 0 } }
+    if ($fileCount -gt 0) { 1..$fileCount | ForEach-Object { Set-Content -LiteralPath (Join-Path $uiRoot "arq$_.txt") -Value ('x' * ($_ * 100)) -Encoding Ascii } }
+    if ($Scenario -eq 'dragdrop') {
+        New-Item -ItemType Directory -Path (Join-Path $uiRoot 'src') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $uiRoot 'dest') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $uiRoot 'dest2') -Force | Out-Null
+        'a', 'b', 'c' | ForEach-Object { Set-Content -LiteralPath (Join-Path $uiRoot "src\$_.txt") -Value "arquivo $_" -Encoding Ascii }
+        New-Item -ItemType Directory -Path (Join-Path $uiRoot 'out') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $uiRoot 'exp') -Force | Out-Null
+        'o1', 'o2', 'o3' | ForEach-Object { Set-Content -LiteralPath (Join-Path $uiRoot "out\$_.txt") -Value "saida $_" -Encoding Ascii }
+        Set-Content -LiteralPath (Join-Path $uiRoot 'exp\in1.txt') -Value 'entrada in1' -Encoding Ascii
+        New-Item -ItemType Directory -Path (Join-Path $uiRoot 'web') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $uiRoot 'web\w1.txt') -Value 'para o navegador' -Encoding Ascii
+    }
     if ($Scenario -eq 'multisel') {
         New-Item -ItemType Directory -Path (Join-Path $uiRoot 'pasta') -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $uiRoot 'pasta\dentro.txt') -Value 'x' -Encoding Ascii
@@ -299,6 +317,123 @@ public static class Kb {
         $yes.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 2500
         return $true
     }
+    # Ponto (X, Y) na linha de um item da arvore, para o mouse apertar ou soltar ali.
+    function Row-Point($row, $dx = 120) {
+        $r = $row.Current.BoundingRectangle
+        [pscustomobject]@{ X = [int]($r.Left + $dx); Y = [int]($r.Top + $r.Height / 2) }
+    }
+    # Arrasta de verdade com o mouse: aperta em $from, anda ate $to em passos (o arrasto precisa ser visto andando) e solta.
+    # $ctrl segura Ctrl so DEPOIS de apertar (Ctrl no clique mudaria a selecao) e ate depois de soltar: o destino ve a tecla e copia.
+    function Drag-Mouse($hwnd, $from, $to, $ctrl = $false) {
+        if (-not (Ensure-Foreground $hwnd)) { return $false }
+        [void][Kb]::SetCursorPos([int]$from.X, [int]$from.Y); Start-Sleep -Milliseconds 200
+        [Kb]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 200
+        if ($ctrl) { [Kb]::keybd_event(0xA2, 0x1D, 0, [UIntPtr]::Zero) }
+        $steps = 25
+        for ($i = 1; $i -le $steps; $i++) {
+            [void][Kb]::SetCursorPos([int]($from.X + ($to.X - $from.X) * $i / $steps), [int]($from.Y + ($to.Y - $from.Y) * $i / $steps))
+            Start-Sleep -Milliseconds 40
+        }
+        Start-Sleep -Milliseconds 400
+        [Kb]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero)
+        if ($ctrl) { Start-Sleep -Milliseconds 150; [Kb]::keybd_event(0xA2, 0x1D, 2, [UIntPtr]::Zero) }
+        Start-Sleep -Milliseconds 2000
+        return $true
+    }
+    # Item da pasta de teste (ou de uma subpasta dela) no painel $treeIndex (0 = esquerdo, 1 = direito). Acha de novo a cada chamada:
+    # depois de uma transferencia o painel e recarregado e os elementos antigos deixam de valer.
+    function Ui-Item($rootEl, $treeIndex, $leaf = $null) {
+        $c = (TopItems $rootEl $treeIndex)[0]
+        $ui = Child $c (Split-Path $uiRoot -Leaf)
+        if (-not $ui -or -not $leaf) { return $ui }
+        return Child $ui $leaf
+    }
+    function Open-UiTree($rootEl, $treeIndex) {
+        $c = (TopItems $rootEl $treeIndex)[0]; Expand $c
+        $ui = Child $c (Split-Path $uiRoot -Leaf)
+        if (-not $ui) { return $null }
+        $deadline = [DateTime]::Now.AddSeconds(20)
+        while (("" + $ui.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Current.ExpandCollapseState) -eq 'LeafNode' -and [DateTime]::Now -lt $deadline) { Start-Sleep -Milliseconds 500 }
+        $ui.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Expand(); Start-Sleep -Milliseconds 1500
+        return $ui
+    }
+    # Janela do Explorer do Windows aberta numa pasta de teste, achada pelo nome da pasta (a janela do usuario nunca e tocada).
+    function Open-Explorer($folder) {
+        Start-Process explorer.exe -ArgumentList "/n,`"$folder`""
+        $leaf = Split-Path $folder -Leaf
+        $cond = New-Object Windows.Automation.PropertyCondition($AE::ClassNameProperty, 'CabinetWClass')
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        while ($sw.ElapsedMilliseconds -lt 20000) {
+            $w = $AE::RootElement.FindAll($TS::Children, $cond) | Where-Object { $_.Current.Name -like "$leaf*" } | Select-Object -First 1
+            if ($w) { Start-Sleep -Milliseconds 1500; return $w }
+            Start-Sleep -Milliseconds 300
+        }
+        return $null
+    }
+    function Close-Window($w) { try { $w.GetCurrentPattern([Windows.Automation.WindowPattern]::Pattern).Close() } catch { } }
+    # Poe uma janela de outro programa ao lado da janela do app (a tela tem espaco a direita), sem cobrir o app.
+    function Place-Beside($w, $appHandle) {
+        $r = New-Object UiCap+RECT; [void][UiCap]::GetWindowRect($appHandle, [ref]$r)
+        $x = $r.Right + 10; $width = [Math]::Max(500, [Math]::Min(700, [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width - $x - 10))
+        $tp = $w.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern)
+        $tp.Move($x, $r.Top); $tp.Resize($width, 560); Start-Sleep -Milliseconds 1200
+    }
+    function Window-Point($w, $fx = 0.5, $fy = 0.7) {
+        $r = $w.Current.BoundingRectangle
+        [pscustomobject]@{ X = [int]($r.Left + $r.Width * $fx); Y = [int]($r.Top + $r.Height * $fy) }
+    }
+    function Explorer-Item($w, $nameLike) {
+        $w.FindAll($TS::Descendants, (Cond $CT::ListItem)) | Where-Object { $_.Current.Name -like "*$nameLike*" } | Select-Object -First 1
+    }
+    # Navegadores para o teste de soltar arquivos numa pagina. Cada um abre com um perfil temporario so seu (os navegadores abertos
+    # do usuario nao sao tocados) e, no fim, so os processos desse perfil sao encerrados.
+    function Get-TestBrowsers {
+        @(
+            [pscustomobject]@{ Name = 'Chrome'; Exe = 'C:\Program Files\Google\Chrome\Application\chrome.exe'; Kind = 'chromium' }
+            [pscustomobject]@{ Name = 'Edge'; Exe = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'; Kind = 'chromium' }
+            [pscustomobject]@{ Name = 'Firefox'; Exe = 'C:\Program Files\Mozilla Firefox\firefox.exe'; Kind = 'firefox' }
+        ) | Where-Object { Test-Path -LiteralPath $_.Exe }
+    }
+    function Open-DropBrowser($browser, $pageFile) {
+        $profileDir = Join-Path $env:TEMP ('dora-browser-' + $browser.Name + '-' + (Get-Date -Format 'HHmmss'))
+        New-Item -ItemType Directory -Path $profileDir -Force | Out-Null
+        $url = 'file:///' + ($pageFile -replace '\\', '/')
+        # Os avisos de primeiro uso (sincronizar a conta do Windows no Edge, aceitar termos no Firefox) sao telas modais que engolem
+        # o soltar e que ninguem deve aceitar por quem testa: o Edge abre em InPrivate (sem sincronizacao) e o Firefox recebe, neste
+        # perfil temporario, as preferencias que desligam a tela de boas-vindas.
+        if ($browser.Kind -eq 'firefox') {
+            @('browser.preonboarding.enabled', 'browser.aboutwelcome.enabled', 'browser.shell.checkDefaultBrowser', 'datareporting.policy.dataSubmissionEnabled') |
+                ForEach-Object { 'user_pref("' + $_ + '", false);' } | Set-Content -LiteralPath (Join-Path $profileDir 'user.js') -Encoding Ascii
+            Add-Content -LiteralPath (Join-Path $profileDir 'user.js') -Value 'user_pref("browser.startup.homepage_override.mstone", "ignore");' -Encoding Ascii
+        }
+        $argList = if ($browser.Kind -eq 'firefox') { "-no-remote -profile `"$profileDir`" -new-window `"$url`"" }
+                   else { "--user-data-dir=`"$profileDir`" --no-first-run --no-default-browser-check" + $(if ($browser.Name -eq 'Edge') { ' --inprivate' } else { '' }) + " --new-window `"$url`"" }
+        Start-Process -FilePath $browser.Exe -ArgumentList $argList
+        $sw = [Diagnostics.Stopwatch]::StartNew(); $w = $null
+        while (-not $w -and $sw.ElapsedMilliseconds -lt 30000) {
+            $w = $AE::RootElement.FindAll($TS::Children, [Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.Name -like '*DoraDrop*' } | Select-Object -First 1
+            if (-not $w) { Start-Sleep -Milliseconds 400 }
+        }
+        [pscustomobject]@{ Window = $w; Profile = $profileDir }
+    }
+    function Close-DropBrowser($opened) {
+        Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -and $_.CommandLine -like "*$($opened.Profile)*" } |
+            ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+        Start-Sleep -Milliseconds 800
+        Remove-Item -LiteralPath $opened.Profile -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    # A pasta ganhou (ou perdeu) a seta de expandir? A seta e o filho provisorio da linha; na automacao, LeafNode = sem seta.
+    function Has-Arrow($rootEl, $treeIndex, $leaf) {
+        $item = Ui-Item $rootEl $treeIndex $leaf
+        if (-not $item) { return $false }
+        try { return (("" + $item.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Current.ExpandCollapseState) -ne 'LeafNode') } catch { return $false }
+    }
+    function Wait-Arrow($rootEl, $treeIndex, $leaf, $want = $true, $ms = 4000) {
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        while ($sw.ElapsedMilliseconds -lt $ms) { if ((Has-Arrow $rootEl $treeIndex $leaf) -eq $want) { return $true }; Start-Sleep -Milliseconds 250 }
+        return ((Has-Arrow $rootEl $treeIndex $leaf) -eq $want)
+    }
+    function Names-In($folder) { (@(Get-ChildItem -LiteralPath $folder -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) -join ',') }
     function Status-Lines($rootEl) { @($rootEl.FindAll($TS::Descendants, (Cond $CT::Text)) | ForEach-Object { $_.Current.Name } | Where-Object { $_ -match 'itens selecionados' }) }
     function Check($label, $ok, $detail = '') {
         if ($ok) { "[OK] $label" } else { $script:uiFailures++; "[FALHOU] $label" + $(if ($detail) { " (achado: $detail)" } else { '' }) }
@@ -621,6 +756,98 @@ public static class FrameCount {
             Check 'Ctrl+clique soma uma pasta e um arquivo a arq1 (3 itens)' ($s -match '^3 itens selecionados') $s
             Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
         }
+        'dragdrop' {
+            # Arrastar de verdade com o mouse. Etapa 1: entre os dois paineis do proprio app (mesmo disco: o padrao e mover).
+            # O app vai para o canto esquerdo da tela: a direita sobra espaco para as janelas de outros programas.
+            $root.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern).Move(0, 0); Start-Sleep -Milliseconds 800
+            $srcPath = Join-Path $uiRoot 'src'; $destPath = Join-Path $uiRoot 'dest'
+            $left = Open-UiTree $root 0
+            $right = Open-UiTree $root 1
+            if (-not $left -or -not $right) { 'a pasta de teste nao apareceu nos dois paineis'; break }
+            Expand (Child $left 'src')
+            Expand (Child $right 'src')
+            $a = Wait-Row (Ui-Item $root 0 'src') 'a.txt'
+            Check 'a.txt aparece no painel da esquerda' ($null -ne $a)
+            if (-not $a -or -not (Ui-Item $root 1 'dest')) { break }
+            [void](Drag-Mouse $h (Row-Point $a) (Row-Point (Ui-Item $root 1 'dest')))
+            Check 'arrastar a.txt para a pasta dest do painel da direita move o arquivo' ((Test-Path -LiteralPath (Join-Path $destPath 'a.txt')) -and -not (Test-Path -LiteralPath (Join-Path $srcPath 'a.txt'))) ("dest=" + (Names-In $destPath) + " src=" + (Names-In $srcPath))
+            Snap $h 'dragdrop-entre-paineis'
+            Check 'depois de soltar, a pasta dest ganha a seta de expandir no painel da esquerda (o de origem)' (Wait-Arrow $root 0 'dest')
+            Check 'depois de soltar, a pasta dest ganha a seta de expandir no painel da direita (onde foi solto)' (Wait-Arrow $root 1 'dest')
+            Check 'a pasta src, de onde a.txt saiu, continua com a seta nos dois paineis (ainda tem b.txt e c.txt)' ((Wait-Arrow $root 0 'src') -and (Wait-Arrow $root 1 'src'))
+
+            # Varios itens: b e c marcados, arrastados com Ctrl (copiar). Apertar num item ja marcado nao pode desfazer a selecao.
+            $b = Wait-Row (Ui-Item $root 0 'src') 'b.txt'
+            [void](Click-With $h $b 'none')
+            [void](Click-With $h (Row (Ui-Item $root 0 'src') 'c.txt') 'ctrl')
+            $s = (Status-Lines $root) -join ' || '
+            Check 'b.txt e c.txt estao marcados antes de arrastar (2 itens)' ($s -match '^2 itens selecionados') $s
+            [void](Drag-Mouse $h (Row-Point (Row (Ui-Item $root 0 'src') 'c.txt')) (Row-Point (Ui-Item $root 1 'dest')) $true)
+            Check 'Ctrl+arrastar copia os dois itens marcados para dest' ((Test-Path -LiteralPath (Join-Path $destPath 'b.txt')) -and (Test-Path -LiteralPath (Join-Path $destPath 'c.txt'))) ("dest=" + (Names-In $destPath))
+            Check 'a copia deixa b.txt e c.txt na pasta de origem' ((Test-Path -LiteralPath (Join-Path $srcPath 'b.txt')) -and (Test-Path -LiteralPath (Join-Path $srcPath 'c.txt'))) ("src=" + (Names-In $srcPath))
+
+            # Etapa 2: do app para o Windows Explorer (uma janela de verdade, ao lado do app) e de volta.
+            $outPath = Join-Path $uiRoot 'out'; $expPath = Join-Path $uiRoot 'exp'
+            $explorer = Open-Explorer $expPath
+            Check 'uma janela do Explorer abriu na pasta exp' ($null -ne $explorer)
+            if ($explorer) {
+                Place-Beside $explorer $h
+                Check 'o Explorer mostra in1.txt, que ja estava em exp' ($null -ne (Explorer-Item $explorer 'in1'))
+                Expand (Ui-Item $root 0 'out')
+                $o1 = Wait-Row (Ui-Item $root 0 'out') 'o1.txt'
+                if ($o1) {
+                    [void](Drag-Mouse $h (Row-Point $o1) (Window-Point $explorer))
+                    Check 'arrastar o1.txt do app para a janela do Explorer entrega o arquivo em exp' (Test-Path -LiteralPath (Join-Path $expPath 'o1.txt')) ("exp=" + (Names-In $expPath) + " out=" + (Names-In $outPath))
+                    Snap $h 'dragdrop-para-o-explorer'
+                    Check 'para outro programa so se copia: o1.txt continua na pasta de origem do app' (Test-Path -LiteralPath (Join-Path $outPath 'o1.txt')) ("out=" + (Names-In $outPath))
+                }
+                # varios itens do app para o Explorer
+                [void](Click-With $h (Row (Ui-Item $root 0 'out') 'o2.txt') 'none')
+                [void](Click-With $h (Row (Ui-Item $root 0 'out') 'o3.txt') 'ctrl')
+                [void](Drag-Mouse $h (Row-Point (Row (Ui-Item $root 0 'out') 'o3.txt')) (Window-Point $explorer))
+                Check 'arrastar dois itens marcados do app para o Explorer entrega os dois' ((Test-Path -LiteralPath (Join-Path $expPath 'o2.txt')) -and (Test-Path -LiteralPath (Join-Path $expPath 'o3.txt'))) ("exp=" + (Names-In $expPath))
+                Check 'os dois itens arrastados para o Explorer continuam na pasta de origem do app' ((Test-Path -LiteralPath (Join-Path $outPath 'o2.txt')) -and (Test-Path -LiteralPath (Join-Path $outPath 'o3.txt'))) ("out=" + (Names-In $outPath))
+                # do Explorer para o app: in1.txt vai da janela do Explorer para a pasta dest do painel da direita
+                $in1 = Explorer-Item $explorer 'in1'
+                $dest2Path = Join-Path $uiRoot 'dest2'
+                $destRow = Ui-Item $root 1 'dest2'
+                if ($in1 -and $destRow) {
+                    [void](Drag-Mouse $h (Row-Point $in1 40) (Row-Point $destRow))
+                    Check 'arrastar in1.txt da janela do Explorer para a pasta vazia dest2 do app entrega o arquivo' (Test-Path -LiteralPath (Join-Path $dest2Path 'in1.txt')) ("dest2=" + (Names-In $dest2Path) + " exp=" + (Names-In $expPath))
+                    Check 'depois de soltar do Explorer, dest2 ganha a seta de expandir no painel da direita (onde foi solto)' (Wait-Arrow $root 1 'dest2')
+                    Check 'depois de soltar do Explorer, dest2 ganha a seta de expandir no painel da esquerda tambem' (Wait-Arrow $root 0 'dest2')
+                    Snap $h 'dragdrop-do-explorer'
+                } else { Check 'in1.txt no Explorer e dest no app foram achados para o arrasto' $false }
+                Close-Window $explorer
+            }
+
+            # Etapa 3: do app para um navegador (pagina local que aceita soltar arquivos e troca o proprio titulo).
+            $webPath = Join-Path $uiRoot 'web'
+            $page = Join-Path $uiRoot 'drop.html'
+            $html = '<!doctype html><title>DoraDrop</title><body style="margin:0;font:24px sans-serif"><div style="height:100vh;display:flex;align-items:center;justify-content:center">Solte aqui</div><script>addEventListener("dragover",function(e){e.preventDefault()});addEventListener("drop",function(e){e.preventDefault();document.title="DROP:"+Array.from(e.dataTransfer.files).map(function(f){return f.name}).join(",")});</script></body>'
+            Set-Content -LiteralPath $page -Value $html -Encoding Ascii
+            $browsers = @(Get-TestBrowsers)
+            if ($browsers.Count -eq 0) { 'nenhum navegador (Chrome, Edge ou Firefox) instalado: etapa dos navegadores pulada' }
+            Expand (Ui-Item $root 0 'web')
+            foreach ($browser in $browsers) {
+                $opened = Open-DropBrowser $browser $page
+                Check "o $($browser.Name) abriu a pagina de teste" ($null -ne $opened.Window)
+                if ($opened.Window) {
+                    try { $opened.Window.GetCurrentPattern([Windows.Automation.WindowPattern]::Pattern).SetWindowVisualState([Windows.Automation.WindowVisualState]::Normal) } catch { }
+                    Place-Beside $opened.Window $h
+                    $w1 = Wait-Row (Ui-Item $root 0 'web') 'w1.txt'
+                    if ($w1) {
+                        [void](Drag-Mouse $h (Row-Point $w1) (Window-Point $opened.Window 0.5 0.5))
+                        Start-Sleep -Milliseconds 1000
+                        $title = $opened.Window.Current.Name
+                        Check "arrastar w1.txt do app para uma pagina no $($browser.Name) entrega o arquivo" ($title -like '*DROP:w1.txt*') $title
+                        Check "o arrasto para o $($browser.Name) nao move nem apaga o original" (Test-Path -LiteralPath (Join-Path $webPath 'w1.txt'))
+                    } else { Check 'w1.txt apareceu no painel do app' $false }
+                }
+                Close-DropBrowser $opened
+            }
+            Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
+        }
         'windows' {
             $c = (TopItems $root)[0]; Expand $c
             $w = Child $c 'Windows'; if ($w) { try { Expand $w } catch { "expandir Windows: $($_.Exception.Message)" } }
@@ -629,11 +856,11 @@ public static class FrameCount {
     }
 } catch { "erro: $($_.Exception.Message) (linha $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim()))" }
 [void]$proc.CloseMainWindow(); [void]$proc.WaitForExit(10000); 'app fechado: ' + $proc.HasExited
-if (($Scenario -in 'delfocus', 'multisel') -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; 'o app nao fechou sozinho (ficou uma janela aberta?): encerrado a forca'; Start-Sleep -Seconds 1 }
+if (($Scenario -in 'delfocus', 'multisel', 'dragdrop') -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; 'o app nao fechou sozinho (ficou uma janela aberta?): encerrado a forca'; Start-Sleep -Seconds 1 }
 foreach ($path in $cleanup) { Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue }
 if ($Scenario -eq 'blink' -and $blinkRoot) { Clear-BlinkIndexRows $blinkRoot }
 if ($userState) { Restore-UserState }
-if ($Scenario -in 'delfocus', 'multisel') {
+if ($Scenario -in 'delfocus', 'multisel', 'dragdrop') {
     [void][Kb]::SetCursorPos($cursor0.X, $cursor0.Y)
     'pasta de teste removida: ' + (-not (Test-Path -LiteralPath $uiRoot))
     "verificacoes com falha: $uiFailures"

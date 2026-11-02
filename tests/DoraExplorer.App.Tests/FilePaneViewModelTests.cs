@@ -261,6 +261,75 @@ public sealed class FilePaneViewModelTests : IDisposable
         pane.SelectedItems.Should().BeEmpty("um clique comum numa pasta troca a seleção");
     }
 
+    // ---- arrastar e soltar: o que sai da janela (só itens do disco) e onde o que chega vai parar ----
+
+    [Fact]
+    public void Dragging_out_of_the_app_carries_every_selected_file_and_folder_from_the_disk()
+    {
+        var pane = PaneForSelection(out var files, out var folder);
+        pane.SetSingleItemSelection(files[0]);
+        pane.ToggleItemSelection(files[2]);
+        pane.ToggleItemSelection(folder);
+
+        pane.GetLocalTransferableItemPaths().Should().BeEquivalentTo([files[0].TargetPath, files[2].TargetPath, folder.TargetPath]);
+    }
+
+    [Fact]
+    public void An_entry_inside_an_archive_has_no_file_on_the_disk_to_drag_out()
+    {
+        var pane = PaneForSelection(out _, out _);
+        var zip = _h.Zip("pacote.zip", ("dentro/x.txt", "texto"));
+        var entry = new NavigationTreeNodeViewModel("x.txt", NavigationNodeKind.File) { TargetPath = ArchivePathHelper.Combine(zip, "dentro/x.txt") };
+
+        pane.SetSingleItemSelection(entry);
+
+        pane.GetLocalTransferableItemPaths().Should().BeEmpty("só itens do disco viram um arquivo que outro programa entende");
+    }
+
+    [Fact]
+    public void Dropping_on_a_folder_row_lands_in_that_folder()
+    {
+        var pane = PaneForSelection(out _, out var folder);
+
+        pane.TryResolveDropDirectory(folder, out var directory, out var error).Should().BeTrue(error);
+
+        directory.Should().Be(folder.TargetPath);
+    }
+
+    [Fact]
+    public void Dropping_on_a_file_row_lands_in_the_folder_that_holds_it()
+    {
+        var pane = PaneForSelection(out var files, out _);
+
+        pane.TryResolveDropDirectory(files[1], out var directory, out var error).Should().BeTrue(error);
+
+        directory.Should().Be(Path.GetDirectoryName(files[1].TargetPath));
+    }
+
+    [Fact]
+    public void Dropping_on_empty_space_lands_in_the_folder_the_pane_has_open()
+    {
+        var pane = PaneForSelection(out var files, out _);
+
+        pane.TryResolveDropDirectory(null, out var directory, out var error).Should().BeTrue(error);
+
+        directory.Should().Be(Path.GetDirectoryName(files[0].TargetPath));
+    }
+
+    [Fact]
+    public void Dropping_inside_an_archive_or_on_a_folder_that_is_gone_is_refused_with_a_reason()
+    {
+        var pane = PaneForSelection(out _, out _);
+        var zip = _h.Zip("destino.zip", ("pasta/x.txt", "texto"));
+        var insideArchive = new NavigationTreeNodeViewModel("pasta", NavigationNodeKind.Directory) { TargetPath = ArchivePathHelper.Combine(zip, "pasta") };
+        var gone = new NavigationTreeNodeViewModel("sumiu", NavigationNodeKind.Directory) { TargetPath = Path.Combine(_h.Data, "nao-existe") };
+
+        pane.TryResolveDropDirectory(insideArchive, out _, out var archiveError).Should().BeFalse();
+        archiveError.Should().Contain("arquivo compactado");
+        pane.TryResolveDropDirectory(gone, out _, out var goneError).Should().BeFalse();
+        goneError.Should().Contain("não existe");
+    }
+
     [Fact]
     public void After_removing_an_item_the_next_one_in_the_list_is_the_one_to_select()
     {

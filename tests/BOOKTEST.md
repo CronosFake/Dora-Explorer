@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-02 02:31
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-02 03:31
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -23,9 +23,9 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 | Item | Valor |
 |------|-------|
 | Areas | 23 |
-| Classes de teste | 63 |
-| Metodos de teste | 481 |
-| Casos (cada InlineData conta um) | 728 |
+| Classes de teste | 64 |
+| Metodos de teste | 493 |
+| Casos (cada InlineData conta um) | 740 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -172,16 +172,16 @@ Excluir ou restaurar so vale para o que esta mesmo na lixeira; a lixeira e o pro
 Abrir numa pasta, navegar, criar pasta, renomear, excluir, copiar e mover (inclusive de dentro de ZIP, que pode ser alterado, e de .gz, .7z e .rar, que sao somente leitura), ordenar e marcar favoritos.
 
 - Codigo: FilePaneViewModel, NavigationTreeNodeViewModel, BreadcrumbSegmentViewModel, FileOperationService
-- Testes (54 casos): FilePaneViewModelTests [FilePaneViewModelTests.cs]
+- Testes (60 casos): FilePaneViewModelTests [FilePaneViewModelTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~FilePaneViewModelTests"`
 
 ### Janela principal (copiar e colar entre os paineis)
 
 Painel ativo, area de transferencia de copiar e cortar, regras que recusam transferencias sem sentido, arrastar e soltar, ordenacao nos dois lados e lembrar o caminho ao abrir.
 
-- Codigo: MainWindowViewModel, RememberPathSettingsService, PaneDisplaySettingsService, TransferOutcome
-- Testes (16 casos): MainWindowViewModelTests [MainWindowViewModelTests.cs]
-- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~MainWindowViewModelTests"`
+- Codigo: MainWindowViewModel, RememberPathSettingsService, PaneDisplaySettingsService, TransferOutcome, DragPolicy
+- Testes (22 casos): MainWindowViewModelTests [MainWindowViewModelTests.cs], DragPolicyTests [DragPolicyTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~MainWindowViewModelTests|FullyQualifiedName~DragPolicyTests"`
 
 ### Acesso negado e reiniciar como administrador
 
@@ -226,6 +226,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | BreadcrumbSegmentViewModel | Painel de arquivos (um lado da janela) |
 | DefaultApplicationOverrides | Abrir com e programas padrao |
 | DirectoryIndexService | Cache de pastas e carga sem piscar |
+| DragPolicy | Janela principal (copiar e colar entre os paineis) |
 | ElevationPrompt | Acesso negado e reiniciar como administrador |
 | ElevationService | Acesso negado e reiniciar como administrador |
 | ExpectedFailures | Falhas esperadas do sistema |
@@ -308,6 +309,7 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 | Aviso ao abrir uma pasta que o Windows nao deixa listar (duplo clique, Enter ou seta para a direita) | O teste de unidade cobre o no marcado (ListingDenied) e a mensagem, nao o gesto no TreeView real: um clique so seleciona a linha, e o cadeado so e conferido no app real (os testes cobrem a marca no no e a troca das contagens, nao o desenho do XAML). | Criar uma pasta com um arquivo e negar a leitura dela: icacls <pasta> /deny "%USERNAME%:(RD)". Abrir o app: a linha da pasta mostra um cadeado no lugar de 0 pastas / 0 arquivos (passe o mouse: "Sem permissao para abrir esta pasta"), e ao selecionar a pasta a barra de status diz "sem permissao para abrir", nas linhas compactas e nas confortaveis (Exibir > Linhas compactas em colunas). Dar duplo clique na pasta: aparece "Sem permissao para abrir ..." com Reiniciar como administrador / Agora nao. Abrir a mesma pasta de novo (seta para a direita) nao repete o aviso. Remover a regra: icacls <pasta> /remove:d %USERNAME%. |
 | Foco e setas depois de apagar pelo teclado (Shift+Delete) | O vizinho a selecionar e testado (FilePaneViewModelTests), mas o foco do WPF so existe com a janela aberta. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario delfocus (app fechado; AGENTS.md, armadilha 18): cada verificacao sai [OK] ou [FALHOU]; o foco deve ir para o vizinho e Baixo/Cima mover o foco sem clicar. |
 | Ctrl+clique e Shift+clique para selecionar varios itens | A regra da selecao (ligar, desligar, intervalo, outra pasta) e testada no modelo, mas o clique com o modificador segurado so existe com a janela aberta. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario multisel (app fechado; AGENTS.md, armadilha 19): Shift+clique (intervalo) e Ctrl+clique (itens soltos), lendo "N itens selecionados" na barra de status; cada verificacao sai [OK] ou [FALHOU]. |
+| Arrastar e soltar entre os paineis, para o Windows Explorer e para navegadores (e do Explorer para o app) | O destino do soltar e o que sai da janela sao testados no modelo, mas o arrasto de verdade depende do mouse, do OLE e das janelas de outros programas. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario dragdrop (app fechado; AGENTS.md, armadilha 20): mouse de verdade, janela real do Explorer, Chrome, Edge e Firefox com perfil temporario; cada verificacao sai [OK] ou [FALHOU]. |
 | Janelas de dialogo (progresso, conexao de rede, ordenar, excluir) | Janelas WPF; sem teste automatico. | Abrir cada uma no app. |
 | Restaurar e excluir de verdade da Lixeira | Mexe na lixeira real do usuario; so as travas sao testadas. | Com arquivos de teste, na tela. |
 | Start.bat e scripts de apoio | O fechamento do app esta em teste automatico (StopDoraScriptTests, com processos de mentira); o Start.bat inteiro (compilar e abrir) e o caso de um app aberto como administrador, que pede o UAC, nao. | Rodar Start.bat e conferir que o app abre. Com o app aberto, rodar de novo: ele fecha sozinho (o log termina com "encerrado") e reabre. Com o app aberto como administrador (Reiniciar como administrador), o Start.bat deve parar com o aviso de que nao consegue fecha-lo, sem compilar. |
@@ -411,6 +413,12 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - The_search_listing_has_names_kinds_and_sizes
 - When_the_database_cannot_be_created_the_index_is_disabled_but_reading_still_works
 
+### DragPolicyTests (DragPolicyTests.cs)
+
+- Dragging_between_the_two_panes_of_the_app_still_allows_copy_and_move
+- Dragging_to_another_program_only_allows_copying
+- The_cursor_check_runs_without_a_window_and_never_finds_the_test_process_under_it
+
 ### ElevationTests (ElevationTests.cs)
 
 - A_failure_to_launch_keeps_the_app_open_and_explains_in_portuguese
@@ -508,6 +516,7 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - After_removing_every_item_the_folder_that_held_them_is_the_one_to_select
 - After_removing_several_items_the_neighbour_is_outside_the_removed_group
 - After_removing_the_last_item_the_previous_one_is_the_one_to_select
+- An_entry_inside_an_archive_has_no_file_on_the_disk_to_drag_out
 - An_entry_of_a_read_only_archive_cannot_be_deleted_and_the_archive_stays_intact
 - An_entry_of_a_zip_can_be_deleted_and_leaves_the_rest
 - Copying_a_file_leaves_the_original_and_never_overwrites_the_destination
@@ -521,6 +530,11 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Deleting_a_protected_item_reports_access_denied_in_portuguese_and_marked
 - Deleting_nothing_asks_for_a_selection
 - Deleting_permanently_removes_files_and_folders_and_updates_the_tree
+- Dragging_out_of_the_app_carries_every_selected_file_and_folder_from_the_disk
+- Dropping_inside_an_archive_or_on_a_folder_that_is_gone_is_refused_with_a_reason
+- Dropping_on_a_file_row_lands_in_the_folder_that_holds_it
+- Dropping_on_a_folder_row_lands_in_that_folder
+- Dropping_on_empty_space_lands_in_the_folder_the_pane_has_open
 - Folders_cannot_be_created_inside_an_archive
 - Marking_favorites_from_the_pane_adds_and_removes_them
 - Moving_a_file_takes_it_out_of_the_source
@@ -631,6 +645,8 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### MainWindowViewModelTests (MainWindowViewModelTests.cs)
 
+- A_folder_that_was_empty_gets_its_expand_arrow_in_both_panes_after_a_drop_between_them
+- A_folder_that_was_empty_gets_its_expand_arrow_in_both_panes_after_a_drop_from_another_program
 - A_remembered_folder_that_no_longer_exists_falls_back_to_a_drive_instead_of_failing
 - A_transfer_takes_the_selection_of_the_active_pane_to_the_folder_of_the_other
 - A_transfer_without_a_selection_says_what_is_missing
@@ -643,6 +659,7 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Pasting_with_nothing_staged_reports_it
 - Staging_without_a_selection_names_the_action_that_was_asked_for
 - The_chosen_sort_order_applies_to_both_panes
+- The_folder_a_file_was_moved_out_of_loses_its_arrow_in_both_panes
 - The_left_pane_starts_active_and_the_right_one_is_the_destination
 - The_pane_with_a_selection_is_the_one_used_and_the_active_one_wins_a_tie
 - Transfers_are_validated_before_anything_is_touched

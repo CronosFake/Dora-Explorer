@@ -1827,6 +1827,22 @@ public partial class FilePaneViewModel : ObservableObject
         RebuildNavigationTree();
     }
 
+    /// <summary>
+    /// Recarrega as pastas dadas que este painel mostra como linha da árvore; as que ele não mostra são ignoradas. Depois de soltar ou
+    /// colar itens, a pasta que mudou nem sempre é a que está aberta no painel (soltar cai numa linha qualquer): sem isto a linha
+    /// dela ficava com as contagens e a seta de expandir antigas, no painel que não executou a operação.
+    /// </summary>
+    public void RefreshShownDirectories(IEnumerable<string?> directories)
+    {
+        foreach (var directory in directories.Where(d => !string.IsNullOrWhiteSpace(d)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (FindNodeByPath(directory!) is not null)
+            {
+                RefreshDirectory(directory!);
+            }
+        }
+    }
+
     public void RefreshNode(NavigationTreeNodeViewModel node)
     {
         if (node.IsRecycleBinEntry)

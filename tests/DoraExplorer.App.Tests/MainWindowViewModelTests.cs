@@ -264,6 +264,62 @@ public sealed class MainWindowViewModelTests : IDisposable
         File.ReadAllText(Path.Combine(right, "mover.txt")).Should().Be("m");
     }
 
+    // ---- depois de soltar numa pasta que aparece como linha da árvore (não a que está aberta no painel), os DOIS painéis precisam
+    // ----- mostrar a mudança: a pasta que ganhou conteúdo ganha a seta de expandir, a que perdeu o último item a perde.
+
+    private (MainWindowViewModel Main, string Source, string Destination, string File) TwoPanesShowingTheSameFolders()
+    {
+        var root = _h.Folder("raiz");
+        var source = Directory.CreateDirectory(Path.Combine(root, "origem")).FullName;
+        var destination = Directory.CreateDirectory(Path.Combine(root, "destino")).FullName;
+        var other = Directory.CreateDirectory(Path.Combine(root, "outra")).FullName;
+        var file = PaneTestHarness.File(source, "a.txt");
+        // Esquerda aberta em "origem", direita aberta em "outra": nenhuma tem "destino" como pasta aberta, só como linha da árvore.
+        return (Open(source, other), source, destination, file);
+    }
+
+    private static bool HasArrow(FilePaneViewModel pane, string folder) =>
+        PaneTestHarness.Find(pane, folder) is { } node && node.Children.Any();
+
+    [Fact]
+    public async Task A_folder_that_was_empty_gets_its_expand_arrow_in_both_panes_after_a_drop_between_them()
+    {
+        var (main, _, destination, file) = TwoPanesShowingTheSameFolders();
+        HasArrow(main.LeftPane, destination).Should().BeFalse("a pasta de destino começa vazia");
+        HasArrow(main.RightPane, destination).Should().BeFalse();
+
+        var outcome = await main.ExecuteDropTransferAsync(main.LeftPane, [file], main.RightPane, destination, move: true);
+
+        outcome.Success.Should().BeTrue(outcome.ErrorMessage);
+        HasArrow(main.LeftPane, destination).Should().BeTrue("o painel de origem recarrega a pasta de destino");
+        HasArrow(main.RightPane, destination).Should().BeTrue("o painel de destino também: soltar na linha não pode deixá-la sem a seta");
+    }
+
+    [Fact]
+    public async Task A_folder_that_was_empty_gets_its_expand_arrow_in_both_panes_after_a_drop_from_another_program()
+    {
+        var (main, _, destination, _) = TwoPanesShowingTheSameFolders();
+        var outside = PaneTestHarness.File(_h.Folder("fora"), "do-explorer.txt");
+
+        var outcome = await main.ExecuteDropTransferAsync(null, [outside], main.RightPane, destination, move: false);
+
+        outcome.Success.Should().BeTrue(outcome.ErrorMessage);
+        HasArrow(main.RightPane, destination).Should().BeTrue();
+        HasArrow(main.LeftPane, destination).Should().BeTrue("o outro painel também mostra essa pasta");
+    }
+
+    [Fact]
+    public async Task The_folder_a_file_was_moved_out_of_loses_its_arrow_in_both_panes()
+    {
+        var (main, source, destination, file) = TwoPanesShowingTheSameFolders();
+        HasArrow(main.RightPane, source).Should().BeTrue("a pasta de origem tem o arquivo que vai sair");
+
+        await main.ExecuteDropTransferAsync(main.LeftPane, [file], main.RightPane, destination, move: true);
+
+        HasArrow(main.LeftPane, source).Should().BeFalse();
+        HasArrow(main.RightPane, source).Should().BeFalse("o painel de destino também mostrava essa pasta e ficava com a seta velha");
+    }
+
     [Fact]
     public void Panes_open_where_they_were_left_when_remembering_the_path_is_on_and_the_folder_still_exists()
     {

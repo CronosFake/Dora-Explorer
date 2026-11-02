@@ -51,6 +51,9 @@ public partial class FilePaneControl : UserControl
     private ContextMenu? _activeTreeContextMenu;
 
     private bool _itemDragPending;
+    private bool _dragStillInsideApp;
+    private bool _dragLeaveAsCopyOnly;
+    private bool _itemDragCollapseOnRelease;
     private Point _itemDragStart;
     private TreeViewItem? _itemDragClickItem;
     private NavigationTreeNodeViewModel? _itemDragClickNode;
@@ -842,40 +845,54 @@ public partial class FilePaneControl : UserControl
             return;
         }
 
-        // O TreeView só avisa (SelectedItemChanged) quando a linha atual muda. Depois de um Ctrl ou Shift+clique a linha clicada é a
-        // atual, então um clique comum nela não avisaria nada e a seleção de vários itens não se desfaria: faz-se aqui, como o aviso faria.
-        if (e.ClickCount == 1 && Keyboard.Modifiers == ModifierKeys.None && clickedItem is { IsSelected: true } &&
-            targetNode is { IsSelectableItem: true } && ViewModel is { } pane &&
-            !(pane.SelectedItems.Count == 1 && ReferenceEquals(pane.SelectedItems[0], targetNode)) &&
-            IsClickOnItemContent(e.OriginalSource as DependencyObject, clickedItem))
+        if (e.ClickCount != 1 || Keyboard.Modifiers != ModifierKeys.None || ViewModel is not { } pane ||
+            clickedItem is null || targetNode is not { IsSelectableItem: true } ||
+            !IsClickOnItemContent(e.OriginalSource as DependencyObject, clickedItem) ||
+            IsInsideButton(e.OriginalSource as DependencyObject))
         {
+            return;
+        }
+
+        // Apertar num item que já faz parte de uma seleção de vários: a seleção fica (para poder arrastá-la inteira) e o clique nativo
+        // do WPF, que a trocaria já ao apertar, é suprimido. Se o botão for solto sem arrasto, a seleção vira só esse item (como no
+        // Explorer): ver OnItemDragPreviewMouseUp.
+        var keepSelection = targetNode.IsItemSelected && pane.SelectedItems.Count > 1;
+        if (keepSelection)
+        {
+            e.Handled = true;
+            clickedItem.Focus();
+        }
+        else if (clickedItem.IsSelected && !(pane.SelectedItems.Count == 1 && ReferenceEquals(pane.SelectedItems[0], targetNode)))
+        {
+            // O TreeView só avisa (SelectedItemChanged) quando a linha atual muda. Depois de um Ctrl ou Shift+clique a linha clicada é a
+            // atual, então um clique comum nela não avisaria nada e a seleção de vários itens não se desfaria: faz-se aqui.
             pane.OnNavigationNodeSelected(targetNode);
             pane.SetSingleItemSelection(targetNode);
         }
 
-        if (sender is not TreeViewItem item ||
-            !ReferenceEquals(clickedItem, item) ||
-            item.DataContext is not NavigationTreeNodeViewModel node)
+        // Este evento é registrado no TreeView, então "sender" não é o TreeViewItem: o item vem do clique. O arrasto para o outro
+        // painel, o Explorer e outros programas começa aqui (antes, esta parte do método nunca rodava e arrastar não funcionava).
+        BeginItemDragTracking(e.GetPosition(this), clickedItem, targetNode, collapseOnRelease: keepSelection);
+    }
+
+    private static bool IsInsideButton(DependencyObject? source)
+    {
+        while (source is not null)
         {
-            return;
+            if (source is System.Windows.Controls.Primitives.ButtonBase)
+            {
+                return true;
+            }
+
+            if (source is TreeViewItem)
+            {
+                return false;
+            }
+
+            source = VisualTreeHelper.GetParent(source);
         }
 
-        if (e.Handled)
-        {
-            return;
-        }
-
-        e.Handled = true;
-
-        if (!IsClickOnItemContent(e.OriginalSource as DependencyObject, item))
-        {
-            return;
-        }
-
-        _marqueeClickItem = item;
-        _marqueeClickNode = node;
-
-        BeginItemDragTracking(e.GetPosition(this), item, node);
+        return false;
     }
 
     /// <summary>
@@ -994,7 +1011,11 @@ public partial class FilePaneControl : UserControl
         SelectExpandedNode(item, node);
     }
 
-    private void BeginItemDragTracking(Point startPoint, TreeViewItem item, NavigationTreeNodeViewModel node)
+    /// <summary>
+    /// Fica de olho no mouse depois de apertar numa linha: se andar além do limite com o botão apertado, começa o arrasto dos itens
+    /// (<see cref="StartFileDragDrop"/>). Não captura o mouse: a captura tiraria da linha o clique nativo que a seleciona.
+    /// </summary>
+    private void BeginItemDragTracking(Point startPoint, TreeViewItem item, NavigationTreeNodeViewModel node, bool collapseOnRelease)
     {
         CancelItemDragTracking();
 
@@ -1002,10 +1023,10 @@ public partial class FilePaneControl : UserControl
         _itemDragStart = startPoint;
         _itemDragClickItem = item;
         _itemDragClickNode = node;
+        _itemDragCollapseOnRelease = collapseOnRelease;
 
         Mouse.AddPreviewMouseMoveHandler(this, OnItemDragPreviewMouseMove);
         Mouse.AddPreviewMouseUpHandler(this, OnItemDragPreviewMouseUp);
-        CaptureMouse();
     }
 
     private void OnItemDragPreviewMouseMove(object sender, MouseEventArgs e)
@@ -1017,11 +1038,12 @@ public partial class FilePaneControl : UserControl
 
         if (e.LeftButton != MouseButtonState.Pressed)
         {
+            // O botão foi solto fora do painel (ou a janela perdeu o mouse): não vai mais haver arrasto.
+            EndItemDragTracking(keepClickState: false);
             return;
         }
 
-        var current = e.GetPosition(this);
-        if (!ExceedsDragThreshold(_itemDragStart, current))
+        if (!ExceedsDragThreshold(_itemDragStart, e.GetPosition(this)))
         {
             return;
         }
@@ -1029,10 +1051,9 @@ public partial class FilePaneControl : UserControl
         var node = _itemDragClickNode;
         var item = _itemDragClickItem;
 
-        if (!node.IsSelectableItem ||
-            node.Kind is not (NavigationNodeKind.File or NavigationNodeKind.Directory or NavigationNodeKind.Archive))
+        if (node.Kind is not (NavigationNodeKind.File or NavigationNodeKind.Directory or NavigationNodeKind.Archive))
         {
-            FinishItemDragAsClick(item, node);
+            EndItemDragTracking(keepClickState: false);
             return;
         }
 
@@ -1042,7 +1063,7 @@ public partial class FilePaneControl : UserControl
             try
             {
                 ViewModel?.SetSingleItemSelection(node);
-                SelectExpandedNode(item, node);
+                SelectExpandedNode(item, node, preserveItemSelection: true);
             }
             finally
             {
@@ -1050,15 +1071,13 @@ public partial class FilePaneControl : UserControl
             }
         }
 
+        // Só itens do disco local saem da janela: itens de servidor, de arquivo compactado e da Lixeira não têm um caminho de arquivo.
         var paths = ViewModel?.GetLocalTransferableItemPaths() ?? [];
-        if (paths.Count == 0)
-        {
-            FinishItemDragAsClick(item, node);
-            return;
-        }
-
         EndItemDragTracking(keepClickState: false);
-        StartFileDragDrop(paths);
+        if (paths.Count > 0)
+        {
+            StartFileDragDrop(paths);
+        }
     }
 
     private void OnItemDragPreviewMouseUp(object sender, MouseButtonEventArgs e)
@@ -1070,25 +1089,29 @@ public partial class FilePaneControl : UserControl
 
         var item = _itemDragClickItem;
         var node = _itemDragClickNode;
+        var collapse = _itemDragCollapseOnRelease;
         EndItemDragTracking(keepClickState: false);
 
-        if (item is not null && node is not null)
+        // Apertou num item de uma seleção de vários e soltou sem arrastar: a seleção vira só esse item.
+        if (collapse && item is not null && node is not null && ViewModel is { } pane)
         {
-            HandlePendingItemClick(item, node);
+            _suppressSelectionSync = true;
+            try
+            {
+                SelectExpandedNode(item, node);
+                pane.SetSingleItemSelection(node);
+            }
+            finally
+            {
+                _suppressSelectionSync = false;
+            }
         }
-
-        e.Handled = true;
-    }
-
-    private void FinishItemDragAsClick(TreeViewItem item, NavigationTreeNodeViewModel node)
-    {
-        EndItemDragTracking(keepClickState: false);
-        HandlePendingItemClick(item, node);
     }
 
     private void EndItemDragTracking(bool keepClickState)
     {
         _itemDragPending = false;
+        _itemDragCollapseOnRelease = false;
         if (!keepClickState)
         {
             _itemDragClickItem = null;
@@ -1099,11 +1122,6 @@ public partial class FilePaneControl : UserControl
 
         Mouse.RemovePreviewMouseMoveHandler(this, OnItemDragPreviewMouseMove);
         Mouse.RemovePreviewMouseUpHandler(this, OnItemDragPreviewMouseUp);
-
-        if (IsMouseCaptured)
-        {
-            ReleaseMouseCapture();
-        }
     }
 
     private void CancelItemDragTracking()
@@ -1135,14 +1153,28 @@ public partial class FilePaneControl : UserControl
         }
 
         DragDropEffects result;
+        _dragLeaveAsCopyOnly = false;
+        _dragStillInsideApp = true;
         try
         {
-            result = DragDrop.DoDragDrop(this, data, DragDropEffects.Copy | DragDropEffects.Move);
+            // Dentro do app (o outro painel) vale copiar e mover. O Windows fixa os efeitos no começo do arrasto: se o cursor sair do
+            // app com o botão apertado, OnQueryContinueDrag cancela este arrasto e ele recomeça aqui só com Copiar, para outro
+            // programa (Explorer, navegador, área de trabalho) nunca poder mover, e portanto tirar do lugar, o arquivo.
+            result = DragDrop.DoDragDrop(this, data, DragPolicy.AllowedEffects(cursorOverOwnWindow: true));
+            if (_dragLeaveAsCopyOnly && DragPolicy.IsLeftButtonDown())
+            {
+                result = DragDrop.DoDragDrop(this, data, DragPolicy.AllowedEffects(cursorOverOwnWindow: false));
+            }
         }
         catch (Exception ex)
         {
             AppLogService.Error("Falha no drag-and-drop", ex);
             return;
+        }
+        finally
+        {
+            _dragLeaveAsCopyOnly = false;
+            _dragStillInsideApp = false;
         }
 
         if (main is null)
@@ -1238,11 +1270,21 @@ public partial class FilePaneControl : UserControl
         }
     }
 
-    private static void OnQueryContinueDrag(object sender, QueryContinueDragEventArgs e)
+    private void OnQueryContinueDrag(object sender, QueryContinueDragEventArgs e)
     {
         if (e.EscapePressed)
         {
             e.Action = DragAction.Cancel;
+            return;
+        }
+
+        // Saiu do app com o botão apertado: cancela para StartFileDragDrop refazer o arrasto só com Copiar.
+        if (_dragStillInsideApp && !DragPolicy.IsCursorOverOwnWindow())
+        {
+            _dragStillInsideApp = false;
+            _dragLeaveAsCopyOnly = true;
+            e.Action = DragAction.Cancel;
+            e.Handled = true;
         }
     }
 

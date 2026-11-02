@@ -299,7 +299,26 @@ public partial class MainWindowViewModel : ObservableObject
 
         // Mesmo cancelada ou interrompida, parte dos itens pode já ter sido transferida.
         RefreshAfterDrop(sourcePane, destinationPane, move);
+        RefreshShownAfterTransfer(sourcePaths, destinationDirectory, move);
         return outcome;
+    }
+
+    /// <summary>
+    /// Os dois painéis recarregam a pasta de destino (e, ao mover, as pastas de onde os itens saíram) se a mostram como linha da
+    /// árvore. Só o painel que executou a operação as recarregava: no outro a pasta ficava sem a seta de expandir (ou com a velha).
+    /// </summary>
+    private void RefreshShownAfterTransfer(IReadOnlyList<string> sourcePaths, string destinationDirectory, bool move)
+    {
+        var directories = new List<string?> { destinationDirectory };
+        if (move)
+        {
+            directories.AddRange(sourcePaths
+                .Where(path => !NetworkFileService.TryParseRemotePath(path, out _, out _, out _) && !ArchivePathHelper.IsVirtualArchivePath(path))
+                .Select(Path.GetDirectoryName));
+        }
+
+        LeftPane.RefreshShownDirectories(directories);
+        RightPane.RefreshShownDirectories(directories);
     }
 
     private void RefreshAfterDrop(
@@ -393,6 +412,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         destinationPane.RefreshPane();
+        RefreshShownAfterTransfer(sourcePaths, destinationDirectory, move);
         return outcome;
     }
 
