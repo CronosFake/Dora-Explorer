@@ -1,6 +1,8 @@
-# Dora Explorer
+# Dora Explorer — releitura do X-plore File Manager
 
-Gerenciador de ficheiros para Windows com dois painéis lado a lado, inspirado no X-plore. Navegação em árvore unificada (pastas e ficheiros no mesmo nível), ícones do sistema, barra de caminho, menu central de operações, cliente e servidor de rede (FTP, SFTP, SCP, TFTP) e opções de visibilidade por painel.
+Releitura para Windows do **X-plore File Manager**, o gerenciador de arquivos de dois painéis para Android da [Lonely Cat Games](https://www.lonelycatgames.com/apps/xplore). O Dora Explorer é um projeto independente: não tem vínculo com a Lonely Cat Games nem foi aprovado por ela, e "X-plore" é nome do app dela.
+
+Reúne dois painéis lado a lado, navegação em árvore unificada (pastas e ficheiros no mesmo nível), ícones do sistema, barra de caminho, menu central de operações, cliente e servidor de rede (FTP, SFTP, SCP, TFTP) e opções de visibilidade por painel.
 
 ## Requisitos
 
