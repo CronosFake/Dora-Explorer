@@ -1,0 +1,28 @@
+---
+description: Consultar project.md antes de explorar o código
+alwaysApply: true
+---
+
+# Mapa do projeto
+
+Antes de qualquer busca ampla ou leitura de múltiplos ficheiros:
+
+1. Ler `project.md` na raiz do repositório.
+2. Ir direto ao(s) ficheiro(s) listados no mapa para a área da tarefa.
+3. Só fazer grep/exploração ampla se `project.md` não cobrir o alvo.
+
+## Convenções Dora Explorer
+
+- Stack: C# / .NET 8 / WPF / CommunityToolkit.Mvvm
+- Padrão: MVVM — lógica em `ViewModels/` e `Services/`, UI em `Controls/` e `Views/`
+- Operações de ficheiro: `FileOperationService` (local) / `NetworkFileService` (rede)
+- Árvore de navegação: `NavigationTreeService` + `FilePaneViewModel`
+- Menu central: `CenterToolbarViewModel` → diálogos em `Views/Dialogs/`
+- Tema: `ThemeManager`, `ExplorerThemeResources`, `Resources/Theme.xaml`
+- Logs: `AppLogService` → `logs/doraexplorer-AAAAMMDD.log`
+- Executar: `Start.bat` (compila para `build/compile/`, copia para `build/staging/`)
+
+## O que NÃO ler
+
+- `src/**/obj/`, `src/**/bin/`, `build/` (artefactos gerados)
+- `logs/*.log` (só consultar se a tarefa for debug)

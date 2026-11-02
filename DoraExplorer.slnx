@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DoraExplorer.App/DoraExplorer.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DoraExplorer.App.Tests/DoraExplorer.App.Tests.csproj" />
+  </Folder>
+</Solution>

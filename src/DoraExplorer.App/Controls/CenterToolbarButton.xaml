@@ -1,0 +1,120 @@
+<UserControl x:Class="DoraExplorer.App.Controls.CenterToolbarButton"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="clr-namespace:DoraExplorer.App.Controls"
+             mc:Ignorable="d"
+             d:DesignWidth="72"
+             d:DesignHeight="50"
+             x:Name="Root">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Resources/CenterToolbarIcons.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Button x:Name="ActionButton"
+            Width="70"
+            Height="52"
+            Margin="1,1"
+            ToolTip="{Binding Hint, ElementName=Root}"
+            ToolTipService.ShowOnDisabled="True"
+            ToolTipService.InitialShowDelay="450"
+            AutomationProperties.Name="{Binding Label, ElementName=Root}"
+            AutomationProperties.HelpText="{Binding Hint, ElementName=Root}"
+            Padding="4,4"
+            Cursor="Hand"
+            Focusable="False"
+            OverridesDefaultStyle="True"
+            Command="{Binding Command, ElementName=Root}"
+            Click="Button_Click"
+            Background="Transparent"
+            BorderBrush="Transparent"
+            BorderThickness="1"
+            SnapsToDevicePixels="True">
+        <Button.Template>
+            <ControlTemplate TargetType="Button">
+                <Border x:Name="ButtonBorder"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="6"
+                        SnapsToDevicePixels="True">
+                    <ContentPresenter HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                </Border>
+                <ControlTemplate.Triggers>
+                    <!-- Mesmo efeito da árvore (ListItemHoverBackgroundBrush) -->
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="ButtonBorder" Property="Background"
+                                Value="{DynamicResource ListItemHoverBackgroundBrush}" />
+                    </Trigger>
+                    <DataTrigger Binding="{Binding IsMenuOpen, RelativeSource={RelativeSource AncestorType=local:CenterToolbarButton}}"
+                                 Value="True">
+                        <Setter TargetName="ButtonBorder" Property="Background"
+                                Value="{DynamicResource ListItemHoverBackgroundBrush}" />
+                        <Setter TargetName="ButtonBorder" Property="BorderBrush"
+                                Value="{DynamicResource AccentBrush}" />
+                        <Setter TargetName="ButtonBorder" Property="BorderThickness" Value="2" />
+                    </DataTrigger>
+                    <Trigger Property="IsPressed" Value="True">
+                        <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.92" />
+                    </Trigger>
+                    <Trigger Property="IsEnabled" Value="False">
+                        <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.45" />
+                    </Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+        </Button.Template>
+
+        <StackPanel HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+            <TextBlock x:Name="IconText"
+                       Text="{Binding IconGlyph, ElementName=Root}"
+                       FontFamily="{StaticResource FluentIconFontFamily}"
+                       FontSize="15"
+                       Foreground="{Binding IconForeground, ElementName=Root}"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,3"
+                       TextAlignment="Center" />
+
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Center"
+                        MaxWidth="64">
+                <Ellipse x:Name="ServiceStatusDot"
+                         Width="7"
+                         Height="7"
+                         Margin="0,0,4,0"
+                         VerticalAlignment="Center"
+                         SnapsToDevicePixels="True">
+                    <Ellipse.Style>
+                        <Style TargetType="Ellipse">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Setter Property="Fill" Value="#FF9E9E9E" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ShowServiceStatus, ElementName=Root}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsServiceActive, ElementName=Root}" Value="True">
+                                    <Setter Property="Fill" Value="#FF4CAF50" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Ellipse.Style>
+                </Ellipse>
+
+                <TextBlock x:Name="LabelText"
+                           Text="{Binding Label, ElementName=Root}"
+                           FontFamily="Segoe UI"
+                           FontSize="11"
+                           Foreground="{DynamicResource CenterToolbarForegroundBrush}"
+                           VerticalAlignment="Center"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </StackPanel>
+    </Button>
+</UserControl>

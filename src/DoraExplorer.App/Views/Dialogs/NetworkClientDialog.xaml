@@ -1,0 +1,141 @@
+<Window x:Class="DoraExplorer.App.Views.Dialogs.NetworkClientDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="SingleBorderWindow"
+        ResizeMode="CanMinimize"
+        ShowInTaskbar="False"
+        MinWidth="420"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource ForegroundBrush}">
+    <Grid Margin="20">
+        <StackPanel>
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="110" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Nome" VerticalAlignment="Center" />
+                <TextBox x:Name="NameTextBox" Grid.Row="0" Grid.Column="1" Margin="0,0,0,6" Padding="4,2" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Servidor" VerticalAlignment="Center" />
+                <TextBox x:Name="HostTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" Padding="4,2" />
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Porta" VerticalAlignment="Center" />
+                <TextBox x:Name="PortTextBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" Padding="4,2" />
+
+                <TextBlock x:Name="UsernameLabel" Grid.Row="3" Grid.Column="0" Text="Utilizador" VerticalAlignment="Center" />
+                <TextBox x:Name="UsernameTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,6" Padding="4,2" />
+
+                <TextBlock x:Name="PasswordLabel" Grid.Row="4" Grid.Column="0" Text="Palavra-passe" VerticalAlignment="Center" />
+                <PasswordBox x:Name="PasswordBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,6" Padding="4,2" />
+
+                <TextBlock x:Name="SecurityLabel" Grid.Row="5" Grid.Column="0" Text="Criptografia" VerticalAlignment="Center" />
+                <ComboBox x:Name="SecurityComboBox"
+                          Grid.Row="5"
+                          Grid.Column="1"
+                          Margin="0,0,0,6"
+                          Padding="4,2"
+                          SelectionChanged="SecurityComboBox_SelectionChanged"
+                          ToolTip="Automática tenta FTPS e, se o servidor não oferecer, usa FTP simples (usuário e senha em texto puro).">
+                    <ComboBoxItem Content="Automática (FTPS se disponível)" Tag="Auto" />
+                    <ComboBoxItem Content="Nenhuma (FTP simples)" Tag="None" />
+                    <ComboBoxItem Content="FTPS explícito (obrigatório)" Tag="Explicit" />
+                    <ComboBoxItem Content="FTPS implícito (porta 990)" Tag="Implicit" />
+                </ComboBox>
+
+                <TextBlock x:Name="KeyLabel" Grid.Row="6" Grid.Column="0" Text="Chave privada" VerticalAlignment="Center" />
+                <DockPanel x:Name="KeyPanel" Grid.Row="6" Grid.Column="1" Margin="0,0,0,6" LastChildFill="True">
+                    <Button Content="..."
+                            DockPanel.Dock="Right"
+                            Width="32"
+                            Margin="6,0,0,0"
+                            Style="{StaticResource DialogButtonStyle}"
+                            ToolTip="Escolher o arquivo da chave (OpenSSH, PEM ou PuTTY)"
+                            Click="BrowseKey_Click" />
+                    <TextBox x:Name="KeyPathTextBox"
+                             Padding="4,2"
+                             ToolTip="Opcional: autentica com chave em vez de (ou antes de) senha." />
+                </DockPanel>
+
+                <TextBlock x:Name="PassphraseLabel" Grid.Row="7" Grid.Column="0" Text="Senha da chave" VerticalAlignment="Center" />
+                <PasswordBox x:Name="PassphraseBox" Grid.Row="7" Grid.Column="1" Padding="4,2" />
+            </Grid>
+
+            <StackPanel x:Name="BrowsePanel">
+                <TextBlock Text="Caminho remoto"
+                           Margin="0,0,0,4" />
+                <TextBox x:Name="RemotePathTextBox"
+                         Text="/"
+                         Padding="4,2"
+                         Margin="0,0,0,8" />
+            </StackPanel>
+
+            <StackPanel x:Name="TransferPanel"
+                        Visibility="Collapsed">
+                <TextBlock Text="Ficheiro local"
+                           Margin="0,0,0,4" />
+                <DockPanel Margin="0,0,0,8">
+                    <Button Content="..."
+                            DockPanel.Dock="Right"
+                            Width="32"
+                            Margin="6,0,0,0"
+                            Style="{StaticResource DialogButtonStyle}"
+                            Click="BrowseLocal_Click" />
+                    <TextBox x:Name="LocalFileTextBox"
+                             Padding="4,2" />
+                </DockPanel>
+
+                <TextBlock Text="Ficheiro remoto"
+                           Margin="0,0,0,4" />
+                <TextBox x:Name="RemoteFileTextBox"
+                         Padding="4,2"
+                         Margin="0,0,0,8" />
+
+                <StackPanel Orientation="Horizontal"
+                            Margin="0,0,0,8">
+                    <RadioButton x:Name="UploadRadio"
+                                 Content="Enviar"
+                                 IsChecked="True"
+                                 Margin="0,0,12,0" />
+                    <RadioButton x:Name="DownloadRadio"
+                                 Content="Receber" />
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Margin="0,12,0,0">
+                <Button Content="Salvar"
+                        Width="90"
+                        Margin="0,0,8,0"
+                        Style="{StaticResource DialogButtonStyle}"
+                        Click="Save_Click" />
+                <Button x:Name="PrimaryButton"
+                        Content="Ligar"
+                        Width="90"
+                        Margin="0,0,8,0"
+                        IsDefault="True"
+                        Style="{StaticResource DialogAccentButtonStyle}"
+                        Click="Primary_Click" />
+                <Button Content="Cancelar"
+                        Width="90"
+                        IsCancel="True"
+                        Style="{StaticResource DialogButtonStyle}"
+                        Click="Cancel_Click" />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

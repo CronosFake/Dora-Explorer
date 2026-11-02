@@ -1,0 +1,35 @@
+<Window x:Class="DoraExplorer.App.Views.Dialogs.DeleteChoiceDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Excluir"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="SingleBorderWindow"
+        ResizeMode="CanMinimize"
+        ShowInTaskbar="False"
+        MinWidth="380"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource ForegroundBrush}">
+    <Grid Margin="20">
+        <StackPanel>
+            <TextBlock x:Name="MessageText"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,16" />
+            <Button Content="Mover para a lixeira"
+                    HorizontalAlignment="Stretch"
+                    Margin="0,0,0,8"
+                    Style="{StaticResource DialogAccentButtonStyle}"
+                    Click="RecycleBin_Click" />
+            <Button Content="Excluir permanentemente"
+                    HorizontalAlignment="Stretch"
+                    Margin="0,0,0,8"
+                    Style="{StaticResource DialogButtonStyle}"
+                    Click="Permanent_Click" />
+            <Button Content="Cancelar"
+                    HorizontalAlignment="Stretch"
+                    IsCancel="True"
+                    Style="{StaticResource DialogButtonStyle}"
+                    Click="Cancel_Click" />
+        </StackPanel>
+    </Grid>
+</Window>

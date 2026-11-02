@@ -1,0 +1,136 @@
+﻿<Window x:Class="DoraExplorer.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="clr-namespace:DoraExplorer.App.Controls"
+        mc:Ignorable="d"
+        Title="Dora Explorer"
+        Height="720"
+        Width="1280"
+        MinHeight="580"
+        MinWidth="900"
+        Icon="pack://application:,,,/Assets/app.ico"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource ForegroundBrush}"
+        FontFamily="Segoe UI"
+        WindowStartupLocation="CenterScreen">
+    <Window.InputBindings>
+        <KeyBinding Key="N"
+                    Modifiers="Control+Shift"
+                    Command="{Binding CenterToolbar.NewFolderCommand}" />
+        <KeyBinding Key="F5"
+                    Command="{Binding CenterToolbar.RefreshCommand}" />
+    </Window.InputBindings>
+    <DockPanel LastChildFill="True">
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_Arquivo">
+                <MenuItem Header="_Sair"
+                          InputGestureText="Alt+F4"
+                          Click="Exit_Click" />
+            </MenuItem>
+            <MenuItem Header="_Exibir">
+                <MenuItem Header="Exibir arquivos ocultos"
+                          IsCheckable="True"
+                          IsChecked="{Binding ShowHiddenFiles, Mode=OneWay}"
+                          Command="{Binding ToggleShowHiddenFilesCommand}" />
+                <MenuItem Header="Exibir arquivos de sistema"
+                          IsCheckable="True"
+                          IsChecked="{Binding ShowSystemFiles, Mode=OneWay}"
+                          Command="{Binding ToggleShowSystemFilesCommand}" />
+                <MenuItem Header="Exibir unidades externas"
+                          IsCheckable="True"
+                          IsChecked="{Binding ShowExternalDrives, Mode=OneWay}"
+                          Command="{Binding ToggleShowExternalDrivesCommand}" />
+                <MenuItem Header="Exibir partições não mapeadas"
+                          IsCheckable="True"
+                          IsChecked="{Binding ShowUnmappedPartitions, Mode=OneWay}"
+                          Command="{Binding ToggleShowUnmappedPartitionsCommand}" />
+                <MenuItem Header="Linhas compactas em colunas"
+                          IsCheckable="True"
+                          IsChecked="{Binding CompactRows, Mode=OneWay}"
+                          Command="{Binding ToggleCompactRowsCommand}" />
+                <MenuItem Header="Exibir aplicativo padrão"
+                          IsCheckable="True"
+                          IsChecked="{Binding ShowDefaultApplication, Mode=OneWay}"
+                          Command="{Binding ToggleShowDefaultApplicationCommand}" />
+            </MenuItem>
+            <MenuItem Header="_Temas">
+                <MenuItem Header="_Tema">
+                    <MenuItem Header="Claro"
+                              IsCheckable="True"
+                              IsChecked="{Binding IsLightThemeSelected, Mode=OneWay}"
+                              Command="{Binding SetLightThemeCommand}" />
+                    <MenuItem Header="Escuro"
+                              IsCheckable="True"
+                              IsChecked="{Binding IsDarkThemeSelected, Mode=OneWay}"
+                              Command="{Binding SetDarkThemeCommand}" />
+                    <MenuItem Header="Automático"
+                              IsCheckable="True"
+                              IsChecked="{Binding IsSystemThemeSelected, Mode=OneWay}"
+                              Command="{Binding SetSystemThemeCommand}" />
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="Cor do software"
+                          ItemsSource="{Binding AccentColors}">
+                    <MenuItem.ItemContainerStyle>
+                        <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                            <Setter Property="IsCheckable" Value="True" />
+                            <Setter Property="IsChecked" Value="{Binding IsSelected, Mode=OneWay}" />
+                            <Setter Property="Command" Value="{Binding SelectCommand}" />
+                        </Style>
+                    </MenuItem.ItemContainerStyle>
+                    <MenuItem.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="13"
+                                        Height="13"
+                                        CornerRadius="3"
+                                        Background="{Binding Swatch}"
+                                        BorderBrush="#55000000"
+                                        BorderThickness="1"
+                                        Margin="0,0,8,0"
+                                        VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Name}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </MenuItem.ItemTemplate>
+                </MenuItem>
+            </MenuItem>
+            <MenuItem Header="_Ferramentas">
+                <MenuItem Header="Lembrar caminho"
+                          IsCheckable="True"
+                          IsChecked="{Binding RememberPath, Mode=OneWay}"
+                          Command="{Binding ToggleRememberPathCommand}" />
+            </MenuItem>
+            <MenuItem Header="_Ajuda">
+                <MenuItem Header="_Sobre..." Click="About_Click" />
+            </MenuItem>
+        </Menu>
+
+        <Grid Margin="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="280" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MinWidth="280" />
+            </Grid.ColumnDefinitions>
+
+            <controls:FilePaneControl Grid.Column="0"
+                                      x:Name="LeftPaneControl"
+                                      Margin="0,0,4,0"
+                                      PreviewMouseDown="LeftPane_MouseDown"
+                                      DataContext="{Binding LeftPane}" />
+
+            <controls:CenterToolbarControl Grid.Column="1"
+                                           Margin="4,0"
+                                           DataContext="{Binding CenterToolbar}" />
+
+            <controls:FilePaneControl Grid.Column="2"
+                                      x:Name="RightPaneControl"
+                                      Margin="4,0,0,0"
+                                      PreviewMouseDown="RightPane_MouseDown"
+                                      DataContext="{Binding RightPane}" />
+        </Grid>
+    </DockPanel>
+</Window>

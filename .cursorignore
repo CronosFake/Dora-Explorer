@@ -1,0 +1,6 @@
+﻿build/
+src/**/bin/
+src/**/obj/
+tests/**/bin/
+tests/**/obj/
+logs/*.log

@@ -1,0 +1,38 @@
+# Build
+build/
+src/**/bin/
+src/**/obj/
+tests/**/bin/
+tests/**/obj/
+
+# Logs (mantém a pasta, ignora ficheiros gerados)
+logs/*.log
+logs/*-out.txt
+logs/*-err.txt
+
+# Resultados do dotnet test (trazem caminhos da máquina de quem rodou)
+TestResults/
+
+# IDE / editor
+.vs/
+.idea/
+*.user
+*.suo
+*.sln.docstates
+
+# Claude Code: permissões locais (caminhos, hosts e comandos específicos desta máquina)
+.claude/settings.local.json
+
+# Cursor (rules versionadas; ignorar cache local)
+.cursor/cache/
+.cursor/plans/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# NuGet / temporários
+*.nupkg
+*.tmp
+*.bak

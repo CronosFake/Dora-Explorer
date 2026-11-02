@@ -1,0 +1,27 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+
+    <FontFamily x:Key="FluentIconFontFamily">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+
+    <!-- Pasta -->
+    <sys:String x:Key="GlyphNewFolder">&#xE8F4;</sys:String>
+    <sys:String x:Key="GlyphSearch">&#xE721;</sys:String>
+    <sys:String x:Key="GlyphSort">&#xE8CB;</sys:String>
+    <sys:String x:Key="GlyphRefresh">&#xE72C;</sys:String>
+
+    <!-- Arquivos -->
+    <sys:String x:Key="GlyphCopy">&#xE8C8;</sys:String>
+    <sys:String x:Key="GlyphMove">&#xE8DE;</sys:String>
+    <sys:String x:Key="GlyphRename">&#xE70F;</sys:String>
+    <sys:String x:Key="GlyphCompress">&#xE8B5;</sys:String>
+    <sys:String x:Key="GlyphDelete">&#xE74D;</sys:String>
+    <sys:String x:Key="GlyphFavorite">&#xE734;</sys:String>
+
+    <!-- Rede -->
+    <sys:String x:Key="GlyphFtp">&#xE968;</sys:String>
+    <sys:String x:Key="GlyphSftp">&#xE72E;</sys:String>
+    <sys:String x:Key="GlyphScp">&#xE756;</sys:String>
+    <sys:String x:Key="GlyphTftp">&#xE895;</sys:String>
+
+</ResourceDictionary>

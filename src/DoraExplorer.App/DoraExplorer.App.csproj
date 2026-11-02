@@ -1,0 +1,73 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+
+
+  <PropertyGroup>
+
+    <OutputType>WinExe</OutputType>
+
+    <TargetFramework>net8.0-windows</TargetFramework>
+
+    <Nullable>enable</Nullable>
+
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <UseWPF>true</UseWPF>
+
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+
+    <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
+
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <NoWarn>$(NoWarn);CA1416;CA1305;CA1822;CA1859;CA1725;CA2101;CA1838;CA1826;CA1001</NoWarn>
+
+  </PropertyGroup>
+
+
+
+  <ItemGroup>
+
+    <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\app-icon.png" />
+
+  </ItemGroup>
+
+
+
+  <ItemGroup>
+
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+
+    <PackageReference Include="FluentFTP" Version="51.1.0" />
+
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
+
+    <PackageReference Include="Microsoft.DevTunnels.Ssh" Version="3.12.42" />
+
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+
+    <PackageReference Include="Serilog" Version="4.2.0" />
+
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+
+    <PackageReference Include="SharpCompress" Version="0.49.1" />
+
+    <PackageReference Include="SSH.NET" Version="2026.0.0" />
+
+    <PackageReference Include="System.Management" Version="9.0.0" />
+
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+
+  </ItemGroup>
+
+
+
+</Project>
+

@@ -1,0 +1,28 @@
+Pasta de logs do Dora Explorer
+==============================
+
+Os ficheiros de log são criados automaticamente quando a aplicação é executada.
+
+Formato do ficheiro
+-------------------
+  doraexplorer-AAAAMMDD.log
+
+Exemplo de linha
+----------------
+  [2026-06-17 14:30:45.123] [INF] Mensagem
+  [2026-06-17 14:30:46.456] [WRN] Aviso
+  [2026-06-17 14:30:47.789] [ERR] Erro com detalhes da exceção
+
+Níveis registados
+-----------------
+  INF — arranque, encerramento, operações normais
+  WRN — situações inesperadas mas recuperáveis
+  ERR — falhas (ex.: acesso negado a pastas, exceções não tratadas)
+
+O que procurar ao analisar falhas
+---------------------------------
+  1. Linhas [ERR] com stack trace — indicam a causa raiz
+  2. Mensagens "Falha ao ler diretório" — permissões ou caminho inválido
+  3. "Exceção não tratada" — bugs na interface ou lógica da aplicação
+
+Nota: os ficheiros .log não são versionados no Git (ver .gitignore).

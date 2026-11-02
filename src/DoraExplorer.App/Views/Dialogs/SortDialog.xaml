@@ -1,0 +1,43 @@
+<Window x:Class="DoraExplorer.App.Views.Dialogs.SortDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ordenar"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="SingleBorderWindow"
+        ResizeMode="CanMinimize"
+        ShowInTaskbar="False"
+        MinWidth="360"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource ForegroundBrush}">
+    <Grid Margin="20">
+        <StackPanel>
+            <TextBlock Text="Ordenar itens da pasta atual por:"
+                       Margin="0,0,0,12" />
+            <ComboBox x:Name="SortComboBox"
+                      Margin="0,0,0,20">
+                <ComboBoxItem Content="Nome (A-Z)" />
+                <ComboBoxItem Content="Nome (Z-A)" />
+                <ComboBoxItem Content="Tipo (pastas primeiro)" />
+                <ComboBoxItem Content="Tamanho (menor primeiro)" />
+                <ComboBoxItem Content="Tamanho (maior primeiro)" />
+                <ComboBoxItem Content="Data (mais antigo primeiro)" />
+                <ComboBoxItem Content="Data (mais recente primeiro)" />
+            </ComboBox>
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <Button Content="Aplicar"
+                        Width="90"
+                        Margin="0,0,8,0"
+                        IsDefault="True"
+                        Style="{StaticResource DialogAccentButtonStyle}"
+                        Click="Ok_Click" />
+                <Button Content="Cancelar"
+                        Width="90"
+                        IsCancel="True"
+                        Style="{StaticResource DialogButtonStyle}"
+                        Click="Cancel_Click" />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>
