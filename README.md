@@ -4,6 +4,8 @@ Releitura para Windows do **X-plore File Manager**, o gerenciador de arquivos de
 
 Reúne dois painéis lado a lado, navegação em árvore unificada (pastas e ficheiros no mesmo nível), ícones do sistema, barra de caminho, menu central de operações, cliente e servidor de rede (FTP, SFTP, SCP, TFTP) e opções de visibilidade por painel.
 
+> English: a short summary is in the [English](#english) section at the end of this file.
+
 ## Requisitos
 
 - Windows 10 ou superior
@@ -262,6 +264,25 @@ Consulte também `logs/LEIA-ME.txt` para um guia rápido de análise.
 - Ao abrir uma pasta, a lista dos filhos cresce de altura 0 até a altura dos que cabem na tela, no ritmo em que eles entram em cascata, e as linhas abaixo da pasta descem junto. Antes elas sumiam de uma vez e voltavam durante a animação (a árvore perdia de 41% a 83% do conteúdo num único quadro, o "pisca"); agora a maior queda em um quadro é de 3% a 15%. Em troca, a primeira mudança na tela vem de 10 a 60 ms depois, porque a lista é medida antes de crescer. Numa pasta com centenas de itens, o resto da lista (fora da tela) entra de uma vez no fim da animação, e a barra de rolagem muda de tamanho nesse momento
 - Prévia de PDF depende de o Windows ter um provedor de miniaturas de PDF: num computador só com o Acrobat, por exemplo, o Explorer também não mostra miniatura e o Dora Explorer não mostra prévia (imagens sempre funcionam)
 
+## Dúvidas, sugestões, pedidos e problemas
+
+Abra uma [issue](https://github.com/CronosFake/Dora-Explorer/issues/new/choose) e escolha o formulário: **Dúvida**, **Sugestão** (melhoria de algo que o app já tem), **Pedido** (algo novo) ou **Problema**. Pode escrever em português ou em inglês. A página é pública: apague senhas, chaves, nomes de usuário e caminhos pessoais antes de colar um log ou uma captura de tela.
+
+O projeto é mantido por uma pessoa só, e as alterações no código são feitas apenas pelo autor: em vez de enviar um pull request, abra uma issue.
+
 ## Licença
 
-Projeto em desenvolvimento interno — sem licença pública definida.
+O código está público para leitura, mas não traz licença de uso: todos os direitos são do autor, e copiar, modificar ou redistribuir o projeto exige a permissão dele.
+
+## English
+
+**Dora Explorer** is a Windows reimagining of **X-plore File Manager**, the dual-pane file manager for Android by [Lonely Cat Games](https://www.lonelycatgames.com/apps/xplore). It is an independent project: it is not affiliated with or endorsed by Lonely Cat Games, and "X-plore" is the name of their app.
+
+It brings two side-by-side panes, a unified tree view (folders and files at the same level), system icons, a path bar, a central operations menu, a network client and server (FTP, SFTP, SCP, TFTP) and visibility options for each pane. It is a WPF application on .NET 8 (MVVM). The interface is in Brazilian Portuguese.
+
+- **Requirements:** Windows 10 or later. To build, the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (the runtime alone is not enough).
+- **Run:** `Start.bat` at the project root. It closes a previous instance, builds in Release mode and starts the app.
+- **Tests:** `dotnet test DoraExplorer.sln -c Release`.
+- **Questions, suggestions, requests and problems:** open an [issue](https://github.com/CronosFake/Dora-Explorer/issues/new/choose) and pick a form (Question, Suggestion, Request or Bug report). You can write in English or Portuguese. The page is public, so remove passwords, keys, user names and personal paths from logs and screenshots.
+- **Code changes** are made only by the author. Please open an issue instead of sending a pull request.
+- **License:** the code is public to read, but it comes with no license for reuse: all rights are reserved by the author, and copying, modifying or redistributing it requires their permission.

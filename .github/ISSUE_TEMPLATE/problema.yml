@@ -1,0 +1,66 @@
+name: "Problema / Bug report"
+description: "Algo não funciona como deveria, travou ou mostrou um erro. / Something doesn't work as it should, froze or showed an error."
+title: "[Problema] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Pode escrever em português ou em inglês. / You can write in Portuguese or English.
+
+        **Antes de colar um log ou uma captura de tela, apague senhas, chaves, nomes de usuário e caminhos pessoais.** Esta página é pública. / **Before pasting a log or a screenshot, remove passwords, keys, user names and personal paths.** This page is public.
+  - type: textarea
+    id: ocorrido
+    attributes:
+      label: "O que aconteceu? / What happened?"
+    validations:
+      required: true
+  - type: textarea
+    id: passos
+    attributes:
+      label: "Como repetir o problema? / How to reproduce it?"
+      description: "Os passos, um por linha. / The steps, one per line."
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: "O que você esperava que acontecesse? / What did you expect to happen?"
+    validations:
+      required: false
+  - type: input
+    id: windows
+    attributes:
+      label: "Versão do Windows / Windows version"
+      placeholder: "Windows 11 23H2"
+    validations:
+      required: false
+  - type: input
+    id: versao
+    attributes:
+      label: "Versão ou commit do Dora Explorer / Dora Explorer version or commit"
+      description: "Se você souber. / If you know it."
+    validations:
+      required: false
+  - type: dropdown
+    id: admin
+    attributes:
+      label: "O app estava aberto como administrador? / Was the app running as administrator?"
+      options:
+        - "Não sei / Don't know"
+        - "Não / No"
+        - "Sim / Yes"
+    validations:
+      required: false
+  - type: textarea
+    id: log
+    attributes:
+      label: "Log (opcional) / Log (optional)"
+      description: "O arquivo mais recente da pasta logs do projeto (ou o trecho do erro). / The newest file in the project's logs folder (or the part with the error)."
+      render: text
+    validations:
+      required: false

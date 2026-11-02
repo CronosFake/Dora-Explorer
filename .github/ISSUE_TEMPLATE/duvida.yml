@@ -1,0 +1,23 @@
+name: "Dúvida / Question"
+description: "Não sei como fazer algo no Dora Explorer. / I don't know how to do something in Dora Explorer."
+title: "[Dúvida] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Pode escrever em português ou em inglês. / You can write in Portuguese or English.
+  - type: textarea
+    id: pergunta
+    attributes:
+      label: "Qual é a sua dúvida? / What is your question?"
+      description: "Explique o que você quer fazer. / Explain what you want to do."
+    validations:
+      required: true
+  - type: textarea
+    id: tentativa
+    attributes:
+      label: "O que você já tentou? / What have you tried?"
+      description: "Opcional. / Optional."
+    validations:
+      required: false

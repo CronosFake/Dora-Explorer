@@ -1,0 +1,24 @@
+name: "Pedido / Request"
+description: "Algo novo que o Dora Explorer ainda não faz. / Something new that Dora Explorer doesn't do yet."
+title: "[Pedido] "
+labels: ["request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Pode escrever em português ou em inglês. / You can write in Portuguese or English.
+
+        Este é um projeto mantido por uma pessoa só: o pedido pode demorar ou não ser atendido. / This project is maintained by one person: a request may take a while or not be accepted.
+  - type: textarea
+    id: pedido
+    attributes:
+      label: "O que você gostaria que o app fizesse? / What would you like the app to do?"
+    validations:
+      required: true
+  - type: textarea
+    id: uso
+    attributes:
+      label: "Em que situação você usaria? / When would you use it?"
+      description: "Um exemplo real ajuda a entender o pedido. / A real example helps to understand the request."
+    validations:
+      required: false

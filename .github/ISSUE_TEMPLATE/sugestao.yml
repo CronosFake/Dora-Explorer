@@ -1,0 +1,24 @@
+name: "Sugestão / Suggestion"
+description: "Uma ideia para melhorar algo que o Dora Explorer já tem. / An idea to improve something Dora Explorer already has."
+title: "[Sugestão] "
+labels: ["suggestion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Pode escrever em português ou em inglês. / You can write in Portuguese or English.
+
+        Para algo que o app ainda não faz, use **Pedido / Request**. / For something the app doesn't do yet, use **Pedido / Request**.
+  - type: textarea
+    id: ideia
+    attributes:
+      label: "Qual é a sua sugestão? / What is your suggestion?"
+      description: "O que mudaria e onde. / What would change and where."
+    validations:
+      required: true
+  - type: textarea
+    id: motivo
+    attributes:
+      label: "Por que isso ajudaria? / Why would it help?"
+    validations:
+      required: false
