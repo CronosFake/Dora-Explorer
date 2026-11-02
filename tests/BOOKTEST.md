@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-02 02:11
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-02 02:31
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -24,8 +24,8 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 |------|-------|
 | Areas | 23 |
 | Classes de teste | 63 |
-| Metodos de teste | 472 |
-| Casos (cada InlineData conta um) | 719 |
+| Metodos de teste | 481 |
+| Casos (cada InlineData conta um) | 728 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -172,7 +172,7 @@ Excluir ou restaurar so vale para o que esta mesmo na lixeira; a lixeira e o pro
 Abrir numa pasta, navegar, criar pasta, renomear, excluir, copiar e mover (inclusive de dentro de ZIP, que pode ser alterado, e de .gz, .7z e .rar, que sao somente leitura), ordenar e marcar favoritos.
 
 - Codigo: FilePaneViewModel, NavigationTreeNodeViewModel, BreadcrumbSegmentViewModel, FileOperationService
-- Testes (45 casos): FilePaneViewModelTests [FilePaneViewModelTests.cs]
+- Testes (54 casos): FilePaneViewModelTests [FilePaneViewModelTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~FilePaneViewModelTests"`
 
 ### Janela principal (copiar e colar entre os paineis)
@@ -306,7 +306,8 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 | Abrir pasta sem piscar (a lista cresce enquanto os filhos entram em cascata; TreeExpansionRevealAnimator) | Depende do WPF, do tempo e da tela: sem janela nao ha como testar. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario blink: cada pasta precisa sair ok (maior queda em UM quadro abaixo de 20% do conteudo). Antes da correcao a pasta grande dava 76% (PISCA). |
 | Reiniciar como administrador de verdade (aviso do Windows/UAC) e as janelas "Reiniciar como administrador / Agora nao" | O aviso do Windows roda em outra area de trabalho e pede uma pessoa; o app so e testado ate chamar o Windows (ElevationTests) e a regra de quando perguntar (ElevationPrompt). | Tentar excluir um item de C:\Windows ou C:\Program Files: a janela deve falar de acesso negado, em portugues, e perguntar. Escolher Reiniciar, confirmar o aviso do Windows e ver o app abrir de novo (Gerenciador de Tarefas: Elevado = Sim); repetir a operacao. |
 | Aviso ao abrir uma pasta que o Windows nao deixa listar (duplo clique, Enter ou seta para a direita) | O teste de unidade cobre o no marcado (ListingDenied) e a mensagem, nao o gesto no TreeView real: um clique so seleciona a linha, e o cadeado so e conferido no app real (os testes cobrem a marca no no e a troca das contagens, nao o desenho do XAML). | Criar uma pasta com um arquivo e negar a leitura dela: icacls <pasta> /deny "%USERNAME%:(RD)". Abrir o app: a linha da pasta mostra um cadeado no lugar de 0 pastas / 0 arquivos (passe o mouse: "Sem permissao para abrir esta pasta"), e ao selecionar a pasta a barra de status diz "sem permissao para abrir", nas linhas compactas e nas confortaveis (Exibir > Linhas compactas em colunas). Dar duplo clique na pasta: aparece "Sem permissao para abrir ..." com Reiniciar como administrador / Agora nao. Abrir a mesma pasta de novo (seta para a direita) nao repete o aviso. Remover a regra: icacls <pasta> /remove:d %USERNAME%. |
-| Foco e setas depois de apagar pelo teclado (Shift+Delete) | O vizinho a selecionar e testado (FilePaneViewModelTests), mas o foco do WPF so existe com a janela aberta. | UI Automation no app real (AGENTS.md, armadilha 18): AutomationElement.FocusedElement deve ser o TreeItem do vizinho e Baixo/Cima devem mover o foco sem clicar. |
+| Foco e setas depois de apagar pelo teclado (Shift+Delete) | O vizinho a selecionar e testado (FilePaneViewModelTests), mas o foco do WPF so existe com a janela aberta. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario delfocus (app fechado; AGENTS.md, armadilha 18): cada verificacao sai [OK] ou [FALHOU]; o foco deve ir para o vizinho e Baixo/Cima mover o foco sem clicar. |
+| Ctrl+clique e Shift+clique para selecionar varios itens | A regra da selecao (ligar, desligar, intervalo, outra pasta) e testada no modelo, mas o clique com o modificador segurado so existe com a janela aberta. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario multisel (app fechado; AGENTS.md, armadilha 19): Shift+clique (intervalo) e Ctrl+clique (itens soltos), lendo "N itens selecionados" na barra de status; cada verificacao sai [OK] ou [FALHOU]. |
 | Janelas de dialogo (progresso, conexao de rede, ordenar, excluir) | Janelas WPF; sem teste automatico. | Abrir cada uma no app. |
 | Restaurar e excluir de verdade da Lixeira | Mexe na lixeira real do usuario; so as travas sao testadas. | Com arquivos de teste, na tela. |
 | Start.bat e scripts de apoio | O fechamento do app esta em teste automatico (StopDoraScriptTests, com processos de mentira); o Start.bat inteiro (compilar e abrir) e o caso de um app aberto como administrador, que pede o UAC, nao. | Rodar Start.bat e conferir que o app abre. Com o app aberto, rodar de novo: ele fecha sozinho (o log termina com "encerrado") e reabre. Com o app aberto como administrador (Reiniciar como administrador), o Start.bat deve parar com o aviso de que nao consegue fecha-lo, sem compilar. |
@@ -500,6 +501,7 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - A_folder_name_that_is_empty_or_cannot_exist_is_refused (5 casos)
 - A_folder_that_can_be_listed_is_not_marked
 - A_path_that_is_not_in_the_list_gives_no_neighbour
+- A_range_made_with_Shift_keeps_its_anchor_when_the_other_end_moves
 - A_subfolder_the_user_may_not_list_is_marked_from_the_parent_listing_without_opening_it
 - After_removing_an_item_the_next_one_in_the_list_is_the_one_to_select
 - After_removing_an_open_folder_the_items_inside_it_are_skipped
@@ -512,6 +514,10 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Copying_or_moving_into_an_archive_is_refused
 - Creating_a_folder_makes_it_on_disk_and_shows_it_in_the_tree
 - Creating_a_folder_that_already_exists_is_refused_and_does_not_touch_it
+- Ctrl_click_adds_an_item_to_the_selection_and_a_second_Ctrl_click_takes_it_out
+- Ctrl_click_keeps_folders_and_files_selected_together
+- Ctrl_click_on_the_only_selected_item_leaves_nothing_selected
+- Ctrl_click_without_a_selection_starts_one
 - Deleting_a_protected_item_reports_access_denied_in_portuguese_and_marked
 - Deleting_nothing_asks_for_a_selection
 - Deleting_permanently_removes_files_and_folders_and_updates_the_tree
@@ -528,7 +534,10 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Renaming_a_file_renames_it_on_disk_and_follows_it_in_the_selection
 - Renaming_onto_a_name_that_is_taken_is_refused_and_changes_nothing
 - Renaming_with_nothing_selected_asks_for_a_selection
+- Selecting_a_folder_node_for_navigation_clears_the_item_selection_unless_asked_to_keep_it
 - Selecting_a_subfolder_the_user_may_not_list_shows_no_permission_in_the_status_bar
+- Shift_click_from_a_folder_reaches_the_files_below_it
+- Shift_click_selects_every_item_between_the_anchor_and_the_clicked_one
 - Sorting_by_name_descending_reorders_what_is_listed
 - The_mark_goes_away_when_the_subfolder_can_be_listed_again
 - The_new_folder_shortcut_creates_Nova_pasta_when_the_name_is_free
@@ -536,6 +545,7 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - The_new_folder_shortcut_skips_a_file_that_is_called_Nova_pasta
 - The_new_folder_shortcut_skips_a_Nova_pasta_that_already_exists
 - The_pane_opens_on_the_initial_folder
+- The_status_bar_counts_the_items_picked_with_Ctrl_click
 - The_status_bar_of_a_selected_folder_follows_the_lock_mark
 - The_tree_lists_folders_before_files_and_everything_that_is_on_disk
 

@@ -3,7 +3,7 @@
 # Uso, a partir da raiz do repositorio (o app NAO pode estar aberto: a trava de instancia unica impede duas copias):
 #   powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario basic [-Prefix nome] [-Build] [-OutDir pasta]
 #
-# Roteiros: basic sort density min nav windows rede dialogs picker openwith comfort light reload flicker blink
+# Roteiros: basic sort density min nav windows rede dialogs picker openwith comfort light reload flicker blink delfocus multisel
 #   reload  : fecha uma pasta com clique, cria uma pasta por fora e reabre; confere que a listagem se atualiza
 #   flicker : fotografa a janela em alta frequencia ao reabrir "Program Files" e conta quedas de conteudo (o "pisca")
 #   blink   : abre pastas pela setinha com clique REAL do mouse e mede se a arvore despenca de uma vez (o "pisca" ao abrir
@@ -14,6 +14,14 @@
 #             aberto, avisa e nao mexe). O app precisa ficar em primeiro plano e o cursor se mexe por alguns segundos.
 #             Cada pasta imprime a maior queda em UM quadro; acima de 20% do conteudo e PISCA (antes da correcao: 41% a 70%).
 #   openwith: abre o menu do aplicativo padrao e a janela "Abrir com" do Windows (usa o rotulo -AppLabel)
+#   delfocus: com Shift+Delete e clique de verdade, apaga arquivos de uma pasta de teste (DoraUi + hora, na raiz de C:, exclusao
+#             permanente: nao toca na Lixeira) e confere, por UI Automation, que o foco vai para o vizinho e que as setas seguem
+#             funcionando sem clicar de novo (AGENTS.md, armadilha 18). Imprime [OK] ou [FALHOU] por verificacao e sai com codigo 1
+#             se alguma falhar.
+#   multisel: Ctrl+clique (liga e desliga itens) e Shift+clique (intervalo) com o modificador segurado de verdade, lendo "N itens
+#             selecionados" na barra de status (AGENTS.md, armadilha 19). Mesmo formato de resultado e de pasta de teste.
+#   delfocus e multisel guardam %AppData%\DoraExplorer (configuracoes, favoritos, indice) antes de abrir o app e devolvem igual no
+#             fim; o cursor do mouse tambem volta ao lugar. O app precisa ficar em primeiro plano durante o teste.
 # Capturas: PNG em -OutDir (padrao %TEMP%\dora-dev). Os roteiros so leem a tela; 'reload' cria e remove a pasta -TestFolder.
 # Este arquivo e ASCII de proposito: o Windows PowerShell 5.1 le .ps1 sem BOM como ANSI.
 param(
@@ -186,6 +194,115 @@ function Menu-Invoke($root, $top, $like, $mid = $null) {
         }
     }
     "menu '$top' nao encontrado"
+}
+
+# Apoio dos roteiros delfocus e multisel: teclado e mouse de verdade, pasta de teste e estado do usuario.
+$uiFailures = 0
+$uiRoot = $null
+$userState = $null
+if ($Scenario -in 'delfocus', 'multisel') {
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -TypeDefinition @'
+using System; using System.Runtime.InteropServices;
+public static class Kb {
+  [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+  [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, UIntPtr e);
+  public static void Tap(byte vk) { keybd_event(vk, 0, 0, UIntPtr.Zero); keybd_event(vk, 0, 2, UIntPtr.Zero); }
+  public static void TapWithShift(byte vk) { keybd_event(0xA0, 0x2A, 0, UIntPtr.Zero); System.Threading.Thread.Sleep(120); keybd_event(vk, 0x53, 1, UIntPtr.Zero); keybd_event(vk, 0x53, 3, UIntPtr.Zero); System.Threading.Thread.Sleep(120); keybd_event(0xA0, 0x2A, 2, UIntPtr.Zero); }
+  public static void Click(int x, int y) { SetCursorPos(x, y); mouse_event(2, 0, 0, 0, UIntPtr.Zero); mouse_event(4, 0, 0, 0, UIntPtr.Zero); }
+}
+'@
+    $cursor0 = [System.Windows.Forms.Cursor]::Position
+    $uiRoot = Join-Path (Split-Path -Parent $TestFolder) ('DoraUi' + (Get-Date -Format 'HHmmss'))
+    $cleanup.Add($uiRoot)
+    New-Item -ItemType Directory -Path $uiRoot -Force | Out-Null
+    $fileCount = if ($Scenario -eq 'delfocus') { 5 } else { 6 }
+    1..$fileCount | ForEach-Object { Set-Content -LiteralPath (Join-Path $uiRoot "arq$_.txt") -Value ('x' * ($_ * 100)) -Encoding Ascii }
+    if ($Scenario -eq 'multisel') {
+        New-Item -ItemType Directory -Path (Join-Path $uiRoot 'pasta') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $uiRoot 'pasta\dentro.txt') -Value 'x' -Encoding Ascii
+    }
+
+    # O app grava configuracoes, favoritos e o indice de pastas em %AppData%\DoraExplorer: guarda tudo antes e devolve igual no fim.
+    $appData = Join-Path $env:APPDATA 'DoraExplorer'
+    $userState = Join-Path $outDir ('estado-do-usuario-' + (Get-Date -Format 'HHmmss'))
+    New-Item -ItemType Directory -Path $userState -Force | Out-Null
+    $userFiles = @(Get-ChildItem -LiteralPath $appData -File -ErrorAction SilentlyContinue)
+    $userFiles | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $userState -Force }
+    $userNames = @($userFiles | ForEach-Object { $_.Name })
+    function Restore-UserState {
+        Get-ChildItem -LiteralPath $userState -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $appData $_.Name) -Force }
+        Get-ChildItem -LiteralPath $appData -File -ErrorAction SilentlyContinue | Where-Object { $userNames -notcontains $_.Name } | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
+        $same = $true
+        Get-ChildItem -LiteralPath $userState -File | ForEach-Object { if ((Get-FileHash -LiteralPath $_.FullName).Hash -ne (Get-FileHash -LiteralPath (Join-Path $appData $_.Name)).Hash) { $same = $false } }
+        Remove-Item -LiteralPath $userState -Recurse -Force -ErrorAction SilentlyContinue
+        "dados do usuario em %AppData%\DoraExplorer restaurados e identicos: $same"
+    }
+
+    function Ensure-Foreground($hwnd) {
+        [void][Kb]::SetForegroundWindow($hwnd); Start-Sleep -Milliseconds 400
+        if ([Kb]::GetForegroundWindow() -eq $hwnd) { return $true }
+        # o Windows nao deixa um processo em segundo plano tomar o primeiro plano: um clique real na barra de titulo resolve
+        $r = New-Object UiCap+RECT; [void][UiCap]::GetWindowRect($hwnd, [ref]$r)
+        [Kb]::Click([int]($r.Left + 400), [int]($r.Top + 12)); Start-Sleep -Milliseconds 500
+        [void][Kb]::SetForegroundWindow($hwnd); Start-Sleep -Milliseconds 400
+        return ([Kb]::GetForegroundWindow() -eq $hwnd)
+    }
+    function Focused-Name {
+        try { $f = $AE::FocusedElement; return (($f.Current.ControlType.ProgrammaticName -replace 'ControlType\.', '') + ': ' + $f.Current.Name) } catch { return 'indisponivel' }
+    }
+    function Row($parent, $name) { $parent.FindAll($TS::Children, (Cond $CT::TreeItem)) | Where-Object { $_.Current.Name -like "*$name*" } | Select-Object -First 1 }
+    function Wait-Row($parent, $name, $ms = 12000) {
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        while ($sw.ElapsedMilliseconds -lt $ms) { $r = Row $parent $name; if ($r) { return $r }; Start-Sleep -Milliseconds 200 }
+        return $null
+    }
+    # Clique de verdade na linha, com Shift ou Ctrl segurado de verdade ($mod = 'shift', 'ctrl' ou 'none').
+    function Click-With($hwnd, $row, $mod) {
+        if (-not (Ensure-Foreground $hwnd)) { return $false }
+        $r = $row.Current.BoundingRectangle
+        $x = [int]($r.Left + 120); $y = [int]($r.Top + $r.Height / 2)
+        if ($mod -eq 'shift') { [Kb]::keybd_event(0xA0, 0x2A, 0, [UIntPtr]::Zero) }
+        if ($mod -eq 'ctrl') { [Kb]::keybd_event(0xA2, 0x1D, 0, [UIntPtr]::Zero) }
+        Start-Sleep -Milliseconds 150
+        [Kb]::Click($x, $y)
+        Start-Sleep -Milliseconds 150
+        if ($mod -eq 'shift') { [Kb]::keybd_event(0xA0, 0x2A, 2, [UIntPtr]::Zero) }
+        if ($mod -eq 'ctrl') { [Kb]::keybd_event(0xA2, 0x1D, 2, [UIntPtr]::Zero) }
+        Start-Sleep -Milliseconds 900
+        return $true
+    }
+    function Tap-Key($vk) { [void](Ensure-Foreground $h); [Kb]::Tap([byte]$vk); Start-Sleep -Milliseconds 800; Focused-Name }
+    # Abre C:, expande a pasta de teste e espera ela listar $lastFile; devolve o item da pasta (ou $null).
+    function Open-UiFolder($rootEl, $lastFile) {
+        $c = (TopItems $rootEl)[0]; Expand $c
+        $dir = Child $c (Split-Path $uiRoot -Leaf)
+        if (-not $dir) { "pasta $(Split-Path $uiRoot -Leaf) nao apareceu em C: (o roteiro espera a pasta de teste na raiz de C:)"; return $null }
+        $deadline = [DateTime]::Now.AddSeconds(20)
+        while (("" + $dir.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Current.ExpandCollapseState) -eq 'LeafNode' -and [DateTime]::Now -lt $deadline) { Start-Sleep -Milliseconds 500 }
+        $dir.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Expand(); Start-Sleep -Milliseconds 1500
+        if (-not (Wait-Row $dir $lastFile)) { "a pasta de teste nao listou $lastFile"; return $null }
+        return $dir
+    }
+    # Shift+Delete na linha em foco e "Sim" na confirmacao (exclusao permanente: nao mexe na Lixeira do usuario).
+    function Delete-Permanently($procId) {
+        [void](Ensure-Foreground $h)
+        [Kb]::TapWithShift(0x2E)
+        $dlg = [IntPtr]::Zero; $sw = [Diagnostics.Stopwatch]::StartNew()
+        while ($dlg -eq [IntPtr]::Zero -and $sw.ElapsedMilliseconds -lt 6000) { $dlg = [UiCap]::FindByTitle([uint32]$procId, 'Excluir permanentemente'); Start-Sleep -Milliseconds 200 }
+        if ($dlg -eq [IntPtr]::Zero) { return $false }
+        $yes = $AE::FromHandle($dlg).FindAll($TS::Descendants, (Cond $CT::Button)) | Where-Object { $_.Current.Name -eq 'Sim' } | Select-Object -First 1
+        if (-not $yes) { return $false }
+        $yes.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 2500
+        return $true
+    }
+    function Status-Lines($rootEl) { @($rootEl.FindAll($TS::Descendants, (Cond $CT::Text)) | ForEach-Object { $_.Current.Name } | Where-Object { $_ -match 'itens selecionados' }) }
+    function Check($label, $ok, $detail = '') {
+        if ($ok) { "[OK] $label" } else { $script:uiFailures++; "[FALHOU] $label" + $(if ($detail) { " (achado: $detail)" } else { '' }) }
+    }
 }
 
 $proc = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -PassThru
@@ -442,6 +559,68 @@ public static class FrameCount {
             Menu-Invoke $root 'Temas' 'Escuro' 'Tema'
             Snap $h '15-escuro-minimo'
         }
+        'delfocus' {
+            # Apagar pelo teclado (Shift+Delete) devolve o foco ao vizinho: as setas seguem funcionando sem clicar de novo.
+            $dir = Open-UiFolder $root 'arq5.txt'
+            if (-not $dir) { break }
+            [void](Click-With $h (Row $dir 'arq3.txt') 'none')
+            Check 'o clique deixou o foco em arq3' ((Focused-Name) -eq 'TreeItem: arq3.txt') (Focused-Name)
+            Check 'Shift+Delete e "Sim" excluem arq3' (Delete-Permanently $proc.Id)
+            Check 'arq3 saiu do disco' (-not (Test-Path -LiteralPath (Join-Path $uiRoot 'arq3.txt')))
+            $f = Focused-Name
+            Check 'depois de apagar, o foco esta no proximo item (arq4)' ($f -eq 'TreeItem: arq4.txt') $f
+            Snap $h 'delfocus-depois-de-apagar'
+            $f = Tap-Key 0x28; Check 'seta Baixo vai para arq5, sem clicar' ($f -eq 'TreeItem: arq5.txt') $f
+            $f = Tap-Key 0x26; Check 'seta Cima volta para arq4' ($f -eq 'TreeItem: arq4.txt') $f
+            $f = Tap-Key 0x26; Check 'seta Cima vai para arq2 (arq3 nao existe mais)' ($f -eq 'TreeItem: arq2.txt') $f
+            $f = Tap-Key 0x28; Check 'seta Baixo vai para arq4' ($f -eq 'TreeItem: arq4.txt') $f
+            $f = Tap-Key 0x28; Check 'seta Baixo vai para arq5, o ultimo da lista' ($f -eq 'TreeItem: arq5.txt') $f
+            Check 'Shift+Delete e "Sim" excluem arq5, o ultimo' (Delete-Permanently $proc.Id)
+            Check 'arq5 saiu do disco' (-not (Test-Path -LiteralPath (Join-Path $uiRoot 'arq5.txt')))
+            $f = Focused-Name
+            Check 'depois de apagar o ultimo, o foco vai para o anterior (arq4)' ($f -eq 'TreeItem: arq4.txt') $f
+            $f = Tap-Key 0x26; Check 'seta Cima vai para arq2' ($f -eq 'TreeItem: arq2.txt') $f
+            Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
+        }
+        'multisel' {
+            # Ctrl+clique liga e desliga itens; Shift+clique marca o intervalo. A barra de status mostra "N itens selecionados".
+            $dir = Open-UiFolder $root 'arq6.txt'
+            if (-not $dir) { break }
+            [void](Click-With $h (Row $dir 'arq1.txt') 'none')
+            Check 'clique simples em arq1 seleciona um item so' (@(Status-Lines $root).Count -eq 0) ((Status-Lines $root) -join ' || ')
+            [void](Click-With $h (Row $dir 'arq4.txt') 'shift')
+            $s = (Status-Lines $root) -join ' || '
+            Check 'Shift+clique em arq4 marca o intervalo arq1 a arq4 (4 itens)' ($s -match '^4 itens selecionados') $s
+            Snap $h 'multisel-shift-intervalo'
+            [void](Click-With $h (Row $dir 'arq2.txt') 'none')
+            Check 'clique simples em arq2 troca a selecao por um item so' (@(Status-Lines $root).Count -eq 0) ((Status-Lines $root) -join ' || ')
+            [void](Click-With $h (Row $dir 'arq4.txt') 'ctrl')
+            $s = (Status-Lines $root) -join ' || '
+            Check 'Ctrl+clique em arq4 soma ao arq2 (2 itens)' ($s -match '^2 itens selecionados') $s
+            [void](Click-With $h (Row $dir 'arq6.txt') 'ctrl')
+            $s = (Status-Lines $root) -join ' || '
+            Check 'Ctrl+clique em arq6 soma mais um (3 itens)' ($s -match '^3 itens selecionados') $s
+            Snap $h 'multisel-ctrl-soltos'
+            [void](Click-With $h (Row $dir 'arq4.txt') 'ctrl')
+            $s = (Status-Lines $root) -join ' || '
+            Check 'Ctrl+clique em arq4 de novo tira so ele (2 itens)' ($s -match '^2 itens selecionados') $s
+            # Pastas no meio da selecao: o clique numa pasta normalmente troca a selecao (navegacao); com Shift ou Ctrl nao.
+            [void](Click-With $h (Row $dir 'arq3.txt') 'none')
+            [void](Click-With $h (Row $dir 'pasta') 'shift')
+            $s = (Status-Lines $root) -join ' || '
+            Check 'Shift+clique de arq3 ate a pasta (que vem antes) marca pasta, arq1, arq2 e arq3 (4 itens)' ($s -match '^4 itens selecionados') $s
+            Snap $h 'multisel-shift-ate-pasta'
+            [void](Click-With $h (Row $dir 'pasta') 'none')
+            [void](Click-With $h (Row $dir 'arq2.txt') 'shift')
+            $s = (Status-Lines $root) -join ' || '
+            Check 'Shift+clique da pasta ate arq2 marca pasta, arq1 e arq2 (3 itens)' ($s -match '^3 itens selecionados') $s
+            [void](Click-With $h (Row $dir 'arq1.txt') 'none')
+            [void](Click-With $h (Row $dir 'pasta') 'ctrl')
+            [void](Click-With $h (Row $dir 'arq5.txt') 'ctrl')
+            $s = (Status-Lines $root) -join ' || '
+            Check 'Ctrl+clique soma uma pasta e um arquivo a arq1 (3 itens)' ($s -match '^3 itens selecionados') $s
+            Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
+        }
         'windows' {
             $c = (TopItems $root)[0]; Expand $c
             $w = Child $c 'Windows'; if ($w) { try { Expand $w } catch { "expandir Windows: $($_.Exception.Message)" } }
@@ -450,5 +629,13 @@ public static class FrameCount {
     }
 } catch { "erro: $($_.Exception.Message) (linha $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim()))" }
 [void]$proc.CloseMainWindow(); [void]$proc.WaitForExit(10000); 'app fechado: ' + $proc.HasExited
+if (($Scenario -in 'delfocus', 'multisel') -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; 'o app nao fechou sozinho (ficou uma janela aberta?): encerrado a forca'; Start-Sleep -Seconds 1 }
 foreach ($path in $cleanup) { Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue }
 if ($Scenario -eq 'blink' -and $blinkRoot) { Clear-BlinkIndexRows $blinkRoot }
+if ($userState) { Restore-UserState }
+if ($Scenario -in 'delfocus', 'multisel') {
+    [void][Kb]::SetCursorPos($cursor0.X, $cursor0.Y)
+    'pasta de teste removida: ' + (-not (Test-Path -LiteralPath $uiRoot))
+    "verificacoes com falha: $uiFailures"
+    if ($uiFailures -gt 0) { exit 1 }
+}

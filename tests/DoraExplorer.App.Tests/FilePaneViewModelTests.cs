@@ -128,6 +128,139 @@ public sealed class FilePaneViewModelTests : IDisposable
         return pane;
     }
 
+    // ---- seleção de vários itens: Ctrl+clique (liga e desliga um item) e Shift+clique (intervalo) ----
+
+    // base: a.txt, b.txt, c.txt, d.txt e a subpasta "pasta" (as pastas vêm primeiro na lista)
+    private FilePaneViewModel PaneForSelection(out NavigationTreeNodeViewModel[] files, out NavigationTreeNodeViewModel folder)
+    {
+        var root = _h.Folder("base");
+        var sub = Directory.CreateDirectory(Path.Combine(root, "pasta")).FullName;
+        string[] names = ["a.txt", "b.txt", "c.txt", "d.txt"];
+        var paths = names.Select(name => PaneTestHarness.File(root, name)).ToArray();
+        var pane = _h.CreatePane(root);
+        pane.NavigateToPath(root);
+        PaneTestHarness.Eventually(() => PaneTestHarness.Find(pane, paths[^1]) is not null && PaneTestHarness.Find(pane, sub) is not null)
+            .Should().BeTrue("a pasta abriu e listou os itens");
+        files = paths.Select(path => PaneTestHarness.Find(pane, path)!).ToArray();
+        folder = PaneTestHarness.Find(pane, sub)!;
+        return pane;
+    }
+
+    private static string[] Names(FilePaneViewModel pane) =>
+        pane.SelectedItems.Select(node => node.Name).OrderBy(name => name, StringComparer.Ordinal).ToArray();
+
+    [Fact]
+    public void Ctrl_click_adds_an_item_to_the_selection_and_a_second_Ctrl_click_takes_it_out()
+    {
+        var pane = PaneForSelection(out var files, out _);
+        pane.SetSingleItemSelection(files[0]);
+
+        pane.ToggleItemSelection(files[2]);
+        Names(pane).Should().Equal("a.txt", "c.txt");
+        files[2].IsItemSelected.Should().BeTrue();
+
+        pane.ToggleItemSelection(files[2]);
+        Names(pane).Should().Equal("a.txt");
+        files[2].IsItemSelected.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Ctrl_click_on_the_only_selected_item_leaves_nothing_selected()
+    {
+        var pane = PaneForSelection(out var files, out _);
+        pane.SetSingleItemSelection(files[1]);
+
+        pane.ToggleItemSelection(files[1]);
+
+        pane.SelectedItems.Should().BeEmpty();
+        files[1].IsItemSelected.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Ctrl_click_without_a_selection_starts_one()
+    {
+        var pane = PaneForSelection(out var files, out _);
+        pane.ClearItemSelection();
+
+        pane.ToggleItemSelection(files[3]);
+
+        Names(pane).Should().Equal("d.txt");
+        pane.SelectionAnchor.Should().BeSameAs(files[3]);
+    }
+
+    [Fact]
+    public void Ctrl_click_keeps_folders_and_files_selected_together()
+    {
+        var pane = PaneForSelection(out var files, out var folder);
+        pane.SetSingleItemSelection(files[0]);
+
+        pane.ToggleItemSelection(folder);
+        pane.ToggleItemSelection(files[3]);
+
+        Names(pane).Should().Equal("a.txt", "d.txt", "pasta");
+        pane.GetTransferableItemPaths().Should().BeEquivalentTo([files[0].TargetPath, files[3].TargetPath, folder.TargetPath]);
+    }
+
+    [Fact]
+    public void The_status_bar_counts_the_items_picked_with_Ctrl_click()
+    {
+        var pane = PaneForSelection(out var files, out _);
+        pane.SetSingleItemSelection(files[0]);
+
+        pane.ToggleItemSelection(files[1]);
+        pane.ToggleItemSelection(files[3]);
+
+        pane.StatusText.Should().StartWith("3 itens selecionados");
+    }
+
+    [Fact]
+    public void Shift_click_selects_every_item_between_the_anchor_and_the_clicked_one()
+    {
+        var pane = PaneForSelection(out var files, out _);
+        pane.SetSingleItemSelection(files[0]);
+
+        pane.HandleShiftItemSelection(files[2]);
+
+        Names(pane).Should().Equal("a.txt", "b.txt", "c.txt");
+    }
+
+    [Fact]
+    public void Shift_click_from_a_folder_reaches_the_files_below_it()
+    {
+        var pane = PaneForSelection(out var files, out var folder);
+        pane.SetSingleItemSelection(folder);
+
+        pane.HandleShiftItemSelection(files[1]);
+
+        Names(pane).Should().Equal("a.txt", "b.txt", "pasta");
+    }
+
+    [Fact]
+    public void A_range_made_with_Shift_keeps_its_anchor_when_the_other_end_moves()
+    {
+        var pane = PaneForSelection(out var files, out _);
+        pane.SetSingleItemSelection(files[1]);
+
+        pane.HandleShiftItemSelection(files[3]);
+        pane.HandleShiftItemSelection(files[0]);
+
+        Names(pane).Should().Equal("a.txt", "b.txt");
+    }
+
+    [Fact]
+    public void Selecting_a_folder_node_for_navigation_clears_the_item_selection_unless_asked_to_keep_it()
+    {
+        var pane = PaneForSelection(out var files, out var folder);
+        pane.SetSingleItemSelection(files[0]);
+        pane.ToggleItemSelection(files[1]);
+
+        pane.OnNavigationNodeSelected(folder, preserveItemSelection: true);
+        Names(pane).Should().Equal("a.txt", "b.txt");
+
+        pane.OnNavigationNodeSelected(folder);
+        pane.SelectedItems.Should().BeEmpty("um clique comum numa pasta troca a seleção");
+    }
+
     [Fact]
     public void After_removing_an_item_the_next_one_in_the_list_is_the_one_to_select()
     {

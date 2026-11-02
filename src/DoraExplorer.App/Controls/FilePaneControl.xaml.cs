@@ -830,6 +830,29 @@ public partial class FilePaneControl : UserControl
 
         NotifyPaneActivated();
 
+        // Ctrl+clique liga ou desliga o item e Shift+clique marca o intervalo. Este evento é registrado no TreeView, então "sender" não
+        // é o TreeViewItem e o resto do método não roda: o item vem do clique. Sem tratar aqui, o WPF só seleciona a linha clicada e
+        // troca a seleção de itens (e o Ctrl+clique nem existia).
+        if (e.ClickCount == 1 && clickedItem is not null && targetNode is { IsSelectableItem: true } &&
+            (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) != 0 &&
+            IsClickOnItemContent(e.OriginalSource as DependencyObject, clickedItem))
+        {
+            e.Handled = true;
+            ApplyModifierClick(clickedItem, targetNode);
+            return;
+        }
+
+        // O TreeView só avisa (SelectedItemChanged) quando a linha atual muda. Depois de um Ctrl ou Shift+clique a linha clicada é a
+        // atual, então um clique comum nela não avisaria nada e a seleção de vários itens não se desfaria: faz-se aqui, como o aviso faria.
+        if (e.ClickCount == 1 && Keyboard.Modifiers == ModifierKeys.None && clickedItem is { IsSelected: true } &&
+            targetNode is { IsSelectableItem: true } && ViewModel is { } pane &&
+            !(pane.SelectedItems.Count == 1 && ReferenceEquals(pane.SelectedItems[0], targetNode)) &&
+            IsClickOnItemContent(e.OriginalSource as DependencyObject, clickedItem))
+        {
+            pane.OnNavigationNodeSelected(targetNode);
+            pane.SetSingleItemSelection(targetNode);
+        }
+
         if (sender is not TreeViewItem item ||
             !ReferenceEquals(clickedItem, item) ||
             item.DataContext is not NavigationTreeNodeViewModel node)
@@ -852,25 +875,39 @@ public partial class FilePaneControl : UserControl
         _marqueeClickItem = item;
         _marqueeClickNode = node;
 
-        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) && node.IsSelectableItem)
-        {
-            _suppressSelectionSync = true;
-            try
-            {
-                ViewModel?.HandleShiftItemSelection(node);
-                SelectExpandedNode(item, node);
-            }
-            finally
-            {
-                _suppressSelectionSync = false;
-            }
+        BeginItemDragTracking(e.GetPosition(this), item, node);
+    }
 
-            _marqueeClickItem = null;
-            _marqueeClickNode = null;
+    /// <summary>
+    /// Clique com Ctrl (liga ou desliga o item) ou Shift (intervalo desde a âncora). A linha clicada vira a linha atual do TreeView,
+    /// para as setas continuarem dali, sem passar pela seleção nativa do WPF (que trocaria a seleção de itens).
+    /// </summary>
+    private void ApplyModifierClick(TreeViewItem item, NavigationTreeNodeViewModel node)
+    {
+        if (ViewModel is not { } pane)
+        {
             return;
         }
 
-        BeginItemDragTracking(e.GetPosition(this), item, node);
+        _suppressSelectionSync = true;
+        try
+        {
+            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+            {
+                pane.HandleShiftItemSelection(node);
+            }
+            else
+            {
+                pane.ToggleItemSelection(node);
+            }
+
+            // Desmarcar um item não o torna o "atual" do painel; marcar ou fazer o intervalo, sim.
+            SelectExpandedNode(item, node, preserveItemSelection: true, updateViewModel: node.IsItemSelected);
+        }
+        finally
+        {
+            _suppressSelectionSync = false;
+        }
     }
 
     private void TreeHost_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -2280,7 +2317,11 @@ public partial class FilePaneControl : UserControl
             Math.Min(item.ActualHeight, TreeViewHierarchy.HeaderRowHeight));
     }
 
-    private void SelectExpandedNode(TreeViewItem item, NavigationTreeNodeViewModel node)
+    private void SelectExpandedNode(
+        TreeViewItem item,
+        NavigationTreeNodeViewModel node,
+        bool preserveItemSelection = false,
+        bool updateViewModel = true)
     {
         var scrollViewer = _treeScrollViewer ?? FindScrollViewer(NavigationTree);
         _lockedTreeScrollOffset = scrollViewer?.VerticalOffset ?? 0;
@@ -2299,7 +2340,10 @@ public partial class FilePaneControl : UserControl
             _suppressSelectionScroll = false;
         }
 
-        ViewModel?.OnNavigationNodeSelected(node);
+        if (updateViewModel)
+        {
+            ViewModel?.OnNavigationNodeSelected(node, preserveItemSelection);
+        }
 
         item.Focus();
         RestoreScrollOffset(scrollViewer, _lockedTreeScrollOffset);

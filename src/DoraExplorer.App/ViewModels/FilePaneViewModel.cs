@@ -787,7 +787,7 @@ public partial class FilePaneViewModel : ObservableObject
         return null;
     }
 
-    public void OnNavigationNodeSelected(NavigationTreeNodeViewModel? node)
+    public void OnNavigationNodeSelected(NavigationTreeNodeViewModel? node, bool preserveItemSelection = false)
     {
         if (node is null)
         {
@@ -803,8 +803,9 @@ public partial class FilePaneViewModel : ObservableObject
 
         SelectedNode = node;
 
-        if (node.Kind is NavigationNodeKind.Directory or NavigationNodeKind.Drive
-            or NavigationNodeKind.Archive)
+        // Um clique comum numa pasta troca a seleção de itens; Ctrl ou Shift+clique a mantém (preserveItemSelection).
+        if (!preserveItemSelection &&
+            node.Kind is NavigationNodeKind.Directory or NavigationNodeKind.Drive or NavigationNodeKind.Archive)
         {
             ClearItemSelection();
         }
@@ -1237,6 +1238,43 @@ public partial class FilePaneViewModel : ObservableObject
         node.IsItemSelected = true;
         SelectedItems = [node];
         _selectionAnchor = node;
+    }
+
+    /// <summary>
+    /// Ctrl+clique: liga o item à seleção ou, se já estava nela, tira só ele. Itens de outra pasta começam uma seleção nova
+    /// (como o Shift+clique, que só vale entre irmãos). O item clicado vira a âncora do próximo Shift+clique.
+    /// </summary>
+    public void ToggleItemSelection(NavigationTreeNodeViewModel node)
+    {
+        if (!node.IsSelectableItem)
+        {
+            return;
+        }
+
+        if (SelectedItems.Count > 0 && !ShareSelectionParent(SelectedItems[0], node))
+        {
+            SetSingleItemSelection(node);
+            return;
+        }
+
+        if (SelectedItems.Any(item => ReferenceEquals(item, node)))
+        {
+            node.IsItemSelected = false;
+            var remaining = SelectedItems.Where(item => !ReferenceEquals(item, node)).ToList();
+            SelectedItems = remaining;
+            if (ReferenceEquals(_selectionAnchor, node))
+            {
+                _selectionAnchor = remaining.LastOrDefault();
+            }
+
+            SelectedNode = remaining.LastOrDefault() ?? node;
+            return;
+        }
+
+        node.IsItemSelected = true;
+        SelectedItems = [.. SelectedItems, node];
+        _selectionAnchor = node;
+        SelectedNode = node;
     }
 
     public void HandleShiftItemSelection(NavigationTreeNodeViewModel node)
