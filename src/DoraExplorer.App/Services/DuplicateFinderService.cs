@@ -59,12 +59,23 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
         AttributesToSkip = 0
     };
 
+    /// <summary>Intervalo mínimo entre dois avisos de andamento: a tela não precisa de mais, e o <c>Progress</c> posta cada um na thread dela.</summary>
+    public const int DefaultReportIntervalMilliseconds = 120;
+
     private readonly int? _fixedParallelism;
+    private readonly int _reportInterval;
 
     /// <param name="maxParallelism">Leituras ao mesmo tempo; sem valor, escolhe pelo tipo de disco da pasta (<see cref="DuplicateWorkers"/>).</param>
     public DuplicateFinderService(int? maxParallelism = null)
+        : this(maxParallelism, DefaultReportIntervalMilliseconds)
+    {
+    }
+
+    /// <summary>Com intervalo próprio entre avisos (os testes usam 0 para ver um aviso por bloco lido).</summary>
+    internal DuplicateFinderService(int? maxParallelism, int reportIntervalMilliseconds)
     {
         _fixedParallelism = maxParallelism;
+        _reportInterval = reportIntervalMilliseconds;
     }
 
     /// <summary>A pasta é a raiz de uma unidade (C:\, D:\) ou de um compartilhamento de rede (\\servidor\pasta)?</summary>
@@ -123,11 +134,11 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
         }
 
         var skipped = new List<string>();
-        var files = ListFiles(request.RootPath, request.IncludeSubfolders, skipTopLevelFolder, skipped, progress, cancellationToken);
+        var files = ListFiles(request.RootPath, request.IncludeSubfolders, skipTopLevelFolder, skipped, _reportInterval, progress, cancellationToken);
 
         var result = request.Mode == DuplicateMode.Standard
             ? FindByNameAndSize(files)
-            : FindByContent(files, _fixedParallelism ?? DuplicateWorkers.ForPath(request.RootPath), progress, cancellationToken);
+            : FindByContent(files, _fixedParallelism ?? DuplicateWorkers.ForPath(request.RootPath), _reportInterval, progress, cancellationToken);
 
         return skipped.Count == 0 ? result : result with { SkippedSystemFolders = skipped };
     }
@@ -139,6 +150,7 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
         bool includeSubfolders,
         Func<string, FileAttributes, bool>? skipTopLevelFolder,
         List<string> skipped,
+        int reportInterval,
         IProgress<DuplicateScanProgress>? progress,
         CancellationToken cancellationToken)
     {
@@ -212,7 +224,7 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
                     file.Attributes));
             }
 
-            if (progress is not null && Environment.TickCount64 - lastReport >= 120)
+            if (progress is not null && Environment.TickCount64 - lastReport >= reportInterval)
             {
                 lastReport = Environment.TickCount64;
                 progress.Report(new DuplicateScanProgress(DuplicateScanPhase.Listing, files.Count, 0, 0, directory));
@@ -257,6 +269,7 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
     private static DuplicateScanResult FindByContent(
         List<DuplicateFile> files,
         int workers,
+        int reportInterval,
         IProgress<DuplicateScanProgress>? progress,
         CancellationToken cancellationToken)
     {
@@ -274,7 +287,7 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
         void ReportRead(string path)
         {
             var now = Environment.TickCount64;
-            if (progress is null || now - lastReport < 120)
+            if (progress is null || now - lastReport < reportInterval)
             {
                 return;
             }
@@ -307,6 +320,38 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
             .ToList();
 
         // Etapa 2: o arquivo inteiro, só dos que ainda empatam. Arquivo de até PrefixBytes já foi lido inteiro na etapa 1.
+        // É a etapa que pode levar minutos (centenas de GB com o disco a 100%): o andamento é por BYTES e sai a cada bloco lido,
+        // senão a tela ficava parada no último número da etapa 1 e parecia travada.
+        var toConfirm = afterPrefix.Where(file => file.SizeInBytes > PrefixBytes).ToList();
+        var confirmBytesTotal = toConfirm.Sum(file => file.SizeInBytes);
+        var confirmedFiles = 0;
+        long confirmedBytes = 0;
+        long lastConfirmReport = 0;
+
+        void ReportConfirm(string path, bool force)
+        {
+            var now = Environment.TickCount64;
+            if (progress is null || (!force && now - Interlocked.Read(ref lastConfirmReport) < reportInterval))
+            {
+                return;
+            }
+
+            Interlocked.Exchange(ref lastConfirmReport, now);
+            progress.Report(new DuplicateScanProgress(
+                DuplicateScanPhase.Confirming,
+                files.Count,
+                toConfirm.Count,
+                Volatile.Read(ref confirmedFiles),
+                path,
+                confirmBytesTotal,
+                Interlocked.Read(ref confirmedBytes)));
+        }
+
+        if (toConfirm.Count > 0)
+        {
+            ReportConfirm(string.Empty, force: true);
+        }
+
         var fullHashes = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         RunParallel(afterPrefix, workers, file =>
         {
@@ -316,7 +361,12 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
                 return;
             }
 
-            var hash = TryHash(file, file.SizeInBytes);
+            var hash = TryHash(file, file.SizeInBytes, blockRead =>
+            {
+                Interlocked.Add(ref confirmedBytes, blockRead);
+                ReportConfirm(file.FullPath, force: false);
+            });
+            Interlocked.Increment(ref confirmedFiles);
             if (hash is null)
             {
                 Interlocked.Increment(ref unreadable);
@@ -324,8 +374,13 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
             }
 
             fullHashes[file.FullPath] = hash;
-            ReportRead(file.FullPath);
+            ReportConfirm(file.FullPath, force: false);
         }, cancellationToken);
+
+        if (toConfirm.Count > 0)
+        {
+            ReportConfirm(string.Empty, force: true); // o último aviso mostra a etapa completa, e não o último que passou pelo intervalo
+        }
 
         var groups = afterPrefix
             .Where(file => fullHashes.ContainsKey(file.FullPath))
@@ -345,7 +400,7 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
             action);
 
     /// <summary>SHA-256 dos primeiros <paramref name="byteCount"/> bytes; <see langword="null"/> se o arquivo não pode ser lido.</summary>
-    private static string? TryHash(DuplicateFile file, long byteCount)
+    private static string? TryHash(DuplicateFile file, long byteCount, Action<int>? onBlockRead = null)
     {
         if ((file.Attributes & CloudOnly) != 0)
         {
@@ -364,7 +419,7 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
                 FileShare.ReadWrite | FileShare.Delete,
                 small ? FileOptions.None : FileOptions.SequentialScan);
 
-            return small ? HashSmall(handle, (int)byteCount) : HashLarge(handle, byteCount);
+            return small ? HashSmall(handle, (int)byteCount) : HashLarge(handle, byteCount, onBlockRead);
         }
         catch (Exception ex) when (ExpectedFailures.IsFileSystem(ex))
         {
@@ -397,7 +452,7 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
         }
     }
 
-    private static string HashLarge(SafeFileHandle handle, long byteCount)
+    private static string HashLarge(SafeFileHandle handle, long byteCount, Action<int>? onBlockRead)
     {
         var buffer = ArrayPool<byte>.Shared.Rent(FullReadBufferBytes);
         try
@@ -415,6 +470,7 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
 
                 hash.AppendData(buffer, 0, read);
                 offset += read;
+                onBlockRead?.Invoke(read);
             }
 
             return Convert.ToHexString(hash.GetHashAndReset());

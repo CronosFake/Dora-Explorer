@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-04 15:54
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-04 16:23
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -24,8 +24,8 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 |------|-------|
 | Areas | 32 |
 | Classes de teste | 76 |
-| Metodos de teste | 707 |
-| Casos (cada InlineData conta um) | 1044 |
+| Metodos de teste | 727 |
+| Casos (cada InlineData conta um) | 1070 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -265,10 +265,10 @@ O cabecalho das colunas tem a alca que o GridView procura (sem ela a largura nao
 
 ### Duplicados (padrao: nome e tamanho; profundo: tamanho e hash)
 
-Padrao agrupa por nome (sem diferenciar maiusculas) e tamanho sem ler arquivo; profundo confirma por SHA-256 (inclusive diferenca so no ultimo byte de um arquivo grande), so le arquivo que tem o tamanho de outro, conta o travado como ilegivel e segue; vazio, juncao e pasta inexistente; cancelar e andamento; a leitura enxuta correta em todos os tamanhos ao redor do bloco de leitura (64 KB e 1 MiB, inclusive diferenca so no ultimo byte), arquivo so da nuvem nao lido, varias leituras ao mesmo tempo com o mesmo resultado de uma so, a escolha do numero de leituras pelo tipo de disco (SSD x HD x desconhecido), as pastas do sistema de fora so no topo de uma unidade (e a opcao de inclui-las), a lista plana da janela (cabecalho de grupo + copias), modo, subpastas, textos, o botao no grupo Pasta e o icone novo e unico da mesma fonte.
+Padrao agrupa por nome (sem diferenciar maiusculas) e tamanho sem ler arquivo; profundo confirma por SHA-256 (inclusive diferenca so no ultimo byte de um arquivo grande), so le arquivo que tem o tamanho de outro, conta o travado como ilegivel e segue; vazio, juncao e pasta inexistente; cancelar e andamento; a leitura enxuta correta em todos os tamanhos ao redor do bloco de leitura (64 KB e 1 MiB, inclusive diferenca so no ultimo byte), arquivo so da nuvem nao lido, varias leituras ao mesmo tempo com o mesmo resultado de uma so, a escolha do numero de leituras pelo tipo de disco (SSD x HD x desconhecido), as pastas do sistema de fora so no topo de uma unidade (e a opcao de inclui-las), o andamento por bytes da leitura inteira (um aviso por bloco lido, mais o inicial e o final, so quando ha arquivo grande), a ordem da lista (maiores primeiro, Nome A a Z e Z a A, tamanho crescente e decrescente, desempate fixo, reordenar sem procurar de novo, ordem guardada entre procuras), a barra e o texto de andamento de cada etapa, a lista plana da janela (cabecalho de grupo + copias), modo, subpastas, textos, o botao no grupo Pasta e o icone novo e unico da mesma fonte.
 
-- Codigo: DuplicateFinderService, DuplicateWorkers, StorageKind, DuplicatesViewModel, DuplicateText, DuplicatesDialog, DuplicateRowViewModel
-- Testes (108 casos): DuplicateFinderTests [DuplicateFinderTests.cs], DuplicatesViewModelTests [DuplicatesViewModelTests.cs]
+- Codigo: DuplicateFinderService, DuplicateWorkers, StorageKind, DuplicatesViewModel, DuplicateSorter, DuplicateText, DuplicatesDialog, DuplicateRowViewModel
+- Testes (134 casos): DuplicateFinderTests [DuplicateFinderTests.cs], DuplicatesViewModelTests [DuplicatesViewModelTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~DuplicateFinderTests|FullyQualifiedName~DuplicatesViewModelTests"`
 
 ### Registro de servicos (injecao de dependencia)
@@ -305,6 +305,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | DuplicateFinderService | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
 | DuplicateRowViewModel | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
 | DuplicatesDialog | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
+| DuplicateSorter | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
 | DuplicatesViewModel | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
 | DuplicateText | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
 | DuplicateWorkers | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
@@ -563,6 +564,7 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### DuplicateFinderTests (DuplicateFinderTests.cs)
 
+- A_big_file_reports_while_it_is_being_read_and_not_only_when_it_ends
 - A_blank_folder_gives_an_empty_result
 - A_cancelled_search_stops_with_an_operation_cancelled_exception
 - A_file_that_only_exists_in_the_cloud_is_not_read_by_the_deep_search_but_still_seen_by_the_standard_one
@@ -584,15 +586,19 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Deep_separates_files_that_have_the_same_name_and_size_but_different_content
 - Deep_tells_apart_files_that_differ_only_in_the_last_byte_at_every_size (5 casos)
 - Empty_files_are_never_duplicates_of_each_other
+- Files_that_differ_after_the_start_are_still_told_apart_by_the_full_read
 - Including_the_system_folders_brings_everything_back_and_reports_nothing_skipped
 - Many_reads_at_once_give_the_same_groups_as_one_at_a_time
 - Only_the_root_of_a_drive_or_of_a_network_share_counts_as_a_drive_root (8 casos)
+- Small_files_never_reach_the_full_read_stage
 - Standard_does_not_tell_capitals_apart_in_the_name
 - Standard_groups_files_with_the_same_name_and_size_in_different_folders
 - Standard_ignores_the_same_name_with_a_different_size
 - Standard_ignores_the_same_size_under_a_different_name
 - Standard_reports_three_copies_as_one_group_and_the_wasted_space_of_two
 - The_async_search_runs_off_the_calling_thread_and_honours_cancellation
+- The_default_interval_keeps_the_screen_from_being_flooded
+- The_full_read_reports_bytes_that_grow_to_the_total_and_end_at_one_hundred_percent
 - The_groups_that_waste_the_most_come_first
 - The_listing_carries_the_attributes_so_no_second_lookup_is_needed
 - The_modified_date_and_folder_of_each_copy_are_reported_for_the_list
@@ -609,19 +615,34 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - A_new_search_replaces_the_old_rows
 - A_search_cannot_start_without_a_folder
 - A_search_lists_each_group_with_a_header_followed_by_its_copies
+- By_name_it_is_alphabetical_without_telling_capitals_apart
+- By_size_ascending_starts_from_the_smallest
+- By_size_the_biggest_copies_come_first_and_a_tie_goes_to_the_most_space_to_recover
 - Cancelling_stops_the_search_and_leaves_the_list_empty
 - Cancelling_with_nothing_running_does_nothing
 - Choosing_a_mode_flips_the_other_option_and_the_description
+- Clicking_the_name_column_sorts_from_a_to_z_and_a_second_click_goes_from_z_to_a
+- Clicking_the_size_column_again_flips_between_biggest_first_and_smallest_first
+- Going_back_to_size_from_name_starts_with_the_biggest_again
+- Groups_with_the_same_name_are_ordered_by_size_and_then_by_path_so_the_order_never_changes_between_searches
 - Sizes_are_written_like_everywhere_else_in_the_app (4 casos)
+- Sorting_before_any_search_only_remembers_the_choice
+- Sorting_reorders_what_is_on_screen_without_searching_again
 - Starting_without_a_folder_asks_for_one_and_searches_nothing
+- The_bar_follows_the_files_in_stage_one_and_the_bytes_in_stage_two_and_wanders_when_there_is_no_way_to_know (7 casos)
+- The_bar_is_full_and_stops_wandering_when_the_search_ends
+- The_chosen_order_survives_a_new_search
 - The_deep_mode_shows_the_start_of_the_hash_in_the_group_header
 - The_Duplicates_icon_comes_from_the_same_icon_font_and_no_other_button_uses_the_same_glyph
 - The_final_status_mentions_files_that_could_not_be_read
 - The_final_status_stays_short_when_everything_was_read
 - The_Folder_group_has_the_Duplicates_button_with_the_two_checks_in_a_menu
+- The_full_read_stage_shows_the_bytes_and_the_percentage_so_it_never_looks_stuck
+- The_full_read_stage_without_a_known_size_still_shows_the_file_counts
 - The_menu_tags_are_the_names_of_the_two_modes
 - The_model_notifies_when_the_mode_changes_so_both_radio_buttons_update
 - The_progress_text_names_the_phase_and_the_counts (2 casos)
+- The_result_comes_with_the_biggest_files_first_by_default
 - The_status_names_the_system_folders_that_were_left_out_and_how_to_include_them
 - The_status_says_nothing_about_system_folders_when_none_were_skipped
 - The_subfolder_option_is_passed_to_the_search

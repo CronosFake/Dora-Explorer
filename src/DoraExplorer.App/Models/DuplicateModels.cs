@@ -63,14 +63,29 @@ public sealed record DuplicateScanResult(
     public static DuplicateScanResult Empty { get; } = new([], 0, 0, 0);
 }
 
-/// <summary>Andamento da procura: a fase e quantos arquivos foram vistos ou lidos até agora.</summary>
-public sealed record DuplicateScanProgress(DuplicateScanPhase Phase, int FilesScanned, int FilesToRead, int FilesRead, string CurrentPath);
+/// <summary>
+/// Andamento da procura: a fase e quantos arquivos foram vistos ou lidos até agora. Na etapa de confirmação
+/// (<see cref="DuplicateScanPhase.Confirming"/>) <c>FilesToRead</c> e <c>FilesRead</c> contam os arquivos lidos por inteiro e
+/// <c>BytesToRead</c> e <c>BytesRead</c> os bytes: é a etapa que pode demorar minutos, e o andamento por bytes anda mesmo no meio de
+/// um arquivo grande.
+/// </summary>
+public sealed record DuplicateScanProgress(
+    DuplicateScanPhase Phase,
+    int FilesScanned,
+    int FilesToRead,
+    int FilesRead,
+    string CurrentPath,
+    long BytesToRead = 0,
+    long BytesRead = 0);
 
 public enum DuplicateScanPhase
 {
     /// <summary>Listando as pastas.</summary>
     Listing,
 
-    /// <summary>Comparando conteúdo (só no modo profundo).</summary>
-    Reading
+    /// <summary>Etapa 1 do modo profundo: lendo o começo (64 KB) dos arquivos que têm o tamanho de outro.</summary>
+    Reading,
+
+    /// <summary>Etapa 2 do modo profundo: lendo por inteiro os arquivos que ainda empatam depois do começo (o disco fica a 100%: para provar que duas cópias são iguais é preciso ler as duas).</summary>
+    Confirming
 }

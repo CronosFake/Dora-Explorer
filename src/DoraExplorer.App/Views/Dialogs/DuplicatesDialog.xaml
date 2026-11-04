@@ -95,9 +95,10 @@
                    TextWrapping="Wrap"
                    Margin="0,0,0,10" />
 
-        <!-- Procurar / Cancelar e o resumo -->
-        <DockPanel Grid.Row="3"
-                   Margin="0,0,0,8">
+        <!-- Procurar / Cancelar, o resumo e, enquanto procura, a barra de andamento -->
+        <StackPanel Grid.Row="3"
+                    Margin="0,0,0,8">
+        <DockPanel Margin="0,0,0,6">
             <Button x:Name="StartButton"
                     DockPanel.Dock="Left"
                     Content="Procurar"
@@ -119,6 +120,18 @@
                        Margin="16,0,0,0"
                        TextTrimming="CharacterEllipsis" />
         </DockPanel>
+            <ProgressBar x:Name="ScanProgressBar"
+                         Height="6"
+                         Minimum="0"
+                         Maximum="1"
+                         BorderThickness="0"
+                         Value="{Binding ProgressFraction, Mode=OneWay}"
+                         IsIndeterminate="{Binding IsProgressIndeterminate, Mode=OneWay}"
+                         Foreground="{DynamicResource AccentBrush}"
+                         Background="{DynamicResource UsageTrackBrush}"
+                         AutomationProperties.Name="Andamento da procura"
+                         Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}" />
+        </StackPanel>
 
         <!-- Os grupos: uma linha em destaque por grupo e, abaixo, as cópias. Duplo clique leva o painel até a cópia. -->
         <ListView x:Name="ResultsList"
@@ -126,6 +139,7 @@
                   ItemsSource="{Binding Rows}"
                   Style="{StaticResource FileListViewStyle}"
                   ItemContainerStyle="{StaticResource FileListViewItemStyle}"
+                  GridViewColumnHeader.Click="ResultsHeader_Click"
                   MouseDoubleClick="ResultsList_MouseDoubleClick">
             <ListView.ContextMenu>
                 <ContextMenu Opened="ResultsMenu_Opened">
@@ -140,7 +154,7 @@
             <ListView.View>
                 <GridView AllowsColumnReorder="False"
                           ColumnHeaderContainerStyle="{StaticResource GridViewColumnHeaderStyle}">
-                    <GridViewColumn Header="Nome" Width="340">
+                    <GridViewColumn x:Name="NameColumn" Header="Nome" Width="340">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding Name}"
@@ -158,7 +172,7 @@
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>
-                    <GridViewColumn Header="Tamanho" Width="90">
+                    <GridViewColumn x:Name="SizeColumn" Header="Tamanho" Width="90">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding SizeText}"

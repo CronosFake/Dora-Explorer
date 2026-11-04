@@ -551,6 +551,93 @@ public sealed class DuplicateFinderTests : IDisposable
         }
     }
 
+    // ---- andamento da leitura inteira (etapa 2): por bytes, para a tela nunca parecer parada
+
+    [Fact]
+    public void The_full_read_reports_bytes_that_grow_to_the_total_and_end_at_one_hundred_percent()
+    {
+        var big = Bytes(3 * 1024 * 1024, 1);
+        var other = Bytes(200_000, 2);
+        Put(Dir("a"), "grande.bin", big);
+        Put(Dir("b"), "grande-copia.bin", big);
+        Put(Dir("a"), "medio.bin", other);
+        Put(Dir("b"), "medio-copia.bin", other);
+        var reports = new List<DuplicateScanProgress>();
+
+        new DuplicateFinderService(maxParallelism: 1).Find(
+            new DuplicateScanRequest(_root, DuplicateMode.Deep), new SyncProgress<DuplicateScanProgress>(reports.Add));
+
+        var confirming = reports.Where(report => report.Phase == DuplicateScanPhase.Confirming).ToList();
+        confirming.Should().NotBeEmpty("os quatro arquivos passam de 64 KB e são lidos por inteiro");
+        confirming.Should().OnlyContain(report => report.BytesToRead == 2 * (3L * 1024 * 1024) + 2 * 200_000L);
+        confirming.Select(report => report.BytesRead).Should().BeInAscendingOrder();
+        confirming.Select(report => report.FilesRead).Should().BeInAscendingOrder();
+        confirming[0].BytesRead.Should().Be(0, "o primeiro aviso chega antes de ler, para a tela já mostrar a etapa nova");
+        var last = confirming[^1];
+        last.BytesRead.Should().Be(last.BytesToRead);
+        last.FilesRead.Should().Be(4);
+        last.FilesToRead.Should().Be(4);
+    }
+
+    [Fact]
+    public void A_big_file_reports_while_it_is_being_read_and_not_only_when_it_ends()
+    {
+        var big = Bytes(8 * 1024 * 1024, 4); // 8 blocos de 1 MiB por cópia
+        Put(Dir("a"), "enorme.bin", big);
+        Put(Dir("b"), "enorme-copia.bin", big);
+        var reports = new List<DuplicateScanProgress>();
+
+        // Intervalo 0: um aviso por bloco lido. É isso que mantém a barra andando no meio de um arquivo de vários GB.
+        new DuplicateFinderService(maxParallelism: 1, reportIntervalMilliseconds: 0).Find(
+            new DuplicateScanRequest(_root, DuplicateMode.Deep), new SyncProgress<DuplicateScanProgress>(reports.Add));
+
+        var confirming = reports.Where(report => report.Phase == DuplicateScanPhase.Confirming).ToList();
+        var inBetween = confirming.Select(report => report.BytesRead).Where(bytes => bytes > 0 && bytes < 16L * 1024 * 1024).Distinct().ToList();
+
+        inBetween.Count.Should().BeGreaterThanOrEqualTo(10, "16 blocos de 1 MiB dão avisos no meio, e não só o inicial e o final");
+        confirming[^1].BytesRead.Should().Be(16L * 1024 * 1024);
+    }
+
+    [Fact]
+    public void The_default_interval_keeps_the_screen_from_being_flooded()
+    {
+        var big = Bytes(8 * 1024 * 1024, 4);
+        Put(Dir("a"), "enorme.bin", big);
+        Put(Dir("b"), "enorme-copia.bin", big);
+        var reports = new List<DuplicateScanProgress>();
+
+        _finder.Find(new DuplicateScanRequest(_root, DuplicateMode.Deep), new SyncProgress<DuplicateScanProgress>(reports.Add));
+
+        reports.Count(report => report.Phase == DuplicateScanPhase.Confirming).Should().BeLessThan(10);
+    }
+
+    [Fact]
+    public void Small_files_never_reach_the_full_read_stage()
+    {
+        var content = Bytes(4_000, 9);
+        Put(Dir("a"), "p.bin", content);
+        Put(Dir("b"), "q.bin", content);
+        var reports = new List<DuplicateScanProgress>();
+
+        _finder.Find(new DuplicateScanRequest(_root, DuplicateMode.Deep), new SyncProgress<DuplicateScanProgress>(reports.Add));
+
+        reports.Should().NotContain(report => report.Phase == DuplicateScanPhase.Confirming);
+    }
+
+    [Fact]
+    public void Files_that_differ_after_the_start_are_still_told_apart_by_the_full_read()
+    {
+        var first = Bytes(1_000_000, 11);
+        var second = (byte[])first.Clone();
+        second[200_000] ^= 0xFF; // depois dos 64 KB do começo e longe do fim
+        Put(Dir("a"), "um.bin", first);
+        Put(Dir("b"), "dois.bin", second);
+
+        var result = _finder.Find(new DuplicateScanRequest(_root, DuplicateMode.Deep));
+
+        result.Groups.Should().BeEmpty();
+    }
+
     // ---- cancelar, andamento, atalhos
 
     [Fact]

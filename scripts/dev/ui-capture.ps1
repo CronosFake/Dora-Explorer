@@ -282,6 +282,9 @@ public static class Kb {
         Set-Content -LiteralPath (Join-Path $uiRoot 'copias2\outro-nome.txt') -Value 'mesmo conteudo' -Encoding Ascii
         Set-Content -LiteralPath (Join-Path $uiRoot 'copias1\diferente.txt') -Value 'AAAAAAAAAAAAAA' -Encoding Ascii
         Set-Content -LiteralPath (Join-Path $uiRoot 'copias2\diferente.txt') -Value 'BBBBBBBBBBBBBB' -Encoding Ascii
+        # Um par maior (5 KB): a lista tem de comecar por ele (maiores primeiro).
+        Set-Content -LiteralPath (Join-Path $uiRoot 'copias1\grande.bin') -Value ('z' * 5000) -Encoding Ascii
+        Set-Content -LiteralPath (Join-Path $uiRoot 'copias2\grande.bin') -Value ('z' * 5000) -Encoding Ascii
     }
     if ($Scenario -in 'multisel', 'favmenu', 'props') {
         New-Item -ItemType Directory -Path (Join-Path $uiRoot 'pasta') -Force | Out-Null
@@ -1412,15 +1415,37 @@ public static class FrameCount {
                 Check 'a janela tem a caixa Incluir pastas do sistema, desligada por padrao' (($null -ne $sysBox) -and ((Toggle-State $sysBox) -eq 'Off')) (Toggle-State $sysBox)
                 Start-Sleep -Milliseconds 2500
                 $rows = @($dw.FindAll($TS::Descendants, (Cond $CT::DataItem)) + $dw.FindAll($TS::Descendants, (Cond $CT::ListItem)))
-                Check 'no tipo Padrao a lista tem 2 grupos (2 cabecalhos + 4 copias = 6 linhas)' ($rows.Count -eq 6) "linhas: $($rows.Count)"
+                Check 'no tipo Padrao a lista tem 3 grupos (3 cabecalhos + 6 copias = 9 linhas)' ($rows.Count -eq 9) "linhas: $($rows.Count)"
                 Snap $dd 'newfeatures-5-duplicados-padrao'
+
+                # Ordem: comeca pelos maiores; clicar em Nome e Tamanho reordena e mostra a seta da direcao.
+                $down = [string][char]0x25BC; $up = [string][char]0x25B2
+                function Header-Names { @($dw.FindAll($TS::Descendants, (Cond $CT::HeaderItem)) | ForEach-Object { $_.Current.Name }) }
+                function Click-Header($like) { $hd = $dw.FindAll($TS::Descendants, (Cond $CT::HeaderItem)) | Where-Object { $_.Current.Name -like $like } | Select-Object -First 1; if ($hd) { $hd.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 900 }; [bool]$hd }
+                # nomes dos arquivos, de cima para baixo (so as linhas de arquivo: as de grupo tem "copias" no texto)
+                function First-File-Names { @($dw.FindAll($TS::Descendants, (Cond $CT::Text)) | Where-Object { $_.Current.Name -match '\.(txt|bin)$' } | Sort-Object { $_.Current.BoundingRectangle.Top } | ForEach-Object { $_.Current.Name }) }
+                $headers = Header-Names
+                Check 'a coluna Tamanho comeca ordenada, do maior para o menor (seta para baixo)' ($headers -contains ('Tamanho ' + $down)) ($headers -join ' | ')
+                $names = First-File-Names
+                Check 'a lista comeca pelo maior arquivo (grande.bin)' ($names.Count -gt 0 -and $names[0] -eq 'grande.bin') ($names -join ', ')
+                Check 'clicar em Nome ordena de A a Z' (Click-Header 'Nome*')
+                $headers = Header-Names; $names = First-File-Names
+                Check 'o cabecalho Nome mostra a seta para cima' ($headers -contains ('Nome ' + $up)) ($headers -join ' | ')
+                Check 'a lista comeca por diferente.txt (A a Z)' ($names.Count -gt 0 -and $names[0] -eq 'diferente.txt') ($names -join ', ')
+                Check 'clicar em Nome de novo inverte (Z a A)' (Click-Header 'Nome*')
+                $names = First-File-Names
+                Check 'a lista comeca por igual.txt (Z a A)' ($names.Count -gt 0 -and $names[0] -eq 'igual.txt') ($names -join ', ')
+                Snap $dd 'newfeatures-5b-duplicados-por-nome'
+                [void](Click-Header 'Tamanho*')
+                $names = First-File-Names
+                Check 'clicar em Tamanho volta a comecar pelos maiores' ($names.Count -gt 0 -and $names[0] -eq 'grande.bin') ($names -join ', ')
                 $deep = $dw.FindAll($TS::Descendants, (Cond $CT::RadioButton)) | Where-Object { $_.Current.Name -like 'Profundo*' } | Select-Object -First 1
                 if ($deep) { $deep.GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Select(); Start-Sleep -Milliseconds 400 }
                 Check 'o tipo Profundo e escolhido na janela' ($null -ne $deep)
                 Check 'o botao Procurar roda de novo' (Press-DialogButton $dd 'Procurar')
                 Start-Sleep -Milliseconds 2500
                 $rows = @($dw.FindAll($TS::Descendants, (Cond $CT::DataItem)) + $dw.FindAll($TS::Descendants, (Cond $CT::ListItem)))
-                Check 'no tipo Profundo a lista tem 1 grupo (1 cabecalho + 3 copias iguais, mesmo com outro nome = 4 linhas)' ($rows.Count -eq 4) "linhas: $($rows.Count)"
+                Check 'no tipo Profundo a lista tem 2 grupos (igual.txt + outro-nome.txt = 3 copias; grande.bin = 2 copias; 7 linhas)' ($rows.Count -eq 7) "linhas: $($rows.Count)"
                 Snap $dd 'newfeatures-6-duplicados-profundo'
                 [void](Press-DialogButton $dd 'Fechar')
             }

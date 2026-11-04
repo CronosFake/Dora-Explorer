@@ -2,7 +2,7 @@
 
 > Auto-gerado por scripts/generate-project-map.ps1 (o Start.bat roda a cada execucao). Nao edite a mao.
 > Regras, comandos e armadilhas: AGENTS.md. Visao do produto e limitacoes conhecidas: README.md.
-> Ultima atualizacao: 2026-11-04 15:54
+> Ultima atualizacao: 2026-11-04 16:23
 
 ## Como usar este mapa
 
@@ -30,11 +30,11 @@ src/DoraExplorer.App/
   Controls/        14 arquivos   7750 linhas  # Controles WPF: paineis, toolbar, arvore, animacoes
   Converters/       5 arquivos    123 linhas  # IValueConverter do WPF
   Infrastructure/  20 arquivos   1370 linhas  # DI, caminhos seguros, timeouts, instancia unica, colecao em bloco, enxugador de memoria
-  Models/          28 arquivos    721 linhas  # DTOs, enums e opcoes
+  Models/          28 arquivos    736 linhas  # DTOs, enums e opcoes
   Resources/        6 arquivos   1445 linhas  # Temas e estilos XAML
-  Services/        62 arquivos  19028 linhas  # Arquivos, rede, indice, tema, icones, logs, arquivos compactados
-  ViewModels/      12 arquivos   7217 linhas  # MVVM (CommunityToolkit.Mvvm)
-  Views/           23 arquivos   2504 linhas  # Dialogos do menu central
+  Services/        62 arquivos  19084 linhas  # Arquivos, rede, indice, tema, icones, logs, arquivos compactados
+  ViewModels/      12 arquivos   7329 linhas  # MVVM (CommunityToolkit.Mvvm)
+  Views/           23 arquivos   2554 linhas  # Dialogos do menu central
 tests/DoraExplorer.App.Tests/   # testes xUnit
 scripts/                        # stop-dora.ps1, generate-project-map.ps1
 scripts/dev/                    # ui-capture.ps1 (roteiros na tela), bench.ps1 (medicao), make-test-folder.ps1
@@ -60,7 +60,7 @@ Itens com (?) apontam para algo que nao existe mais no codigo: atualize a lista 
 | Nova pasta, Renomear, Excluir, Lixeira | CenterToolbarViewModel, FilePaneViewModel, FileOperationService, DeleteChoiceDialog, RecycleBinService |
 | Aplicativo padrao ao lado do arquivo e "Abrir com" | FileAssociationService, DefaultApplicationOverrides, FilePaneControl.DefaultAppButton_Click, FileOpenService.TryShowNativeOpenWithDialog |
 | Localizar arquivos (menu, colunas ajustaveis e Abrir em Janela) | CenterToolbarViewModel.RunSearchWithPattern, FileSearchService, SearchDialog, SearchPopupSizing, CenterToolbarControl.SearchResizeGrip_DragDelta, CenterToolbarControl.SearchNewWindow_Click, Resources/Theme.xaml |
-| Duplicados (Pasta > Duplicados: padrao e profundo) | DuplicateFinderService, DuplicateWorkers, StorageKind, DuplicateFinderService.IsSystemFolder, DuplicatesViewModel, DuplicateText, DuplicatesDialog, CenterToolbarViewModel.TryCreateDuplicates, CenterToolbarControl.DuplicatesMode_Click, Resources/CenterToolbarIcons.xaml |
+| Duplicados (Pasta > Duplicados: padrao e profundo) | DuplicateFinderService, DuplicateWorkers, StorageKind, DuplicateFinderService.IsSystemFolder, DuplicatesViewModel, DuplicateSorter, DuplicateText, DuplicatesDialog, CenterToolbarViewModel.TryCreateDuplicates, CenterToolbarControl.DuplicatesMode_Click, Resources/CenterToolbarIcons.xaml |
 | Arrastar e soltar (onde cai, destaque da pasta de destino, soltar na raiz) | FilePaneControl.FindSelectableNodeAtHostY, RowHitTest, FilePaneControl.TreeHost_DragOver, FilePaneViewModel.SetDropTarget, FilePaneViewModel.TryResolveDropDirectory, NavigationTreeNodeViewModel, MainWindowViewModel.ExecuteDropTransferAsync |
 | Renomear (F2, clique devagar, nome sem a extensao, mouse na caixa) | FilePaneViewModel.BeginRenameNode, FilePaneViewModel.CanBeginSlowRename, FilePaneViewModel.SelectRenamedItem, FilePaneControl.FocusAfterRename, RenameSelection, SystemMouse, FilePaneControl.FocusRenameBox, FilePaneControl.StartSlowRename, FilePaneControl.IsInsideRenameEditor |
 | Menu da Lixeira (botao direito na linha: esvaziar, restaurar tudo) | FilePaneControl.BuildRecycleBinRootContextMenu, FilePaneViewModel.TryEmptyRecycleBinAsync, FilePaneViewModel.TryRestoreAllRecycleBinItems, MainWindowViewModel.EmptyRecycleBinAsync, RecycleBinService.TryEmpty, RecycleBinText |
@@ -208,7 +208,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `Models/ArchiveFormat.cs` (11) - **ArchiveFormat**
 - `Models/AssociatedApplication.cs` (10) - **AssociatedApplication**
 - `Models/DefaultApplicationEntry.cs` (9) - **DefaultApplicationEntry**
-- `Models/DuplicateModels.cs` (76) - **DuplicateMode, DuplicateScanRequest, DuplicateFile, DuplicateGroup, DuplicateScanResult, DuplicateScanProgress, DuplicateScanPhase**
+- `Models/DuplicateModels.cs` (91) - **DuplicateMode, DuplicateScanRequest, DuplicateFile, DuplicateGroup, DuplicateScanResult, DuplicateScanProgress, DuplicateScanPhase**
 - `Models/ExplorerViewOptions.cs` (20) - **ExplorerViewOptions**
 - `Models/FileDeleteMode.cs` (7) - **FileDeleteMode**
 - `Models/FileOperationProgress.cs` (18) - **FileOperationProgress**
@@ -250,7 +250,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: Normalize, TryGet, Set, Clear
 - `Services/DirectoryIndexService.cs` (754) - **DirectoryIndexService**
   - Metodos: TryGetEntries, ReadFromDiskAndQueueStore, TryGetCounts, ComputeCountsFromDisk, WasAccessDenied, IsIndexedAndCurrent, TryGetSearchListing, Invalidate, ScheduleMaintenance, Dispose
-- `Services/DuplicateFinderService.cs` (441) - **DuplicateFinderService**
+- `Services/DuplicateFinderService.cs` (497) - **DuplicateFinderService**
   - Metodos: IsDriveRoot, IsSystemFolder, FindAsync, Find
 - `Services/DuplicateWorkers.cs` (30) - **DuplicateWorkers**
   - Metodos: Choose, ForPath
@@ -364,8 +364,8 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `ViewModels/BreadcrumbSegmentViewModel.cs` (23) - **BreadcrumbSegmentViewModel**
 - `ViewModels/CenterToolbarViewModel.cs` (572) - **CenterToolbarViewModel**
   - Metodos: RefreshNetworkServiceStatus, RefreshSearchContext, RunSearchWithPattern, OpenSearchResult, TryCreateDuplicates, LocateDuplicate, ApplySortOptions
-- `ViewModels/DuplicatesViewModel.cs` (277) - **DuplicateRowViewModel, DuplicatesViewModel, DuplicateText**
-  - Metodos: StartAsync, Cancel, Size, Header, Row, Progress, Summary, Finished
+- `ViewModels/DuplicatesViewModel.cs` (389) - **DuplicateRowViewModel, DuplicatesViewModel, DuplicateSortField, DuplicateSorter, DuplicateText**
+  - Metodos: SortBy, StartAsync, Cancel, Sort, Size, Header, Row, Progress, Fraction, Summary, Finished
 - `ViewModels/FileItemViewModel.cs` (72) - **FileItemViewModel**
 - `ViewModels/FilePaneViewModel.cs` (3710) - **FilePaneViewModel**
   - Metodos: RestorePath, CompleteInitialPathRestore, ClearCenterNavigatedNode, UpdateResponsiveLayout, OnNavigationNodeExpanding, OnNavigationNodeExpanded, OnNavigationNodeCollapsed, OnNavigationNodeSelected, NavigateToPath, RefreshForViewOptionsChange, BeginDisplayMenu, CommitDisplayMenu, ClearItemSelection, SetSingleItemSelection, ToggleItemSelection, HandleShiftItemSelection, SelectSiblingItems, ShareSelectionParent, GetSelectableSiblings, GetParentNode, GetVisibleSelectableNodes, SelectSiblingRange, HasOpenableFilesInSelection, GetPrimarySelectedNode, HasActivatableSelection, GetOpenableFilePaths, OpenSelectedFiles, OpenArchiveExternally, GetSelectedItemPath, GetDeletableItemPaths (+52)
@@ -387,8 +387,8 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: TryChoose, ConfirmShortcut, DescribeTargets
 - `Views/Dialogs/DialogChrome.cs` (21) - **DialogChrome**
   - Metodos: Apply
-- `Views/Dialogs/DuplicatesDialog.xaml` (196)
-- `Views/Dialogs/DuplicatesDialog.xaml.cs` (129) - **DuplicatesDialog**
+- `Views/Dialogs/DuplicatesDialog.xaml` (210)
+- `Views/Dialogs/DuplicatesDialog.xaml.cs` (165) - **DuplicatesDialog**
   - Metodos: Show
 - `Views/Dialogs/MessageDialog.xaml` (48)
 - `Views/Dialogs/MessageDialog.xaml.cs` (95) - **MessageDialog**
@@ -425,8 +425,8 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `DirectoryIndexTests.cs` (430) - DirectoryIndexTests
 - `DragPolicyTests.cs` (38) - DragPolicyTests
 - `DropTargetTests.cs` (236) - DropTargetTests
-- `DuplicateFinderTests.cs` (664) - DuplicateFinderTests
-- `DuplicatesViewModelTests.cs` (426) - DuplicatesViewModelTests
+- `DuplicateFinderTests.cs` (751) - DuplicateFinderTests
+- `DuplicatesViewModelTests.cs` (657) - DuplicatesViewModelTests
 - `ElevationTests.cs` (196) - ElevationTests
 - `FakeElevationService.cs` (28) - FakeElevationService
 - `FavoritesServiceTests.cs` (204) - FavoritesServiceTests

@@ -97,11 +97,14 @@ public sealed class DuplicatesViewModelTests : IDisposable
     {
         public DuplicateScanRequest? Request { get; private set; }
 
+        public int Calls { get; private set; }
+
         public Task<DuplicateScanResult> FindAsync(
             DuplicateScanRequest request,
             IProgress<DuplicateScanProgress>? progress = null,
             CancellationToken cancellationToken = default)
         {
+            Calls++;
             Request = request;
             return Task.FromResult(result);
         }
@@ -294,10 +297,230 @@ public sealed class DuplicatesViewModelTests : IDisposable
 
     [Theory]
     [InlineData(DuplicateScanPhase.Listing, 12, 0, 0, "Listando as pastas... 12 arquivo(s) vistos")]
-    [InlineData(DuplicateScanPhase.Reading, 50, 8, 3, "Comparando o conteúdo... 3 de 8 arquivo(s)")]
+    [InlineData(DuplicateScanPhase.Reading, 50, 8, 3, "Etapa 1 de 2: comparando o começo dos arquivos... 3 de 8 arquivo(s)")]
     public void The_progress_text_names_the_phase_and_the_counts(DuplicateScanPhase phase, int scanned, int toRead, int read, string expected)
     {
         DuplicateText.Progress(new DuplicateScanProgress(phase, scanned, toRead, read, "x")).Should().Be(expected);
+    }
+
+    [Fact]
+    public void The_full_read_stage_shows_the_bytes_and_the_percentage_so_it_never_looks_stuck()
+    {
+        var report = new DuplicateScanProgress(DuplicateScanPhase.Confirming, 282_000, 4, 1, "x", BytesToRead: 20L * 1024 * 1024, BytesRead: 5L * 1024 * 1024);
+
+        var text = DuplicateText.Progress(report);
+
+        text.Should().StartWith("Etapa 2 de 2: lendo por inteiro")
+            .And.Contain("1 de 4 arquivo(s)")
+            .And.Contain("5 MB de 20 MB (25%)");
+    }
+
+    [Fact]
+    public void The_full_read_stage_without_a_known_size_still_shows_the_file_counts()
+    {
+        var text = DuplicateText.Progress(new DuplicateScanProgress(DuplicateScanPhase.Confirming, 10, 4, 1, "x"));
+
+        text.Should().Contain("1 de 4 arquivo(s)").And.NotContain("%");
+    }
+
+    [Theory]
+    [InlineData(DuplicateScanPhase.Listing, 100, 0, 0, 0L, 0L, null)]
+    [InlineData(DuplicateScanPhase.Reading, 100, 8, 2, 0L, 0L, 0.25)]
+    [InlineData(DuplicateScanPhase.Reading, 100, 0, 0, 0L, 0L, null)]
+    [InlineData(DuplicateScanPhase.Confirming, 100, 4, 1, 1000L, 600L, 0.6)]
+    [InlineData(DuplicateScanPhase.Confirming, 100, 4, 4, 1000L, 1000L, 1.0)]
+    [InlineData(DuplicateScanPhase.Confirming, 100, 4, 1, 1000L, 5000L, 1.0)]
+    [InlineData(DuplicateScanPhase.Confirming, 100, 4, 0, 0L, 0L, null)]
+    public void The_bar_follows_the_files_in_stage_one_and_the_bytes_in_stage_two_and_wanders_when_there_is_no_way_to_know(
+        DuplicateScanPhase phase, int scanned, int toRead, int read, long bytesToRead, long bytesRead, double? expected)
+    {
+        var fraction = DuplicateText.Fraction(new DuplicateScanProgress(phase, scanned, toRead, read, "x", bytesToRead, bytesRead));
+
+        fraction.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task The_bar_is_full_and_stops_wandering_when_the_search_ends()
+    {
+        var model = Model(Folder("dup-barra"), finder: new CapturingFinder(DuplicateScanResult.Empty));
+        model.IsProgressIndeterminate.Should().BeTrue("antes de saber quanto falta, a barra anda de um lado para o outro");
+
+        await model.StartAsync();
+
+        model.IsProgressIndeterminate.Should().BeFalse();
+        model.ProgressFraction.Should().Be(1);
+        model.IsScanning.Should().BeFalse("a barra só aparece enquanto procura");
+    }
+
+    // ---- ordem da lista: Nome e Tamanho, começando pelos maiores
+
+    private static DuplicateGroup Group(string name, long size, int copies, string folder = "pasta")
+    {
+        var files = Enumerable.Range(0, copies)
+            .Select(i => new DuplicateFile($@"C:\{folder}{i}\{name}", name, $@"C:\{folder}{i}", size, null))
+            .ToList();
+        return new DuplicateGroup($"{name}|{size}", size, files);
+    }
+
+    private static string[] Names(IEnumerable<DuplicateGroup> groups) => groups.Select(group => group.Files[0].Name).ToArray();
+
+    private static DuplicateGroup[] Mixed() =>
+    [
+        Group("medio.bin", 5_000, 2),
+        Group("Zebra.iso", 900_000, 2),
+        Group("abacaxi.txt", 120, 3),
+        Group("Banana.dat", 5_000, 4)
+    ];
+
+    [Fact]
+    public void By_size_the_biggest_copies_come_first_and_a_tie_goes_to_the_most_space_to_recover()
+    {
+        var sorted = DuplicateSorter.Sort(Mixed(), DuplicateSortField.Size, descending: true);
+
+        Names(sorted).Should().Equal("Zebra.iso", "Banana.dat", "medio.bin", "abacaxi.txt");
+    }
+
+    [Fact]
+    public void By_size_ascending_starts_from_the_smallest()
+    {
+        Names(DuplicateSorter.Sort(Mixed(), DuplicateSortField.Size, descending: false))
+            .Should().Equal("abacaxi.txt", "Banana.dat", "medio.bin", "Zebra.iso");
+    }
+
+    [Fact]
+    public void By_name_it_is_alphabetical_without_telling_capitals_apart()
+    {
+        Names(DuplicateSorter.Sort(Mixed(), DuplicateSortField.Name, descending: false))
+            .Should().Equal("abacaxi.txt", "Banana.dat", "medio.bin", "Zebra.iso");
+        Names(DuplicateSorter.Sort(Mixed(), DuplicateSortField.Name, descending: true))
+            .Should().Equal("Zebra.iso", "medio.bin", "Banana.dat", "abacaxi.txt");
+    }
+
+    [Fact]
+    public void Groups_with_the_same_name_are_ordered_by_size_and_then_by_path_so_the_order_never_changes_between_searches()
+    {
+        var groups = new[]
+        {
+            Group("igual.txt", 10, 2, "b"),
+            Group("igual.txt", 900, 2, "c"),
+            Group("igual.txt", 10, 2, "a")
+        };
+
+        var sorted = DuplicateSorter.Sort(groups, DuplicateSortField.Name, descending: false);
+
+        sorted.Select(group => (group.SizeInBytes, group.Files[0].Folder)).Should().Equal(
+            (900L, @"C:\c0"), (10L, @"C:\a0"), (10L, @"C:\b0"));
+    }
+
+    private async Task<DuplicatesViewModel> ModelWithSizes(string folderName, CapturingFinder? finder = null)
+    {
+        var groups = new[] { Group("pequeno.txt", 10, 2), Group("grande.iso", 5_000_000, 2), Group("medio.bin", 3_000, 2) };
+        var result = new DuplicateScanResult(groups, 6, 0, 0);
+        var model = Model(Folder(folderName), finder: finder ?? new CapturingFinder(result));
+        await model.StartAsync();
+        return model;
+    }
+
+    [Fact]
+    public async Task The_result_comes_with_the_biggest_files_first_by_default()
+    {
+        var model = await ModelWithSizes("dup-ordem-inicial");
+
+        model.SortField.Should().Be(DuplicateSortField.Size);
+        model.SortDescending.Should().BeTrue();
+        model.Rows.Where(row => !row.IsHeader).Select(row => row.Name)
+            .Should().Equal("grande.iso", "grande.iso", "medio.bin", "medio.bin", "pequeno.txt", "pequeno.txt");
+        model.SizeHeaderText.Should().Be("Tamanho ▼");
+        model.NameHeaderText.Should().Be("Nome");
+    }
+
+    [Fact]
+    public async Task Clicking_the_size_column_again_flips_between_biggest_first_and_smallest_first()
+    {
+        var model = await ModelWithSizes("dup-ordem-tamanho");
+
+        model.SortBy(DuplicateSortField.Size);
+
+        model.SortDescending.Should().BeFalse();
+        model.SizeHeaderText.Should().Be("Tamanho ▲");
+        model.Rows.Where(row => !row.IsHeader).Select(row => row.Name).First().Should().Be("pequeno.txt");
+
+        model.SortBy(DuplicateSortField.Size);
+
+        model.SortDescending.Should().BeTrue();
+        model.Rows.Where(row => !row.IsHeader).Select(row => row.Name).First().Should().Be("grande.iso");
+    }
+
+    [Fact]
+    public async Task Clicking_the_name_column_sorts_from_a_to_z_and_a_second_click_goes_from_z_to_a()
+    {
+        var model = await ModelWithSizes("dup-ordem-nome");
+
+        model.SortBy(DuplicateSortField.Name);
+
+        model.SortField.Should().Be(DuplicateSortField.Name);
+        model.SortDescending.Should().BeFalse("o nome começa de A a Z");
+        model.NameHeaderText.Should().Be("Nome ▲");
+        model.SizeHeaderText.Should().Be("Tamanho", "só a coluna ordenada leva a seta");
+        model.Rows.Where(row => !row.IsHeader).Select(row => row.Name).Distinct()
+            .Should().Equal("grande.iso", "medio.bin", "pequeno.txt");
+
+        model.SortBy(DuplicateSortField.Name);
+
+        model.NameHeaderText.Should().Be("Nome ▼");
+        model.Rows.Where(row => !row.IsHeader).Select(row => row.Name).Distinct()
+            .Should().Equal("pequeno.txt", "medio.bin", "grande.iso");
+    }
+
+    [Fact]
+    public async Task Going_back_to_size_from_name_starts_with_the_biggest_again()
+    {
+        var model = await ModelWithSizes("dup-ordem-volta");
+        model.SortBy(DuplicateSortField.Name);
+
+        model.SortBy(DuplicateSortField.Size);
+
+        model.SortField.Should().Be(DuplicateSortField.Size);
+        model.SortDescending.Should().BeTrue();
+        model.Rows.Where(row => !row.IsHeader).Select(row => row.Name).First().Should().Be("grande.iso");
+    }
+
+    [Fact]
+    public async Task Sorting_reorders_what_is_on_screen_without_searching_again()
+    {
+        var finder = new CapturingFinder(new DuplicateScanResult([Group("a.bin", 10, 2), Group("b.bin", 20, 2)], 4, 0, 0));
+        var model = await ModelWithSizes("dup-sem-buscar", finder);
+        var searches = finder.Calls;
+
+        model.SortBy(DuplicateSortField.Name);
+        model.SortBy(DuplicateSortField.Size);
+
+        finder.Calls.Should().Be(searches, "ordenar usa o resultado que já está na memória");
+        model.StatusText.Should().StartWith("Concluído");
+    }
+
+    [Fact]
+    public void Sorting_before_any_search_only_remembers_the_choice()
+    {
+        var model = Model(Folder("dup-ordem-antes"));
+
+        var act = () => model.SortBy(DuplicateSortField.Name);
+
+        act.Should().NotThrow();
+        model.Rows.Should().BeEmpty();
+        model.SortField.Should().Be(DuplicateSortField.Name);
+    }
+
+    [Fact]
+    public async Task The_chosen_order_survives_a_new_search()
+    {
+        var model = await ModelWithSizes("dup-ordem-guardada");
+        model.SortBy(DuplicateSortField.Name);
+
+        await model.StartAsync();
+
+        model.SortField.Should().Be(DuplicateSortField.Name);
+        model.Rows.Where(row => !row.IsHeader).Select(row => row.Name).First().Should().Be("grande.iso");
     }
 
     [Fact]
@@ -421,6 +644,14 @@ public sealed class DuplicatesViewModelTests : IDisposable
         ((string?)gridView.Attribute("ColumnHeaderContainerStyle")).Should().Contain("GridViewColumnHeaderStyle");
         gridView.Elements(Wpf + "GridViewColumn").Select(column => (string?)column.Attribute("Header"))
             .Should().Equal("Nome", "Pasta", "Tamanho", "Modificado");
+        gridView.Elements(Wpf + "GridViewColumn").Select(column => (string?)column.Attribute(X + "Name"))
+            .Should().Equal("NameColumn", null, "SizeColumn", null);
+        ((string?)window.Descendants(Wpf + "ListView").Single().Attribute("GridViewColumnHeader.Click")).Should().Be("ResultsHeader_Click");
+
+        var bar = window.Descendants(Wpf + "ProgressBar").Single();
+        ((string?)bar.Attribute("Value")).Should().Contain("ProgressFraction");
+        ((string?)bar.Attribute("IsIndeterminate")).Should().Contain("IsProgressIndeterminate");
+        ((string?)bar.Attribute("Visibility")).Should().Contain("IsScanning");
         ((string?)window.Attribute("ResizeMode")).Should().Be("CanResize");
     }
 }

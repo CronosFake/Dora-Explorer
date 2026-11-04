@@ -49,7 +49,8 @@ public sealed partial class DuplicatesViewModel : ObservableObject
         _statusText = "Pronto para procurar.";
     }
 
-    public ObservableCollection<DuplicateRowViewModel> Rows { get; } = [];
+    // Troca única (ReplaceAll) em vez de um Add por linha: são dezenas de milhares de linhas numa lista ligada à tela.
+    public RangeObservableCollection<DuplicateRowViewModel> Rows { get; } = [];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanStart))]
@@ -81,6 +82,58 @@ public sealed partial class DuplicatesViewModel : ObservableObject
 
     [ObservableProperty]
     private string _summaryText = string.Empty;
+
+    /// <summary>Quanto da etapa atual já foi feito (0 a 1). Só vale quando <see cref="IsProgressIndeterminate"/> é falso.</summary>
+    [ObservableProperty]
+    private double _progressFraction;
+
+    /// <summary>Sem como dizer quanto falta (listando as pastas): a barra anda de um lado para o outro.</summary>
+    [ObservableProperty]
+    private bool _isProgressIndeterminate = true;
+
+    // ---- ordem da lista (clique no cabeçalho Nome ou Tamanho)
+
+    /// <summary>Por que campo os GRUPOS estão ordenados. Começa pelo tamanho, do maior para o menor.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NameHeaderText))]
+    [NotifyPropertyChangedFor(nameof(SizeHeaderText))]
+    private DuplicateSortField _sortField = DuplicateSortField.Size;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NameHeaderText))]
+    [NotifyPropertyChangedFor(nameof(SizeHeaderText))]
+    private bool _sortDescending = true;
+
+    /// <summary>"Nome", com a seta de direção se a lista está ordenada por ele.</summary>
+    public string NameHeaderText => "Nome" + SortIndicator(DuplicateSortField.Name);
+
+    /// <summary>"Tamanho", com a seta de direção se a lista está ordenada por ele.</summary>
+    public string SizeHeaderText => "Tamanho" + SortIndicator(DuplicateSortField.Size);
+
+    private string SortIndicator(DuplicateSortField field) =>
+        SortField != field ? string.Empty : SortDescending ? " ▼" : " ▲";
+
+    /// <summary>
+    /// Clique no cabeçalho: ordenar pela coluna já ordenada inverte a direção; outra coluna ordena por ela (nome de A a Z, tamanho do
+    /// maior para o menor, como nos painéis). Reordena os grupos que já estão na tela, sem procurar de novo.
+    /// </summary>
+    public void SortBy(DuplicateSortField field)
+    {
+        if (SortField == field)
+        {
+            SortDescending = !SortDescending;
+        }
+        else
+        {
+            SortField = field;
+            SortDescending = field == DuplicateSortField.Size;
+        }
+
+        if (LastResult is { } result)
+        {
+            FillRows(result);
+        }
+    }
 
     /// <summary>O último resultado completo (nulo antes da primeira procura ou se cancelada).</summary>
     public DuplicateScanResult? LastResult { get; private set; }
@@ -132,10 +185,12 @@ public sealed partial class DuplicatesViewModel : ObservableObject
         _cancellation = cancellation;
 
         IsScanning = true;
-        Rows.Clear();
+        Rows.ReplaceAll([]);
         LastResult = null;
         SummaryText = string.Empty;
         StatusText = "Listando as pastas...";
+        IsProgressIndeterminate = true;
+        ProgressFraction = 0;
 
         // Criado na thread da tela: os avisos de andamento chegam a ela, mesmo vindos do trabalho em segundo plano.
         var progress = new Progress<DuplicateScanProgress>(report =>
@@ -143,6 +198,9 @@ public sealed partial class DuplicatesViewModel : ObservableObject
             if (!cancellation.IsCancellationRequested)
             {
                 StatusText = DuplicateText.Progress(report);
+                var fraction = DuplicateText.Fraction(report);
+                IsProgressIndeterminate = fraction is null;
+                ProgressFraction = fraction ?? 0;
             }
         });
 
@@ -160,6 +218,8 @@ public sealed partial class DuplicatesViewModel : ObservableObject
 
             LastResult = result;
             FillRows(result);
+            IsProgressIndeterminate = false;
+            ProgressFraction = 1;
             SummaryText = DuplicateText.Summary(result);
             StatusText = DuplicateText.Finished(result);
         }
@@ -200,7 +260,7 @@ public sealed partial class DuplicatesViewModel : ObservableObject
     private void FillRows(DuplicateScanResult result)
     {
         var rows = new List<DuplicateRowViewModel>();
-        foreach (var group in result.Groups)
+        foreach (var group in DuplicateSorter.Sort(result.Groups, SortField, SortDescending))
         {
             rows.Add(DuplicateText.Header(group, Mode));
             foreach (var file in group.Files)
@@ -209,11 +269,40 @@ public sealed partial class DuplicatesViewModel : ObservableObject
             }
         }
 
-        Rows.Clear();
-        foreach (var row in rows)
-        {
-            Rows.Add(row);
-        }
+        Rows.ReplaceAll(rows);
+    }
+}
+
+/// <summary>Campo pelo qual a janela de duplicados ordena os grupos.</summary>
+public enum DuplicateSortField
+{
+    /// <summary>Tamanho de cada cópia (o que o grupo mostra como "X cada").</summary>
+    Size,
+
+    /// <summary>Nome do primeiro arquivo do grupo.</summary>
+    Name
+}
+
+/// <summary>A ordem dos grupos na janela de duplicados.</summary>
+public static class DuplicateSorter
+{
+    /// <summary>
+    /// Ordena os grupos por tamanho (de cada cópia) ou por nome (do primeiro arquivo). A direção vale só para o campo escolhido; o
+    /// desempate é sempre o mesmo, para a ordem não mudar de uma procura para outra: tamanho, espaço recuperável (maior primeiro),
+    /// nome e caminho.
+    /// </summary>
+    public static List<DuplicateGroup> Sort(IEnumerable<DuplicateGroup> groups, DuplicateSortField field, bool descending)
+    {
+        var comparer = StringComparer.OrdinalIgnoreCase;
+        IOrderedEnumerable<DuplicateGroup> ordered = field == DuplicateSortField.Size
+            ? (descending ? groups.OrderByDescending(g => g.SizeInBytes) : groups.OrderBy(g => g.SizeInBytes))
+                .ThenByDescending(g => g.WastedBytes)
+                .ThenBy(g => g.Files[0].Name, comparer)
+            : (descending ? groups.OrderByDescending(g => g.Files[0].Name, comparer) : groups.OrderBy(g => g.Files[0].Name, comparer))
+                .ThenByDescending(g => g.SizeInBytes)
+                .ThenByDescending(g => g.WastedBytes);
+
+        return ordered.ThenBy(g => g.Files[0].FullPath, comparer).ToList();
     }
 }
 
@@ -243,9 +332,32 @@ public static class DuplicateText
         FullPath = file.FullPath
     };
 
-    public static string Progress(DuplicateScanProgress report) => report.Phase == DuplicateScanPhase.Listing
-        ? $"Listando as pastas... {report.FilesScanned} arquivo(s) vistos"
-        : $"Comparando o conteúdo... {report.FilesRead} de {report.FilesToRead} arquivo(s)";
+    /// <summary>
+    /// O texto de andamento de cada etapa. A de leitura inteira (etapa 2) mostra os BYTES lidos e a porcentagem: ela pode levar minutos
+    /// com o disco a 100%, e um texto parado no último número da etapa anterior parecia que o programa tinha travado.
+    /// </summary>
+    public static string Progress(DuplicateScanProgress report) => report.Phase switch
+    {
+        DuplicateScanPhase.Listing => $"Listando as pastas... {report.FilesScanned:N0} arquivo(s) vistos",
+        DuplicateScanPhase.Reading =>
+            $"Etapa 1 de 2: comparando o começo dos arquivos... {report.FilesRead:N0} de {report.FilesToRead:N0} arquivo(s)",
+        _ =>
+            $"Etapa 2 de 2: lendo por inteiro os arquivos que ainda empatam, para confirmar... {report.FilesRead:N0} de {report.FilesToRead:N0} arquivo(s)" +
+            (report.BytesToRead > 0
+                ? $" · {Size(report.BytesRead)} de {Size(report.BytesToRead)} ({Percent(report.BytesRead, report.BytesToRead)})"
+                : string.Empty)
+    };
+
+    /// <summary>Quanto da etapa atual está feito (0 a 1), ou <see langword="null"/> quando não há como saber (listando as pastas).</summary>
+    public static double? Fraction(DuplicateScanProgress report) => report.Phase switch
+    {
+        DuplicateScanPhase.Reading when report.FilesToRead > 0 => Math.Clamp((double)report.FilesRead / report.FilesToRead, 0, 1),
+        DuplicateScanPhase.Confirming when report.BytesToRead > 0 => Math.Clamp((double)report.BytesRead / report.BytesToRead, 0, 1),
+        _ => null
+    };
+
+    private static string Percent(long part, long total) =>
+        (total <= 0 ? 0 : Math.Clamp(part * 100 / total, 0, 100)).ToString(CultureInfo.CurrentCulture) + "%";
 
     /// <summary>Resumo no alto da lista: quantos grupos, quantos arquivos e quanto espaço se recupera.</summary>
     public static string Summary(DuplicateScanResult result) => result.Groups.Count == 0

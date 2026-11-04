@@ -24,6 +24,14 @@ public partial class DuplicatesDialog : Window
         _model = model;
         _locate = locate;
         DataContext = model;
+        UpdateSortHeaders();
+        model.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(DuplicatesViewModel.NameHeaderText) or nameof(DuplicatesViewModel.SizeHeaderText))
+            {
+                UpdateSortHeaders();
+            }
+        };
         Closed += (_, _) =>
         {
             model.Cancel();
@@ -64,6 +72,34 @@ public partial class DuplicatesDialog : Window
         {
             AppLogService.Error("Falha ao procurar duplicados", ex);
             _model.StatusText = "Falha na procura. Veja o registro (log).";
+        }
+    }
+
+    /// <summary>
+    /// Os títulos das colunas Nome e Tamanho levam a seta de direção da ordem atual. Colocados aqui, e não por ligação no XAML: a
+    /// coluna do GridView não faz parte da árvore da tela e não herda o contexto de dados.
+    /// </summary>
+    private void UpdateSortHeaders()
+    {
+        NameColumn.Header = _model.NameHeaderText;
+        SizeColumn.Header = _model.SizeHeaderText;
+    }
+
+    /// <summary>Clicar no cabeçalho Nome ou Tamanho ordena (de novo, inverte); as outras colunas não ordenam.</summary>
+    private void ResultsHeader_Click(object sender, RoutedEventArgs e)
+    {
+        if (e.OriginalSource is not GridViewColumnHeader { Column: { } column })
+        {
+            return; // a coluna de preenchimento à direita não tem coluna
+        }
+
+        if (ReferenceEquals(column, NameColumn))
+        {
+            _model.SortBy(DuplicateSortField.Name);
+        }
+        else if (ReferenceEquals(column, SizeColumn))
+        {
+            _model.SortBy(DuplicateSortField.Size);
         }
     }
 
