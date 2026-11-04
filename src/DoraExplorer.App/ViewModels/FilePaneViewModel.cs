@@ -1751,6 +1751,45 @@ public partial class FilePaneViewModel : ObservableObject
         return true;
     }
 
+    /// <summary>
+    /// Menu da Lixeira (botão direito na linha dela): esvazia tudo, como o "Esvaziar Lixeira" do Windows. Já vazia não é erro. Os
+    /// itens que o painel mostrava dentro dela deixam de existir, então a seleção e o nó são refeitos mesmo se o Windows reclamar de
+    /// algum item (parte pode ter sido esvaziada).
+    /// </summary>
+    public async Task<(bool Success, string? ErrorMessage)> TryEmptyRecycleBinAsync()
+    {
+        // Numa Lixeira grande o Windows demora: o pedido sai da thread da tela para ela não travar.
+        var (emptied, errorMessage) = await Task.Run(() =>
+            {
+                var done = RecycleBinService.TryEmpty(out var error);
+                return (done, error);
+            })
+            .ConfigureAwait(true);
+
+        ClearItemSelection();
+        RefreshRecycleBinNode();
+        return (emptied, errorMessage);
+    }
+
+    /// <summary>Menu da Lixeira: devolve todos os itens ao lugar de onde saíram. Os que não puderem voltar (nome já ocupado) ficam e são citados.</summary>
+    public bool TryRestoreAllRecycleBinItems(out string? errorMessage)
+    {
+        var paths = RecycleBinService.GetAllItemPaths();
+        if (paths.Count == 0)
+        {
+            errorMessage = "A Lixeira está vazia.";
+            return false;
+        }
+
+        var restored = RecycleBinService.TryRestoreItems(paths, out errorMessage);
+        ClearItemSelection();
+        RefreshRecycleBinNode();
+        return restored;
+    }
+
+    /// <summary>A Lixeira tem algum item? O menu dela só oferece esvaziar e restaurar quando tem.</summary>
+    public static bool RecycleBinHasItems() => RecycleBinService.HasItemsNative();
+
     public bool TryDeleteItems(IReadOnlyList<string> paths, FileDeleteMode mode, out string? errorMessage)
     {
         errorMessage = null;
@@ -2004,6 +2043,43 @@ public partial class FilePaneViewModel : ObservableObject
         return true;
     }
 
+    private NavigationTreeNodeViewModel? _dropTargetNode;
+
+    /// <summary>A linha destacada como destino do que está sendo arrastado por cima deste painel (ou <see langword="null"/>).</summary>
+    public NavigationTreeNodeViewModel? DropTargetNode => _dropTargetNode;
+
+    /// <summary>
+    /// Destaca a linha da pasta que vai receber os itens se soltar agora. Durante o arrasto o Windows não atualiza o "mouse em cima"
+    /// das linhas, então sem este destaque não dá para saber onde o arquivo vai parar. Só pasta ou unidade que o painel mostra vira
+    /// destino destacado; <see langword="null"/> (ou uma pasta que o painel não mostra) apaga o destaque.
+    /// </summary>
+    public void SetDropTarget(string? destinationDirectory)
+    {
+        var node = string.IsNullOrWhiteSpace(destinationDirectory) ? null : FindNodeByPath(destinationDirectory);
+        if (node is not { Kind: NavigationNodeKind.Directory or NavigationNodeKind.Drive })
+        {
+            node = null;
+        }
+
+        if (ReferenceEquals(_dropTargetNode, node))
+        {
+            return;
+        }
+
+        if (_dropTargetNode is not null)
+        {
+            _dropTargetNode.IsDropTarget = false;
+        }
+
+        _dropTargetNode = node;
+        if (node is not null)
+        {
+            node.IsDropTarget = true;
+        }
+    }
+
+    public void ClearDropTarget() => SetDropTarget(null);
+
     public static bool IsLocalFileSystemPath(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -2197,6 +2273,19 @@ public partial class FilePaneViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Um clique devagar no nome de um item que já era o único selecionado começa a renomear, como no Explorer do Windows. Só vale
+    /// para arquivo, pasta ou arquivo compactado com caminho (unidades e itens da Lixeira não se renomeiam assim) e quando nenhum
+    /// outro item está sendo renomeado. Um item de uma seleção de vários, ou que acabou de ser selecionado por este clique, não conta.
+    /// </summary>
+    public bool CanBeginSlowRename(NavigationTreeNodeViewModel node) =>
+        RenamingNode is null &&
+        !node.IsRecycleBinEntry &&
+        node.Kind is NavigationNodeKind.File or NavigationNodeKind.Directory or NavigationNodeKind.Archive &&
+        !string.IsNullOrWhiteSpace(node.TargetPath) &&
+        SelectedItems.Count == 1 &&
+        ReferenceEquals(SelectedItems[0], node);
+
     public void BeginRenameNode(NavigationTreeNodeViewModel node)
     {
         if (RenamingNode is not null && !ReferenceEquals(RenamingNode, node))
@@ -2384,7 +2473,7 @@ public partial class FilePaneViewModel : ObservableObject
                 return (false, extractError);
             }
 
-            RefreshDirectory(destinationDirectory);
+            RefreshDirectoryIfShown(destinationDirectory);
             return (true, null);
         }
 
@@ -2395,7 +2484,7 @@ public partial class FilePaneViewModel : ObservableObject
             return result;
         }
 
-        RefreshDirectory(destinationDirectory);
+        RefreshDirectoryIfShown(destinationDirectory);
         return (true, null);
     }
 
@@ -2424,7 +2513,7 @@ public partial class FilePaneViewModel : ObservableObject
             return false;
         }
 
-        RefreshDirectory(destinationDirectory);
+        RefreshDirectoryIfShown(destinationDirectory);
         return true;
     }
 
@@ -2474,7 +2563,7 @@ public partial class FilePaneViewModel : ObservableObject
                 return (false, extractError);
             }
 
-            RefreshDirectory(destinationDirectory);
+            RefreshDirectoryIfShown(destinationDirectory);
             return (true, null);
         }
 
@@ -2488,10 +2577,10 @@ public partial class FilePaneViewModel : ObservableObject
         var sourceParent = Path.GetDirectoryName(sourcePath);
         if (!string.IsNullOrWhiteSpace(sourceParent))
         {
-            RefreshDirectory(sourceParent);
+            RefreshDirectoryIfShown(sourceParent);
         }
 
-        RefreshDirectory(destinationDirectory);
+        RefreshDirectoryIfShown(destinationDirectory);
         return (true, null);
     }
 
@@ -2525,11 +2614,11 @@ public partial class FilePaneViewModel : ObservableObject
             var sourceParent = Path.GetDirectoryName(sourcePath);
             if (!string.IsNullOrWhiteSpace(sourceParent))
             {
-                RefreshDirectory(sourceParent);
+                RefreshDirectoryIfShown(sourceParent);
             }
         }
 
-        RefreshDirectory(destinationDirectory);
+        RefreshDirectoryIfShown(destinationDirectory);
         return true;
     }
 
@@ -2577,7 +2666,7 @@ public partial class FilePaneViewModel : ObservableObject
             return (false, result.ErrorMessage);
         }
 
-        RefreshDirectory(destinationDirectory);
+        RefreshDirectoryIfShown(destinationDirectory);
         return (true, null);
     }
     public async Task<(bool Success, string? ErrorMessage)> TryConnectNetworkAsync(
@@ -3334,6 +3423,27 @@ public partial class FilePaneViewModel : ObservableObject
         ReloadNodeChildrenKeepingExpansion(node);
     }
 
+    /// <summary>
+    /// Recarrega a pasta só se este painel a mostra como linha da árvore. Copiar, mover e compactar rodam no painel de origem, e a pasta
+    /// de destino quase sempre não está na árvore dele: <see cref="RefreshDirectory"/> reconstruiria a árvore e ABRIRIA o destino ali, e
+    /// o painel de origem terminava a operação em outra pasta. O painel que mostra o destino é recarregado por
+    /// <see cref="RefreshShownDirectories"/> (chamado por <c>MainWindowViewModel.RefreshShownAfterTransfer</c>).
+    /// </summary>
+    private void RefreshDirectoryIfShown(string directoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath))
+        {
+            return;
+        }
+
+        if (string.Equals(directoryPath, NavigationTreeService.RecycleBinPath, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(directoryPath, NavigationTreeService.FavoritesPath, StringComparison.OrdinalIgnoreCase) ||
+            FindNodeByPath(directoryPath) is not null)
+        {
+            RefreshDirectory(directoryPath);
+        }
+    }
+
     public void RefreshFavoritesNode()
     {
         var node = NavigationRoots.FirstOrDefault(n => n.Kind == NavigationNodeKind.Favorites);
@@ -3391,7 +3501,7 @@ public partial class FilePaneViewModel : ObservableObject
         }
     }
 
-    private void RefreshRecycleBinNode()
+    public void RefreshRecycleBinNode()
     {
         var node = NavigationRoots.FirstOrDefault(n => n.Kind == NavigationNodeKind.RecycleBin);
         if (node is null)
@@ -3405,7 +3515,7 @@ public partial class FilePaneViewModel : ObservableObject
         node.FolderCount = 0;
         node.FileCount = 0;
 
-        if (RecycleBinService.HasItems())
+        if (RecycleBinService.HasItemsNative())
         {
             var (folders, files) = RecycleBinService.GetCounts();
             node.FolderCount = folders;

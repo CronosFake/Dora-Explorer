@@ -320,6 +320,80 @@ public sealed class MainWindowViewModelTests : IDisposable
         HasArrow(main.RightPane, source).Should().BeFalse("o painel de destino também mostrava essa pasta e ficava com a seta velha");
     }
 
+    // ---- Copiar e mover entre os painéis não pode levar nenhum dos dois para outra pasta ao terminar. Quem executa a operação é o painel
+    // ----- de origem, que só recarregava a pasta de destino se a tivesse na árvore; sem ela, reconstruía a árvore e ABRIA o destino nele.
+
+    private (MainWindowViewModel Main, string SourceFolder, string DestinationFolder, string File) TwoPanesInDistantFolders()
+    {
+        var root = _h.Folder("distantes");
+        var sourceFolder = Directory.CreateDirectory(Path.Combine(root, "lado-a", "origem")).FullName;
+        var destinationFolder = Directory.CreateDirectory(Path.Combine(root, "lado-b", "destino")).FullName;
+        PaneTestHarness.File(destinationFolder, "ja-estava-la.txt");
+        var file = PaneTestHarness.File(sourceFolder, "a.txt", "conteudo");
+        var main = Open(sourceFolder, destinationFolder);
+        main.LeftPane.CompleteInitialPathRestore();
+        Select(main.LeftPane, file);
+        return (main, sourceFolder, destinationFolder, file);
+    }
+
+    [Fact]
+    public async Task Copying_to_the_other_pane_leaves_both_panes_in_the_folders_they_were_in()
+    {
+        var (main, sourceFolder, destinationFolder, file) = TwoPanesInDistantFolders();
+        PaneTestHarness.Find(main.LeftPane, destinationFolder).Should().BeNull("o painel de origem não tem a pasta de destino aberta");
+
+        var outcome = await main.ExecuteTransferAsync(main.LeftPane, move: false);
+
+        outcome.Success.Should().BeTrue(outcome.ErrorMessage);
+        File.Exists(Path.Combine(destinationFolder, "a.txt")).Should().BeTrue();
+        main.LeftPane.GetWorkingDirectory().Should().Be(sourceFolder, "o painel de origem continua na pasta de onde se copiou");
+        main.LeftPane.SelectedItems.Select(item => item.TargetPath).Should().Equal([file], "e com o item que estava selecionado");
+        PaneTestHarness.Find(main.LeftPane, destinationFolder).Should().BeNull("o painel de origem não pode abrir a pasta de destino");
+        main.RightPane.GetWorkingDirectory().Should().Be(destinationFolder);
+    }
+
+    [Fact]
+    public async Task Moving_to_the_other_pane_leaves_both_panes_in_the_folders_they_were_in()
+    {
+        var (main, sourceFolder, destinationFolder, file) = TwoPanesInDistantFolders();
+
+        var outcome = await main.ExecuteTransferAsync(main.LeftPane, move: true);
+
+        outcome.Success.Should().BeTrue(outcome.ErrorMessage);
+        File.Exists(file).Should().BeFalse();
+        File.Exists(Path.Combine(destinationFolder, "a.txt")).Should().BeTrue();
+        main.LeftPane.GetWorkingDirectory().Should().Be(sourceFolder, "o painel de origem fica na pasta de onde saiu o arquivo");
+        PaneTestHarness.Find(main.LeftPane, destinationFolder).Should().BeNull("o painel de origem não pode abrir a pasta de destino");
+        main.RightPane.GetWorkingDirectory().Should().Be(destinationFolder, "o painel de destino continua onde estava");
+    }
+
+    [Fact]
+    public async Task Pasting_into_the_other_pane_leaves_both_panes_in_the_folders_they_were_in()
+    {
+        var (main, sourceFolder, destinationFolder, _) = TwoPanesInDistantFolders();
+        main.TryStageTransfer(main.LeftPane, FileTransferOperation.Copy, out var stageError).Should().BeTrue(stageError);
+
+        var outcome = await main.TryPasteTransferAsync();
+
+        outcome.Success.Should().BeTrue(outcome.ErrorMessage);
+        main.LeftPane.GetWorkingDirectory().Should().Be(sourceFolder);
+        PaneTestHarness.Find(main.LeftPane, destinationFolder).Should().BeNull();
+        main.RightPane.GetWorkingDirectory().Should().Be(destinationFolder);
+    }
+
+    [Fact]
+    public async Task Dropping_on_the_other_pane_leaves_both_panes_in_the_folders_they_were_in()
+    {
+        var (main, sourceFolder, destinationFolder, file) = TwoPanesInDistantFolders();
+
+        var outcome = await main.ExecuteDropTransferAsync(main.LeftPane, [file], main.RightPane, destinationFolder, move: false);
+
+        outcome.Success.Should().BeTrue(outcome.ErrorMessage);
+        main.LeftPane.GetWorkingDirectory().Should().Be(sourceFolder);
+        PaneTestHarness.Find(main.LeftPane, destinationFolder).Should().BeNull();
+        main.RightPane.GetWorkingDirectory().Should().Be(destinationFolder);
+    }
+
     [Fact]
     public void The_menu_option_for_locked_drives_flips_and_is_saved()
     {

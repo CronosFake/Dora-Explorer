@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-02 04:23
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-04 14:48
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -22,10 +22,10 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 
 | Item | Valor |
 |------|-------|
-| Areas | 27 |
-| Classes de teste | 70 |
-| Metodos de teste | 574 |
-| Casos (cada InlineData conta um) | 841 |
+| Areas | 32 |
+| Classes de teste | 76 |
+| Metodos de teste | 675 |
+| Casos (cada InlineData conta um) | 971 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -180,7 +180,7 @@ Abrir numa pasta, navegar, criar pasta, renomear, excluir, copiar e mover (inclu
 Painel ativo, area de transferencia de copiar e cortar, regras que recusam transferencias sem sentido, arrastar e soltar, ordenacao nos dois lados e lembrar o caminho ao abrir.
 
 - Codigo: MainWindowViewModel, RememberPathSettingsService, PaneDisplaySettingsService, TransferOutcome, DragPolicy
-- Testes (27 casos): MainWindowViewModelTests [MainWindowViewModelTests.cs], DragPolicyTests [DragPolicyTests.cs]
+- Testes (31 casos): MainWindowViewModelTests [MainWindowViewModelTests.cs], DragPolicyTests [DragPolicyTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~MainWindowViewModelTests|FullyQualifiedName~DragPolicyTests"`
 
 ### Janela Propriedades (botao direito)
@@ -231,6 +231,46 @@ Pede para a janela fechar e espera (o app pode perguntar sobre uma operacao em a
 - Testes (4 casos): StopDoraScriptTests [StopDoraScriptTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~StopDoraScriptTests"`
 
+### Arrastar e soltar: onde cai e o destaque da pasta de destino
+
+A linha sob o mouse e a que vale (uma unidade aberta recebe na raiz, nao na primeira subpasta; espaco em branco cai na pasta aberta do painel), a pasta que recebe e destacada durante o arrasto e so uma por vez, e soltar na pasta de origem ou de um item dentro dele mesmo e recusado.
+
+- Codigo: RowHitTest, FilePaneViewModel, NavigationTreeNodeViewModel
+- Testes (21 casos): DropTargetTests [DropTargetTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~DropTargetTests"`
+
+### Renomear (F2, clique devagar, nome sem a extensao)
+
+Que trecho do nome ja vem selecionado (sem a extensao; pasta, .gitignore e nome sem extensao selecionam tudo), quando um clique devagar no nome comeca a renomear (so o item que ja era o unico selecionado, fora de unidade e Lixeira, sem outro em renomeacao) e confirmar ou cancelar.
+
+- Codigo: RenameSelection, SystemMouse, FilePaneViewModel
+- Testes (22 casos): RenameTests [RenameTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~RenameTests"`
+
+### Menu da Lixeira (esvaziar e restaurar tudo)
+
+Esvaziar chama o Windows uma vez, Lixeira ja vazia nao e erro nem chama o Windows, recusa e excecao do Windows viram mensagem em portugues, a linha da Lixeira e atualizada nos dois paineis e as perguntas dizem quantos itens. O Windows e a consulta da Lixeira sao trocados por funcoes de mentira: nenhum teste esvazia a Lixeira de verdade.
+
+- Codigo: RecycleBinService, RecycleBinText
+- Testes (15 casos): RecycleBinMenuTests [RecycleBinMenuTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~RecycleBinMenuTests"`
+
+### Localizar (colunas ajustaveis e nova janela)
+
+O cabecalho das colunas tem a alca que o GridView procura (sem ela a largura nao muda), o menu pode ser aumentado e nao tem teto de altura, existe o botao Nova janela e a janela mostra Nome, Caminho e Tamanho ajustaveis (lidos do XAML); a pesquisa acha item em subpastas fundas e a barra alimenta a lista que a janela mostra.
+
+- Codigo: SearchDialog, SearchPopupSizing, FileSearchService, CenterToolbarViewModel
+- Testes (16 casos): SearchWindowTests [SearchWindowTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~SearchWindowTests"`
+
+### Duplicados (padrao: nome e tamanho; profundo: tamanho e hash)
+
+Padrao agrupa por nome (sem diferenciar maiusculas) e tamanho sem ler arquivo; profundo confirma por SHA-256 (inclusive diferenca so no ultimo byte de um arquivo grande), so le arquivo que tem o tamanho de outro, conta o travado como ilegivel e segue; vazio, juncao e pasta inexistente; cancelar e andamento; a lista plana da janela (cabecalho de grupo + copias), modo, subpastas, textos, o botao no grupo Pasta e o icone novo e unico da mesma fonte.
+
+- Codigo: DuplicateFinderService, DuplicatesViewModel, DuplicateText, DuplicatesDialog, DuplicateRowViewModel
+- Testes (52 casos): DuplicateFinderTests [DuplicateFinderTests.cs], DuplicatesViewModelTests [DuplicatesViewModelTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~DuplicateFinderTests|FullyQualifiedName~DuplicatesViewModelTests"`
+
 ### Registro de servicos (injecao de dependencia)
 
 Todo servico registrado tem as dependencias registradas; um servico novo esquecido estouraria so ao abrir o app.
@@ -258,9 +298,15 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | ArchivePathHelper | Arquivos compactados (abrir como pasta) |
 | ArchiveService | Arquivos compactados (abrir como pasta) |
 | BreadcrumbSegmentViewModel | Painel de arquivos (um lado da janela) |
+| CenterToolbarViewModel | Localizar (colunas ajustaveis e nova janela) |
 | DefaultApplicationOverrides | Abrir com e programas padrao |
 | DirectoryIndexService | Cache de pastas e carga sem piscar |
 | DragPolicy | Janela principal (copiar e colar entre os paineis) |
+| DuplicateFinderService | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
+| DuplicateRowViewModel | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
+| DuplicatesDialog | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
+| DuplicatesViewModel | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
+| DuplicateText | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
 | ElevationPrompt | Acesso negado e reiniciar como administrador |
 | ElevationService | Acesso negado e reiniciar como administrador |
 | ExpectedFailures | Falhas esperadas do sistema |
@@ -272,7 +318,8 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | FileErrorText | Acesso negado e reiniciar como administrador |
 | FileOpenService | Abrir com e programas padrao |
 | FileOperationService | Copiar, mover e compactar (progresso, cancelamento, tempo limite); Painel de arquivos (um lado da janela) |
-| FilePaneViewModel | Painel de arquivos (um lado da janela) |
+| FilePaneViewModel | Painel de arquivos (um lado da janela); Arrastar e soltar: onde cai e o destaque da pasta de destino; Renomear (F2, clique devagar, nome sem a extensao) |
+| FileSearchService | Localizar (colunas ajustaveis e nova janela) |
 | FileThumbnailService | Previa de imagens e PDF |
 | FtpCertificateVerifier | Confianca em servidores (chaves, certificados, login do cliente) |
 | FtpServer | Servidor FTP e FTPS |
@@ -288,7 +335,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | NativeFileCopy | Copiar, mover e compactar (progresso, cancelamento, tempo limite) |
 | NavigationHistory | Navegacao e caminhos |
 | NavigationNodeKind | Pasta Rede na arvore |
-| NavigationTreeNodeViewModel | Painel de arquivos (um lado da janela) |
+| NavigationTreeNodeViewModel | Painel de arquivos (um lado da janela); Arrastar e soltar: onde cai e o destaque da pasta de destino |
 | NavigationTreeService | Pasta Rede na arvore; Arquivos compactados (abrir como pasta); Menu superior: Exibir (unidades bloqueadas) e Preferencia |
 | NetworkClientHealthService | Clientes de rede (sessoes, copia entre servidores, saude dos perfis) |
 | NetworkFileService | Clientes de rede (sessoes, copia entre servidores, saude dos perfis) |
@@ -305,11 +352,16 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | PropertySectionViewModel | Janela Propriedades (botao direito) |
 | ProtectedStringJsonConverter | Seguranca de senhas e configuracoes |
 | RangeObservableCollection | Cache de pastas e carga sem piscar |
-| RecycleBinService | Lixeira e Favoritos |
+| RecycleBinService | Lixeira e Favoritos; Menu da Lixeira (esvaziar e restaurar tudo) |
+| RecycleBinText | Menu da Lixeira (esvaziar e restaurar tudo) |
 | RememberPathSettingsService | Janela principal (copiar e colar entre os paineis) |
 | RemoteFileService | Clientes de rede (sessoes, copia entre servidores, saude dos perfis) |
 | RemoteTransferEngine | Clientes de rede (sessoes, copia entre servidores, saude dos perfis) |
+| RenameSelection | Renomear (F2, clique devagar, nome sem a extensao) |
+| RowHitTest | Arrastar e soltar: onde cai e o destaque da pasta de destino |
 | ScpServerSession | Servidor SFTP e SCP |
+| SearchDialog | Localizar (colunas ajustaveis e nova janela) |
+| SearchPopupSizing | Localizar (colunas ajustaveis e nova janela) |
 | SelectionStatusFormatter | Tema, cores e interface |
 | ServerVirtualPath | Servidor SFTP e SCP |
 | ServiceRegistration | Registro de servicos (injecao de dependencia) |
@@ -320,6 +372,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | SshHostKeyStore | Servidor SFTP e SCP |
 | StartupArguments | Acesso negado e reiniciar como administrador |
 | StorageUsage | Tema, cores e interface |
+| SystemMouse | Renomear (F2, clique devagar, nome sem a extensao) |
 | TftpClient | TFTP (servidor e cliente) |
 | TftpServer | TFTP (servidor e cliente) |
 | ThemeManager | Tema, cores e interface |
@@ -353,6 +406,10 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 | Menu de contexto (botao direito): Adicionar e Remover dos favoritos em arquivo, pasta e favorito da pasta Favoritos | O texto da entrada e testado no modelo, mas o menu so existe com a janela aberta e o clique direito. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario favmenu (app fechado; AGENTS.md, armadilha 21): botao direito de verdade, le as entradas do menu pelo UI Automation e confere o favorites.json; cada verificacao sai [OK] ou [FALHOU]. |
 | Janela Propriedades: abrir pelo botao direito, o visual nos temas escuro e claro e os valores contra o disco | Os dados e o texto sao testados sem janela, mas a janela, o menu e o visual so existem com o app aberto. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario props (app fechado; AGENTS.md, armadilha 22): botao direito de verdade num arquivo, numa pasta, em dois itens e numa unidade, le as linhas pelo UI Automation, confere o SHA-256 contra o Get-FileHash e fotografa nos dois temas; cada verificacao sai [OK] ou [FALHOU]. |
 | Menu superior na tela (Exibir, Temas, Preferencia, Ajuda) e o aviso do Windows de "Iniciar sempre como administrador" | A estrutura do menu e as ligacoes sao testadas pelo XAML, mas o menu aberto so existe com a janela; o aviso do Windows (UAC) roda numa area protegida e nenhum roteiro consegue aceita-lo ou recusa-lo. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario menu (app fechado; AGENTS.md, armadilha 23) confere os menus, o estado dos checks e liga e desliga "Exibir unidades bloqueadas" de verdade (uma unidade travada some e volta nos dois paineis), sem nunca acionar o administrador. A mao: o menu superior mostra Exibir, Temas, Preferencia e Ajuda (sem Arquivo), com "Exibir unidades bloqueadas" em Exibir e "Iniciar sempre como administrador" em Preferencia. Marcar o administrador: o Windows pede a confirmacao; recusar deixa o check desmarcado, aceitar reabre o app (Gerenciador de Tarefas: Elevado = Sim) e, fechando e abrindo de novo, o aviso aparece ao abrir. Desmarcar nao pede nada. |
+| Selecionar com o retangulo (arrastar na borda esquerda) e arrastar a selecao, o destaque da pasta de destino durante o arrasto e soltar na raiz da unidade | A regra da linha sob o mouse (RowHitTest) e o destaque no modelo sao testados, mas o mouse apertado, o OLE e o desenho do destaque so existem com a janela aberta. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario marqueedrag (app fechado; AGENTS.md, armadilhas 25 e 26): retangulo de 4 itens, arrasto da selecao para o outro painel, o painel de origem continua na mesma pasta, fotos do destaque (dest e a linha C:) e a pasta solta na raiz de C:; cada verificacao sai [OK] ou [FALHOU]. |
+| Renomear na tela: F2 e clique devagar abrem a caixa com o foco e o nome sem a extensao selecionado, selecionar o texto com o mouse | O trecho selecionado e a regra do clique devagar sao testados, mas o foco, o mouse e o temporizador so existem com a janela aberta. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario rename (app fechado; AGENTS.md, armadilha 27): F2 e clique devagar (le a selecao pelo UI Automation), arrasto do mouse dentro da caixa (o arquivo nao pode sair do lugar), Enter renomeia no disco e Esc cancela. |
+| Menu da Lixeira na tela, Localizar (Nova janela e coluna ajustada com o mouse) e a janela Itens duplicados aberta pelo botao do grupo Pasta | As regras sao testadas sem janela, mas o menu, o botao, as janelas e o arrasto da borda do cabecalho so existem com o app aberto. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario newfeatures (app fechado; AGENTS.md, armadilhas 28 a 30): botao direito na Lixeira (so le o menu e recusa a pergunta de esvaziar), Localizar e Nova janela, largura da coluna Nome antes e depois de arrastar a borda, Duplicados nos tipos Padrao e Profundo; cada verificacao sai [OK] ou [FALHOU]. |
+| Esvaziar a Lixeira de verdade (SHEmptyRecycleBin) | Apaga para sempre a Lixeira do usuario; os testes trocam a chamada do Windows por uma de mentira e os roteiros de tela recusam a pergunta. | Numa maquina de teste, jogar arquivos de teste na Lixeira, botao direito na Lixeira > Esvaziar Lixeira > Sim e conferir que a Lixeira ficou vazia nos dois paineis. |
 | Janelas de dialogo (progresso, conexao de rede, ordenar, excluir) | Janelas WPF; sem teste automatico. | Abrir cada uma no app. |
 | Restaurar e excluir de verdade da Lixeira | Mexe na lixeira real do usuario; so as travas sao testadas. | Com arquivos de teste, na tela. |
 | Start.bat e scripts de apoio | O fechamento do app esta em teste automatico (StopDoraScriptTests, com processos de mentira); o Start.bat inteiro (compilar e abrir) e o caso de um app aberto como administrador, que pede o UAC, nao. | Rodar Start.bat e conferir que o app abre. Com o app aberto, rodar de novo: ele fecha sozinho (o log termina com "encerrado") e reabre. Com o app aberto como administrador (Reiniciar como administrador), o Start.bat deve parar com o aviso de que nao consegue fecha-lo, sem compilar. |
@@ -483,6 +540,77 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Dragging_between_the_two_panes_of_the_app_still_allows_copy_and_move
 - Dragging_to_another_program_only_allows_copying
 - The_cursor_check_runs_without_a_window_and_never_finds_the_test_process_under_it
+
+### DropTargetTests (DropTargetTests.cs)
+
+- A_drive_row_receives_the_items_at_the_root_of_the_drive
+- A_file_is_never_highlighted_as_the_target
+- A_file_row_sends_the_items_to_the_folder_that_holds_the_file
+- A_folder_row_receives_the_items_inside_that_folder
+- A_folder_that_does_not_exist_is_refused_with_a_reason
+- An_empty_tree_has_no_row
+- Blank_space_above_or_below_the_rows_is_no_row_at_all (3 casos)
+- Blank_space_sends_the_items_to_the_folder_open_in_the_pane
+- Clearing_the_target_removes_the_highlight_and_a_folder_the_pane_does_not_show_highlights_nothing
+- Dropping_a_folder_on_the_root_of_its_own_drive_moves_it_and_never_into_itself
+- Dropping_an_item_that_already_sits_at_the_root_on_that_root_is_refused
+- Highlighting_the_same_folder_twice_changes_nothing
+- The_folder_that_would_receive_the_items_is_highlighted_and_only_that_one
+- The_line_of_an_open_drive_is_the_drive_and_not_its_nearest_folder
+- The_row_under_the_mouse_is_the_one_whose_own_band_holds_the_height (5 casos)
+
+### DuplicateFinderTests (DuplicateFinderTests.cs)
+
+- A_blank_folder_gives_an_empty_result
+- A_cancelled_search_stops_with_an_operation_cancelled_exception
+- A_folder_that_does_not_exist_gives_an_empty_result_instead_of_failing
+- A_junction_to_another_folder_is_not_followed_so_nothing_is_counted_twice
+- Deep_catches_a_difference_in_the_first_byte_without_reading_the_whole_file
+- Deep_catches_a_difference_in_the_very_last_byte_of_a_large_file
+- Deep_confirms_a_large_file_that_is_really_identical
+- Deep_counts_a_locked_candidate_as_unreadable_and_still_finds_the_other_duplicates
+- Deep_does_not_group_files_of_different_sizes_even_if_one_is_the_start_of_the_other
+- Deep_finds_the_same_content_under_different_names_and_reports_the_sha256
+- Deep_handles_many_candidates_in_one_group_and_several_groups_at_once
+- Deep_never_reads_a_file_whose_size_nobody_else_has
+- Deep_separates_files_that_have_the_same_name_and_size_but_different_content
+- Empty_files_are_never_duplicates_of_each_other
+- Standard_does_not_tell_capitals_apart_in_the_name
+- Standard_groups_files_with_the_same_name_and_size_in_different_folders
+- Standard_ignores_the_same_name_with_a_different_size
+- Standard_ignores_the_same_size_under_a_different_name
+- Standard_reports_three_copies_as_one_group_and_the_wasted_space_of_two
+- The_async_search_runs_off_the_calling_thread_and_honours_cancellation
+- The_groups_that_waste_the_most_come_first
+- The_modified_date_and_folder_of_each_copy_are_reported_for_the_list
+- The_search_reports_listing_and_then_reading_progress_ending_with_everything_read
+- Without_subfolders_only_the_chosen_folder_is_searched
+
+### DuplicatesViewModelTests (DuplicatesViewModelTests.cs)
+
+- A_failure_reading_the_folder_becomes_a_message_and_not_a_crash
+- A_folder_without_duplicates_says_so
+- A_new_search_replaces_the_old_rows
+- A_search_cannot_start_without_a_folder
+- A_search_lists_each_group_with_a_header_followed_by_its_copies
+- Cancelling_stops_the_search_and_leaves_the_list_empty
+- Cancelling_with_nothing_running_does_nothing
+- Choosing_a_mode_flips_the_other_option_and_the_description
+- Sizes_are_written_like_everywhere_else_in_the_app (4 casos)
+- Starting_without_a_folder_asks_for_one_and_searches_nothing
+- The_deep_mode_shows_the_start_of_the_hash_in_the_group_header
+- The_Duplicates_icon_comes_from_the_same_icon_font_and_no_other_button_uses_the_same_glyph
+- The_final_status_mentions_files_that_could_not_be_read
+- The_final_status_stays_short_when_everything_was_read
+- The_Folder_group_has_the_Duplicates_button_with_the_two_checks_in_a_menu
+- The_menu_tags_are_the_names_of_the_two_modes
+- The_model_notifies_when_the_mode_changes_so_both_radio_buttons_update
+- The_progress_text_names_the_phase_and_the_counts (2 casos)
+- The_subfolder_option_is_passed_to_the_search
+- The_toolbar_prepares_the_window_for_the_folder_open_in_the_active_pane
+- The_window_has_both_checks_the_subfolder_option_and_adjustable_columns
+- Unchecking_a_radio_button_does_not_change_the_mode (2 casos)
+- Without_a_local_folder_the_toolbar_refuses_and_says_why
 
 ### ElevationTests (ElevationTests.cs)
 
@@ -790,10 +918,14 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Activating_the_right_pane_swaps_source_and_destination_and_tells_the_screen
 - Checking_always_administrator_asks_for_access_right_away_and_keeps_the_check_on
 - Copy_and_paste_puts_a_copy_in_the_other_pane_and_keeps_the_clipboard
+- Copying_to_the_other_pane_leaves_both_panes_in_the_folders_they_were_in
 - Cut_and_paste_moves_the_file_and_empties_the_clipboard
 - Dropping_files_on_the_other_pane_copies_or_moves_them_there
+- Dropping_on_the_other_pane_leaves_both_panes_in_the_folders_they_were_in
 - Dropping_onto_the_same_folder_is_refused_without_touching_the_file
+- Moving_to_the_other_pane_leaves_both_panes_in_the_folders_they_were_in
 - Panes_open_where_they_were_left_when_remembering_the_path_is_on_and_the_folder_still_exists
+- Pasting_into_the_other_pane_leaves_both_panes_in_the_folders_they_were_in
 - Pasting_with_nothing_staged_reports_it
 - Refusing_the_windows_confirmation_puts_the_check_back_to_off_without_a_message
 - Staging_without_a_selection_names_the_action_that_was_asked_for
@@ -907,6 +1039,20 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - SyncTo_with_the_same_content_raises_no_notification
 - Tree_nodes_expose_the_bulk_collection_and_still_work_as_a_normal_observable_collection
 
+### RecycleBinMenuTests (RecycleBinMenuTests.cs)
+
+- A_failure_still_refreshes_because_part_of_the_bin_may_have_been_emptied
+- A_refusal_from_windows_becomes_a_message_in_portuguese
+- An_exception_from_the_shell_is_reported_instead_of_crashing
+- Emptying_a_bin_that_is_already_empty_is_not_an_error_and_does_not_bother_windows
+- Emptying_asks_windows_once_and_succeeds
+- Emptying_from_a_pane_clears_its_selection_and_reports_success
+- Emptying_the_bin_refreshes_the_row_in_both_panes
+- Restoring_everything_from_an_empty_bin_says_it_is_empty
+- The_question_before_emptying_says_how_many_items_go_for_good (3 casos)
+- The_question_before_restoring_says_how_many_items_come_back (3 casos)
+- The_unexpected_code_windows_returns_when_the_bin_emptied_meanwhile_counts_as_done
+
 ### RemoteFileServiceFtpTests (RemoteFileTests.cs)
 
 - A_folder_goes_up_comes_back_gets_renamed_and_deleted_on_a_real_ftp_server
@@ -939,6 +1085,21 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Scanning_adds_up_bytes_and_files_without_following_links
 - Uploading_a_folder_creates_the_tree_and_picks_a_free_name_on_the_server
 
+### RenameTests (RenameTests.cs)
+
+- A_drive_or_a_recycle_bin_entry_is_never_renamed_by_a_slow_click
+- A_file_starts_with_the_name_selected_but_not_the_extension_and_a_folder_with_everything (11 casos)
+- A_folder_can_be_renamed_by_a_slow_click_too
+- A_slow_click_renames_the_item_that_was_already_the_only_one_selected
+- An_item_inside_a_selection_of_several_does_not_start_renaming
+- An_item_that_was_not_selected_yet_does_not_start_renaming
+- Cancelling_leaves_the_name_untouched
+- Committing_a_new_name_renames_the_file_on_disk
+- Confirming_the_same_name_changes_nothing
+- Nothing_starts_renaming_while_another_item_is_being_renamed
+- Starting_to_rename_fills_the_box_with_the_current_name_and_says_so
+- The_selected_range_never_leaves_the_text
+
 ### RowDensitySettingTests (NavigationTests.cs)
 
 - Changing_the_density_is_saved_and_announced_once
@@ -966,6 +1127,21 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Source_reports_missing_files_and_refuses_unsafe_paths
 - Source_sends_a_file
 - Source_sends_a_folder_only_when_recursive
+
+### SearchWindowTests (SearchWindowTests.cs)
+
+- A_long_path_can_be_read_in_full_from_the_tooltip
+- A_search_finds_an_item_buried_in_many_subfolders_and_reports_its_full_path
+- A_size_not_measured_yet_falls_back_to_the_minimum
+- Enlarging_the_menu_stays_inside_the_limits (5 casos)
+- The_column_header_template_has_the_gripper_the_gridview_looks_for
+- The_filler_column_after_the_last_one_gets_no_gripper
+- The_menu_has_a_grip_to_make_it_bigger_and_a_button_to_open_a_new_window
+- The_menu_is_not_capped_at_a_small_height_any_more
+- The_menu_results_list_uses_the_adjustable_header_and_shows_name_and_path
+- The_new_window_can_be_resized_and_shows_the_same_search_text_and_status
+- The_new_window_lists_name_path_and_size_with_adjustable_columns
+- The_toolbar_search_fills_the_list_the_new_window_shows
 
 ### SelectionStatusFormatterTests (InterfaceTests.cs)
 

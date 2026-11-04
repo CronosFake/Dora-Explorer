@@ -326,6 +326,42 @@ public partial class CenterToolbarViewModel : ObservableObject
 
 
 
+    /// <summary>Quem procura os duplicados (Pasta, Duplicados). Os testes trocam por um de mentira.</summary>
+    internal IDuplicateFinderService DuplicateFinder { get; set; } = new DuplicateFinderService();
+
+    private FilePaneViewModel? _duplicatesPane;
+
+    /// <summary>
+    /// Prepara a janela de duplicados para a pasta aberta no painel ativo. Sem uma pasta local (servidor, arquivo compactado, nada
+    /// aberto) devolve <see langword="false"/> e o motivo, e nada é aberto.
+    /// </summary>
+    public bool TryCreateDuplicates(DuplicateMode mode, out DuplicatesViewModel? model, out string? errorMessage)
+    {
+        var pane = _mainWindow.ActivePane;
+        var root = pane.GetWorkingDirectory();
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+        {
+            model = null;
+            errorMessage = "Abra uma pasta local para procurar duplicados.";
+            return false;
+        }
+
+        _duplicatesPane = pane;
+        model = new DuplicatesViewModel(DuplicateFinder, root, mode);
+        errorMessage = null;
+        return true;
+    }
+
+    /// <summary>Leva o painel que originou a procura até uma cópia da lista de duplicados.</summary>
+    public void LocateDuplicate(string fullPath, string rootPath)
+    {
+        var pane = _duplicatesPane ?? _mainWindow.ActivePane;
+        _mainWindow.IsLeftPaneActive = ReferenceEquals(pane, _mainWindow.LeftPane);
+        pane.NavigateToSearchResult(
+            new SearchResultItem { Name = Path.GetFileName(fullPath), FullPath = fullPath },
+            rootPath);
+    }
+
     public void ApplySortOptions(TreeSortOptions options) => _mainWindow.ApplyGlobalSortOptions(options);
 
 

@@ -3,7 +3,7 @@
 # Uso, a partir da raiz do repositorio (o app NAO pode estar aberto: a trava de instancia unica impede duas copias):
 #   powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario basic [-Prefix nome] [-Build] [-OutDir pasta]
 #
-# Roteiros: basic sort density min nav windows rede dialogs picker openwith comfort light reload flicker blink delfocus multisel dragdrop about favmenu props menu
+# Roteiros: basic sort density min nav windows rede dialogs picker openwith comfort light reload flicker blink delfocus multisel dragdrop about favmenu props menu marqueedrag rename newfeatures
 #   reload  : fecha uma pasta com clique, cria uma pasta por fora e reabre; confere que a listagem se atualiza
 #   flicker : fotografa a janela em alta frequencia ao reabrir "Program Files" e conta quedas de conteudo (o "pisca")
 #   blink   : abre pastas pela setinha com clique REAL do mouse e mede se a arvore despenca de uma vez (o "pisca" ao abrir
@@ -26,6 +26,13 @@
 #             temporario so seu: os navegadores abertos do usuario nao sao tocados. O app vai para o canto da tela e as outras janelas
 #             ficam ao lado dele. Mesmo formato de resultado, de pasta de teste e de restauracao do estado do usuario de delfocus e
 #             multisel (AGENTS.md, armadilha 20).
+#   marqueedrag: seleciona 4 itens ARRASTANDO o mouse na borda esquerda (retangulo de selecao) e arrasta a selecao para o outro painel (tem
+#             de levar os 4); o painel de origem nao pode ir para outra pasta ao terminar; fotografa o destino destacado durante o arrasto e
+#             solta uma pasta na RAIZ da unidade (linha C: aberta). Mesmo formato de resultado e de restauracao dos outros roteiros.
+#   rename  : F2 e clique devagar no nome (como no Explorer): a caixa abre ja com o foco, o nome vem selecionado sem a extensao (pasta: tudo),
+#             selecionar o texto com o mouse nao arrasta o arquivo, Enter renomeia no disco e Esc cancela.
+#   newfeatures: menu de contexto da Lixeira (so le; recusa a confirmacao de esvaziar), Localizar (Nova janela e coluna ajustavel) e a janela
+#             de Duplicados aberta pelo botao do grupo Pasta, nos tipos Padrao e Profundo.
 #   about   : abre Ajuda > Sobre e confere que a tela mostra a versao declarada em <Version> no csproj do app (AGENTS.md: versao).
 #             Mesmo formato de resultado e de restauracao do estado do usuario dos outros roteiros com [OK] e [FALHOU].
 #   favmenu : clica com o botao direito de verdade num arquivo, numa pasta e num favorito da pasta Favoritos, le as entradas do menu de
@@ -216,7 +223,7 @@ function Menu-Invoke($root, $top, $like, $mid = $null) {
 $uiFailures = 0
 $uiRoot = $null
 $userState = $null
-if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu') {
+if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu', 'marqueedrag', 'rename', 'newfeatures') {
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -TypeDefinition @'
 using System; using System.Runtime.InteropServices;
@@ -249,6 +256,33 @@ public static class Kb {
         New-Item -ItemType Directory -Path (Join-Path $uiRoot 'web') -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $uiRoot 'web\w1.txt') -Value 'para o navegador' -Encoding Ascii
     }
+    if ($Scenario -eq 'marqueedrag') {
+        New-Item -ItemType Directory -Path (Join-Path $uiRoot 'src') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $uiRoot 'dest') -Force | Out-Null
+        1..6 | ForEach-Object { Set-Content -LiteralPath (Join-Path $uiRoot "src\m$_.txt") -Value "marquee $_" -Encoding Ascii }
+        # Pasta que vai ser solta na RAIZ de C: (vira C:\<nome>); entra na limpeza para nao ficar la.
+        $script:rootDropName = 'DoraRootDrop' + (Get-Date -Format 'HHmmss')
+        New-Item -ItemType Directory -Path (Join-Path $uiRoot ('src\' + $script:rootDropName)) -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $uiRoot ('src\' + $script:rootDropName + '\dentro.txt')) -Value 'x' -Encoding Ascii
+        $cleanup.Add('C:\' + $script:rootDropName)
+    }
+    if ($Scenario -eq 'rename') {
+        1..2 | ForEach-Object { Set-Content -LiteralPath (Join-Path $uiRoot "relatorio.final$_.docx") -Value 'x' -Encoding Ascii }
+        New-Item -ItemType Directory -Path (Join-Path $uiRoot 'pasta.v2') -Force | Out-Null
+    }
+    if ($Scenario -eq 'newfeatures') {
+        # Subpastas fundas com um arquivo raro (Localizar) e pares de arquivos iguais (Duplicados).
+        $deep = Join-Path $uiRoot 'a\b\c\d\e'
+        New-Item -ItemType Directory -Path $deep -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $deep 'achado-raro.txt') -Value 'conteudo raro' -Encoding Ascii
+        New-Item -ItemType Directory -Path (Join-Path $uiRoot 'copias1') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $uiRoot 'copias2') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $uiRoot 'copias1\igual.txt') -Value 'mesmo conteudo' -Encoding Ascii
+        Set-Content -LiteralPath (Join-Path $uiRoot 'copias2\igual.txt') -Value 'mesmo conteudo' -Encoding Ascii
+        Set-Content -LiteralPath (Join-Path $uiRoot 'copias2\outro-nome.txt') -Value 'mesmo conteudo' -Encoding Ascii
+        Set-Content -LiteralPath (Join-Path $uiRoot 'copias1\diferente.txt') -Value 'AAAAAAAAAAAAAA' -Encoding Ascii
+        Set-Content -LiteralPath (Join-Path $uiRoot 'copias2\diferente.txt') -Value 'BBBBBBBBBBBBBB' -Encoding Ascii
+    }
     if ($Scenario -in 'multisel', 'favmenu', 'props') {
         New-Item -ItemType Directory -Path (Join-Path $uiRoot 'pasta') -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $uiRoot 'pasta\dentro.txt') -Value 'x' -Encoding Ascii
@@ -261,6 +295,17 @@ public static class Kb {
     $userFiles = @(Get-ChildItem -LiteralPath $appData -File -ErrorAction SilentlyContinue)
     $userFiles | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $userState -Force }
     $userNames = @($userFiles | ForEach-Object { $_.Name })
+    # "Iniciar sempre como administrador" ligado no settings.json do usuario faz o app se reabrir elevado logo ao abrir: o roteiro perde o
+    # controle (o terminal comum nao consegue fecha-lo nem a UI Automation e o mouse alcancam uma janela elevada) e a janela fica aberta na
+    # tela do usuario. So durante o roteiro a opcao e desligada; Restore-UserState devolve o settings.json byte a byte igual.
+    $settingsFile = Join-Path $appData 'settings.json'
+    if (Test-Path -LiteralPath $settingsFile) {
+        $settingsText = [IO.File]::ReadAllText($settingsFile)
+        if ($settingsText -match '"StartAsAdministrator"\s*:\s*true') {
+            [IO.File]::WriteAllText($settingsFile, ($settingsText -replace '"StartAsAdministrator"\s*:\s*true', '"StartAsAdministrator": false'), (New-Object Text.UTF8Encoding($false)))
+            'Iniciar sempre como administrador estava ligado: desligado so durante o roteiro (o settings.json volta igual no fim)'
+        }
+    }
     function Restore-UserState {
         Get-ChildItem -LiteralPath $userState -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $appData $_.Name) -Force }
         Get-ChildItem -LiteralPath $appData -File -ErrorAction SilentlyContinue | Where-Object { $userNames -notcontains $_.Name } | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
@@ -1137,6 +1182,232 @@ public static class FrameCount {
             }
             Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
         }
+        'marqueedrag' {
+            # Selecionar varios itens ARRASTANDO o mouse na borda esquerda (retangulo de selecao) e depois arrastar a selecao para o outro
+            # painel; soltar na RAIZ de uma unidade aberta (linha C:); e a pasta de destino destacada enquanto o arrasto passa por cima.
+            $root.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern).Move(0, 0); Start-Sleep -Milliseconds 800
+            $srcPath = Join-Path $uiRoot 'src'; $destPath = Join-Path $uiRoot 'dest'
+            $left = Open-UiTree $root 0
+            $right = Open-UiTree $root 1
+            if (-not $left -or -not $right) { 'a pasta de teste nao apareceu nos dois paineis'; break }
+            Expand (Child $left 'src')
+            $m1 = Wait-Row (Ui-Item $root 0 'src') 'm1.txt'
+            Check 'os arquivos aparecem no painel da esquerda' ($null -ne $m1)
+            if (-not $m1) { break }
+
+            # retangulo de selecao: aperta na borda esquerda da linha m1 e arrasta ate a linha m4
+            $r1 = (Row (Ui-Item $root 0 'src') 'm1.txt').Current.BoundingRectangle
+            $r4 = (Row (Ui-Item $root 0 'src') 'm4.txt').Current.BoundingRectangle
+            $from = [pscustomobject]@{ X = [int]($r1.Left + 8); Y = [int]($r1.Top + $r1.Height / 2) }
+            $to = [pscustomobject]@{ X = [int]($r1.Left + 8); Y = [int]($r4.Top + $r4.Height / 2) }
+            [void](Drag-Mouse $h $from $to)
+            $s = (Status-Lines $root) -join ' || '
+            Check 'o retangulo de selecao marca 4 itens (m1 a m4)' ($s -match '^4 itens selecionados') $s
+            Snap-Screen $h 'marqueedrag-1-selecao'
+
+            # arrastar a selecao pelo nome de m2 ate a pasta dest do painel da direita: tem de levar os QUATRO
+            [void](Drag-Mouse $h (Row-Point (Row (Ui-Item $root 0 'src') 'm2.txt')) (Row-Point (Ui-Item $root 1 'dest')))
+            $moved = @('m1', 'm2', 'm3', 'm4') | Where-Object { Test-Path -LiteralPath (Join-Path $destPath "$_.txt") }
+            Check 'arrastar a selecao do retangulo leva os 4 arquivos marcados para dest' ($moved.Count -eq 4) ("dest=" + (Names-In $destPath) + " src=" + (Names-In $srcPath))
+            Check 'm5 e m6, que nao estavam marcados, continuam na origem' ((Test-Path -LiteralPath (Join-Path $srcPath 'm5.txt')) -and (Test-Path -LiteralPath (Join-Path $srcPath 'm6.txt'))) (Names-In $srcPath)
+
+            # o painel de origem nao pode ter ido para outra pasta (a pasta src continua aberta e com m5 e m6)
+            Check 'o painel de origem continua mostrando a pasta src' ($null -ne (Wait-Row (Ui-Item $root 0 'src') 'm5.txt' 6000))
+            Check 'o painel de destino continua mostrando a pasta de teste' ($null -ne (Ui-Item $root 1 'dest'))
+
+            # destaque da pasta de destino durante o arrasto (foto com o botao ainda apertado)
+            $p5 = Row-Point (Row (Ui-Item $root 0 'src') 'm5.txt'); $pd = Row-Point (Ui-Item $root 1 'dest')
+            if (Ensure-Foreground $h) {
+                [void][Kb]::SetCursorPos([int]$p5.X, [int]$p5.Y); Start-Sleep -Milliseconds 200
+                [Kb]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 200
+                for ($i = 1; $i -le 25; $i++) { [void][Kb]::SetCursorPos([int]($p5.X + ($pd.X - $p5.X) * $i / 25), [int]($p5.Y + ($pd.Y - $p5.Y) * $i / 25)); Start-Sleep -Milliseconds 40 }
+                Start-Sleep -Milliseconds 900
+                Snap-Screen $h 'marqueedrag-2-destaque'
+                [Kb]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 2000
+            }
+            Check 'soltar depois da foto moveu m5 para dest' (Test-Path -LiteralPath (Join-Path $destPath 'm5.txt')) (Names-In $destPath)
+
+            # soltar na RAIZ da unidade: arrasta a pasta de teste da raiz para a linha C: (aberta) do painel da direita
+            $dropName = $script:rootDropName
+            $folderRow = Wait-Row (Ui-Item $root 0 'src') $dropName 6000
+            Check 'a pasta para soltar na raiz aparece no painel da esquerda' ($null -ne $folderRow)
+            if ($folderRow) {
+                $cRow = (TopItems $root 1)[0]
+                $cr = $cRow.Current.BoundingRectangle
+                $toRoot = [pscustomobject]@{ X = [int]($cr.Left + 120); Y = [int]($cr.Top + 14) }
+                if (Ensure-Foreground $h) {
+                    $pf = Row-Point $folderRow
+                    [void][Kb]::SetCursorPos([int]$pf.X, [int]$pf.Y); Start-Sleep -Milliseconds 200
+                    [Kb]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 200
+                    for ($i = 1; $i -le 25; $i++) { [void][Kb]::SetCursorPos([int]($pf.X + ($toRoot.X - $pf.X) * $i / 25), [int]($pf.Y + ($toRoot.Y - $pf.Y) * $i / 25)); Start-Sleep -Milliseconds 40 }
+                    Start-Sleep -Milliseconds 900
+                    Snap-Screen $h 'marqueedrag-3-destaque-raiz'
+                    [Kb]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 2500
+                }
+                Check 'soltar na linha C: (unidade aberta) move a pasta para a RAIZ da unidade' ((Test-Path -LiteralPath ('C:\' + $dropName + '\dentro.txt')) -and -not (Test-Path -LiteralPath (Join-Path $srcPath $dropName))) ("raiz=" + (Test-Path -LiteralPath ('C:\' + $dropName)) + " src=" + (Names-In $srcPath))
+            }
+            Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
+        }
+        'rename' {
+            # Renomear como no Explorer: F2 e clique devagar no nome, com o foco ja na caixa e o nome sem a extensao selecionado,
+            # e selecionar o texto com o mouse sem arrastar o arquivo.
+            $dir = Open-UiFolder $root 'relatorio.final2.docx'
+            if (-not $dir) { break }
+            function Rename-Box { $e = $root.FindAll($TS::Descendants, (Cond $CT::Edit)) | Where-Object { $_.Current.HasKeyboardFocus } | Select-Object -First 1; $e }
+            function Box-Selection($box) { try { $tp = $box.GetCurrentPattern([Windows.Automation.TextPattern]::Pattern); $sel = $tp.GetSelection(); if ($sel.Count -gt 0) { return $sel[0].GetText(-1) } } catch { }; return $null }
+
+            # 1) F2 num arquivo: a caixa abre ja com o foco, e o nome vem selecionado sem a extensao
+            [void](Click-With $h (Row $dir 'relatorio.final1.docx') 'none')
+            [void](Ensure-Foreground $h); [Kb]::Tap(0x71); Start-Sleep -Milliseconds 1500
+            $box = Rename-Box
+            Check 'F2 abre a caixa de renomear JA com o foco (sem clicar de novo)' ($null -ne $box)
+            if ($box) {
+                $sel = Box-Selection $box
+                Check 'vem selecionado o nome sem a extensao (relatorio.final1)' ($sel -eq 'relatorio.final1') $sel
+                Snap-Screen $h 'rename-1-f2'
+
+                # 3) selecionar o texto com o mouse: arrasta dentro da caixa; o arquivo nao pode sair do lugar nem a caixa fechar
+                $br = $box.Current.BoundingRectangle
+                $y = [int]($br.Top + $br.Height / 2)
+                # Apertar DENTRO do trecho ja selecionado e andar arrasta o TEXTO (como em qualquer caixa do Windows), nao muda a selecao:
+                # um clique antes desfaz a selecao do F2, e so entao apertar e arrastar seleciona um trecho novo.
+                [Kb]::Click([int]($br.Left + 6), $y); Start-Sleep -Milliseconds 500
+                [void][Kb]::SetCursorPos([int]($br.Left + 6), $y); Start-Sleep -Milliseconds 250
+                [Kb]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 200
+                for ($i = 1; $i -le 12; $i++) { [void][Kb]::SetCursorPos([int]($br.Left + 6 + $i * 5), $y); Start-Sleep -Milliseconds 40 }
+                [Kb]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 700
+                $box2 = Rename-Box
+                Check 'arrastar o mouse dentro da caixa nao fecha a caixa de renomear' ($null -ne $box2)
+                $sel2 = if ($box2) { Box-Selection $box2 } else { $null }
+                Check 'arrastar o mouse seleciona so um trecho do texto (nem tudo, nem nada)' (($sel2) -and ($sel2.Length -gt 0) -and ($sel2.Length -lt 'relatorio.final1.docx'.Length) -and ($sel2.Length -ne 'relatorio.final1'.Length)) $sel2
+                Check 'o arquivo continuou no lugar (nao foi arrastado)' (Test-Path -LiteralPath (Join-Path $uiRoot 'relatorio.final1.docx')) (Names-In $uiRoot)
+                Snap-Screen $h 'rename-2-mouse'
+
+                # digitar substitui o trecho selecionado; Enter confirma
+                [System.Windows.Forms.SendKeys]::SendWait('^a'); Start-Sleep -Milliseconds 200
+                [System.Windows.Forms.SendKeys]::SendWait('novo-nome.docx'); Start-Sleep -Milliseconds 300
+                [System.Windows.Forms.SendKeys]::SendWait('{ENTER}'); Start-Sleep -Milliseconds 1500
+                Check 'Enter confirma e o arquivo foi renomeado no disco' ((Test-Path -LiteralPath (Join-Path $uiRoot 'novo-nome.docx')) -and -not (Test-Path -LiteralPath (Join-Path $uiRoot 'relatorio.final1.docx'))) (Names-In $uiRoot)
+            }
+
+            # 2) clique devagar: selecionar, esperar mais que o duplo clique e clicar no NOME de novo
+            $row2 = Wait-Row $dir 'relatorio.final2.docx' 6000
+            [void](Click-With $h $row2 'none')
+            Start-Sleep -Milliseconds 1200
+            Check 'um unico clique so seleciona: nenhuma caixa de renomear abriu' ($null -eq (Rename-Box))
+            $row2 = Row $dir 'relatorio.final2.docx'
+            $nameText = $row2.FindAll($TS::Descendants, (Cond $CT::Text)) | Where-Object { $_.Current.Name -eq 'relatorio.final2.docx' } | Select-Object -First 1
+            if ($nameText) {
+                $nr = $nameText.Current.BoundingRectangle
+                [void](Ensure-Foreground $h)
+                [Kb]::Click([int]($nr.Left + 20), [int]($nr.Top + $nr.Height / 2))
+                Start-Sleep -Milliseconds 400
+                Check 'logo depois do segundo clique ainda nao abriu a caixa (espera o tempo de duplo clique)' ($null -eq (Rename-Box))
+                Start-Sleep -Milliseconds 1600
+                $box3 = Rename-Box
+                Check 'o clique devagar no nome abre a caixa de renomear com o foco' ($null -ne $box3)
+                if ($box3) { Check 'e o nome sem a extensao vem selecionado' ((Box-Selection $box3) -eq 'relatorio.final2') (Box-Selection $box3); Snap-Screen $h 'rename-3-clique-devagar'; [Kb]::Tap(0x1B); Start-Sleep -Milliseconds 800 }
+                Check 'Esc cancela e o arquivo continua com o nome antigo' (Test-Path -LiteralPath (Join-Path $uiRoot 'relatorio.final2.docx'))
+            } else { Check 'o texto do nome do arquivo foi achado na linha' $false }
+
+            # 4) um duplo clique rapido no nome NAO renomeia (abre o arquivo/pasta): testa na pasta, que apenas se abre
+            $pasta = Row $dir 'pasta.v2'
+            [void](Click-With $h $pasta 'none')
+            [void](Ensure-Foreground $h); [Kb]::Tap(0x71); Start-Sleep -Milliseconds 1500
+            $box4 = Rename-Box
+            Check 'F2 numa pasta tambem abre a caixa com o foco' ($null -ne $box4)
+            if ($box4) { Check 'numa pasta o nome inteiro vem selecionado (pasta.v2)' ((Box-Selection $box4) -eq 'pasta.v2') (Box-Selection $box4); [Kb]::Tap(0x1B); Start-Sleep -Milliseconds 600 }
+            Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
+        }
+        'newfeatures' {
+            # Menu da Lixeira (botao direito na linha dela), Localizar (colunas e Nova janela) e Duplicados (Pasta no menu central).
+            $root.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern).Move(0, 0); Start-Sleep -Milliseconds 800
+            # ---- Lixeira: so le o menu; nunca esvazia a Lixeira do usuario (a confirmacao e recusada)
+            $bin = @(TopItems $root 0) | Where-Object { $_.Current.Name -like 'Lixeira*' } | Select-Object -First 1
+            Check 'a linha da Lixeira existe no painel' ($null -ne $bin)
+            if ($bin) {
+                $entries = @(Right-Click-Menu $h $bin $proc.Id $true)
+                Check 'o menu da Lixeira abre com o botao direito' ($entries.Count -gt 0) ($entries -join ' | ')
+                Check 'o menu da Lixeira tem Esvaziar Lixeira' ($entries -contains 'Esvaziar Lixeira') ($entries -join ' | ')
+                Check 'o menu da Lixeira tem Restaurar todos os itens' ($entries -contains 'Restaurar todos os itens') ($entries -join ' | ')
+                Check 'o menu da Lixeira tem Atualizar' ($entries -contains 'Atualizar') ($entries -join ' | ')
+                Snap-Screen $h 'newfeatures-1-menu-lixeira'
+                $empty = Popup-MenuItems $h | Where-Object { $_.Current.Name -eq 'Esvaziar Lixeira' } | Select-Object -First 1
+                if ($empty -and $empty.Current.IsEnabled) {
+                    Check 'Esvaziar Lixeira pede confirmacao antes de apagar' (Pick-Menu-Entry $proc.Id $h 'Esvaziar Lixeira')
+                    $dlg = Wait-Dialog $proc.Id 'Esvaziar Lixeira' 6000
+                    Check 'a pergunta Esvaziar Lixeira aparece' ($dlg -ne [IntPtr]::Zero)
+                    if ($dlg -ne [IntPtr]::Zero) {
+                        Snap $dlg 'newfeatures-1b-confirma-esvaziar'
+                        Check 'recusa a pergunta (Nao): a Lixeira do usuario nao e esvaziada' ((Press-DialogButton $dlg ('N' + [char]0xE3 + 'o')) -or (Press-DialogButton $dlg 'Cancelar'))
+                    }
+                } else { Close-Menu; 'a Lixeira esta vazia nesta maquina: Esvaziar Lixeira aparece desligado (nada a confirmar)' }
+            }
+
+            # ---- Localizar: abre o menu, pesquisa, abre em Nova janela e ajusta uma coluna
+            Expand ((TopItems $root 0)[0]); [void](Choose-Item (Child ((TopItems $root 0)[0]) (Split-Path $uiRoot -Leaf)))
+            [void](Ensure-Foreground $h)
+            Check 'o botao Localizar abre o menu' (Invoke-Button $root 'Localizar*')
+            Start-Sleep -Milliseconds 600
+            [System.Windows.Forms.SendKeys]::SendWait('achado-raro{ENTER}'); Start-Sleep -Milliseconds 2500
+            $newWin = $root.FindAll($TS::Descendants, (Cond $CT::Button)) | Where-Object { $_.Current.Name -eq 'Nova janela' } | Select-Object -First 1
+            Check 'o menu Localizar tem o botao Nova janela' ($null -ne $newWin)
+            Snap-Screen $h 'newfeatures-2-localizar-menu'
+            if ($newWin) {
+                $newWin.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 1500
+                $sw = Wait-Dialog $proc.Id 'Localizar' 6000
+                Check 'Nova janela abre a janela Localizar com os resultados' ($sw -ne [IntPtr]::Zero)
+                if ($sw -ne [IntPtr]::Zero) {
+                    $win = $AE::FromHandle($sw)
+                    $items = @($win.FindAll($TS::Descendants, (Cond $CT::DataItem)) + $win.FindAll($TS::Descendants, (Cond $CT::ListItem)))
+                    Check 'a janela mostra o resultado achado-raro.txt' ($items.Count -ge 1) "itens: $($items.Count)"
+                    $headers = @($win.FindAll($TS::Descendants, (Cond $CT::HeaderItem)))
+                    Check 'a janela tem os cabecalhos Nome, Caminho e Tamanho' (@($headers | Where-Object { $_.Current.Name -in 'Nome', 'Caminho', 'Tamanho' }).Count -eq 3) (($headers | ForEach-Object { $_.Current.Name }) -join ', ')
+                    $nome = $headers | Where-Object { $_.Current.Name -eq 'Nome' } | Select-Object -First 1
+                    if ($nome) {
+                        $wBefore = $nome.Current.BoundingRectangle.Width
+                        $rr = $nome.Current.BoundingRectangle
+                        [void][Kb]::SetCursorPos([int]($rr.Right - 1), [int]($rr.Top + $rr.Height / 2)); Start-Sleep -Milliseconds 300
+                        [Kb]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 200
+                        for ($i = 1; $i -le 10; $i++) { [void][Kb]::SetCursorPos([int]($rr.Right - 1 + $i * 12), [int]($rr.Top + $rr.Height / 2)); Start-Sleep -Milliseconds 40 }
+                        [Kb]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 700
+                        $nome2 = $win.FindAll($TS::Descendants, (Cond $CT::HeaderItem)) | Where-Object { $_.Current.Name -eq 'Nome' } | Select-Object -First 1
+                        $wAfter = $nome2.Current.BoundingRectangle.Width
+                        Check 'arrastar a borda do cabecalho Nome aumenta a coluna' ($wAfter -gt $wBefore + 50) "antes=$wBefore depois=$wAfter"
+                    }
+                    Snap $sw 'newfeatures-3-localizar-janela'
+                    [void](Press-DialogButton $sw 'Fechar')
+                }
+            }
+
+            # ---- Duplicados: o botao do grupo Pasta abre um menu com os dois tipos
+            [void](Ensure-Foreground $h)
+            Check 'o botao Duplicados abre o menu' (Invoke-Button $root 'Duplicados*')
+            Start-Sleep -Milliseconds 600
+            $entries = @(Popup-MenuItems $h | ForEach-Object { $_.Current.Name })
+            Check 'o menu Duplicados tem os dois tipos de verificacao' (($entries -contains ('Padr' + [char]0xE3 + 'o: nome e tamanho')) -and ($entries -contains 'Profundo: tamanho e hash')) ($entries -join ' | ')
+            Snap-Screen $h 'newfeatures-4-menu-duplicados'
+            [void](Pick-Menu-Entry $proc.Id $h ('Padr' + [char]0xE3 + 'o: nome e tamanho'))
+            $dd = Wait-Dialog $proc.Id 'Itens duplicados' 8000
+            Check 'a janela Itens duplicados abre' ($dd -ne [IntPtr]::Zero)
+            if ($dd -ne [IntPtr]::Zero) {
+                $dw = $AE::FromHandle($dd)
+                Start-Sleep -Milliseconds 2500
+                $rows = @($dw.FindAll($TS::Descendants, (Cond $CT::DataItem)) + $dw.FindAll($TS::Descendants, (Cond $CT::ListItem)))
+                Check 'no tipo Padrao a lista tem 2 grupos (2 cabecalhos + 4 copias = 6 linhas)' ($rows.Count -eq 6) "linhas: $($rows.Count)"
+                Snap $dd 'newfeatures-5-duplicados-padrao'
+                $deep = $dw.FindAll($TS::Descendants, (Cond $CT::RadioButton)) | Where-Object { $_.Current.Name -like 'Profundo*' } | Select-Object -First 1
+                if ($deep) { $deep.GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Select(); Start-Sleep -Milliseconds 400 }
+                Check 'o tipo Profundo e escolhido na janela' ($null -ne $deep)
+                Check 'o botao Procurar roda de novo' (Press-DialogButton $dd 'Procurar')
+                Start-Sleep -Milliseconds 2500
+                $rows = @($dw.FindAll($TS::Descendants, (Cond $CT::DataItem)) + $dw.FindAll($TS::Descendants, (Cond $CT::ListItem)))
+                Check 'no tipo Profundo a lista tem 1 grupo (1 cabecalho + 3 copias iguais, mesmo com outro nome = 4 linhas)' ($rows.Count -eq 4) "linhas: $($rows.Count)"
+                Snap $dd 'newfeatures-6-duplicados-profundo'
+                [void](Press-DialogButton $dd 'Fechar')
+            }
+            Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
+        }
         'windows' {
             $c = (TopItems $root)[0]; Expand $c
             $w = Child $c 'Windows'; if ($w) { try { Expand $w } catch { "expandir Windows: $($_.Exception.Message)" } }
@@ -1145,11 +1416,11 @@ public static class FrameCount {
     }
 } catch { "erro: $($_.Exception.Message) (linha $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim()))" }
 [void]$proc.CloseMainWindow(); [void]$proc.WaitForExit(10000); 'app fechado: ' + $proc.HasExited
-if (($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu') -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; 'o app nao fechou sozinho (ficou uma janela aberta?): encerrado a forca'; Start-Sleep -Seconds 1 }
+if (($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu', 'marqueedrag', 'rename', 'newfeatures') -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; 'o app nao fechou sozinho (ficou uma janela aberta?): encerrado a forca'; Start-Sleep -Seconds 1 }
 foreach ($path in $cleanup) { Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue }
 if ($Scenario -eq 'blink' -and $blinkRoot) { Clear-BlinkIndexRows $blinkRoot }
 if ($userState) { Restore-UserState }
-if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu') {
+if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu', 'marqueedrag', 'rename', 'newfeatures') {
     [void][Kb]::SetCursorPos($cursor0.X, $cursor0.Y)
     'pasta de teste removida: ' + (-not (Test-Path -LiteralPath $uiRoot))
     "verificacoes com falha: $uiFailures"

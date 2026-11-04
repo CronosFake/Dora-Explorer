@@ -45,6 +45,11 @@
                                     </MultiDataTrigger.Conditions>
                                     <Setter Property="Background" Value="{DynamicResource TreeItemSelectedMutedBackgroundBrush}" />
                                 </MultiDataTrigger>
+                                <!-- Pasta que receberia os itens arrastados se fossem soltos agora: moldura e fundo na cor de destaque. -->
+                                <DataTrigger Binding="{Binding IsDropTarget}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource TreeItemSelectedBackgroundBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource TreeFocusBorderBrush}" />
+                                </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
@@ -224,6 +229,8 @@
 
                              Loaded="RenameTextBox_Loaded"
 
+                             IsVisibleChanged="RenameTextBox_IsVisibleChanged"
+
                              PreviewKeyDown="RenameTextBox_PreviewKeyDown"
 
                              KeyDown="RenameTextBox_KeyDown"
@@ -283,6 +290,8 @@
                              Visibility="{Binding IsRenaming, Converter={StaticResource BoolToVisibilityConverter}}"
 
                              Loaded="RenameTextBox_Loaded"
+
+                             IsVisibleChanged="RenameTextBox_IsVisibleChanged"
 
                              PreviewKeyDown="RenameTextBox_PreviewKeyDown"
 

@@ -2,7 +2,7 @@
 
 > Auto-gerado por scripts/generate-project-map.ps1 (o Start.bat roda a cada execucao). Nao edite a mao.
 > Regras, comandos e armadilhas: AGENTS.md. Visao do produto e limitacoes conhecidas: README.md.
-> Ultima atualizacao: 2026-11-02 04:23
+> Ultima atualizacao: 2026-11-04 14:48
 
 ## Como usar este mapa
 
@@ -26,15 +26,15 @@
 src/DoraExplorer.App/
   App.xaml.cs, MainWindow.xaml(.cs)   # inicializacao, DI, janela principal com dois paineis
   Assets/           0 arquivos      0 linhas  # Icones
-  Contracts/       11 arquivos    322 linhas  # Interfaces dos servicos (DI e testes)
-  Controls/        13 arquivos   7275 linhas  # Controles WPF: paineis, toolbar, arvore, animacoes
+  Contracts/       12 arquivos    337 linhas  # Interfaces dos servicos (DI e testes)
+  Controls/        14 arquivos   7706 linhas  # Controles WPF: paineis, toolbar, arvore, animacoes
   Converters/       5 arquivos    123 linhas  # IValueConverter do WPF
-  Infrastructure/  16 arquivos   1195 linhas  # DI, caminhos seguros, timeouts, instancia unica, colecao em bloco, enxugador de memoria
-  Models/          27 arquivos    642 linhas  # DTOs, enums e opcoes
-  Resources/        6 arquivos   1421 linhas  # Temas e estilos XAML
-  Services/        59 arquivos  18429 linhas  # Arquivos, rede, indice, tema, icones, logs, arquivos compactados
-  ViewModels/      10 arquivos   6727 linhas  # MVVM (CommunityToolkit.Mvvm)
-  Views/           21 arquivos   2099 linhas  # Dialogos do menu central
+  Infrastructure/  19 arquivos   1286 linhas  # DI, caminhos seguros, timeouts, instancia unica, colecao em bloco, enxugador de memoria
+  Models/          28 arquivos    699 linhas  # DTOs, enums e opcoes
+  Resources/        6 arquivos   1445 linhas  # Temas e estilos XAML
+  Services/        61 arquivos  18840 linhas  # Arquivos, rede, indice, tema, icones, logs, arquivos compactados
+  ViewModels/      11 arquivos   7157 linhas  # MVVM (CommunityToolkit.Mvvm)
+  Views/           23 arquivos   2498 linhas  # Dialogos do menu central
 tests/DoraExplorer.App.Tests/   # testes xUnit
 scripts/                        # stop-dora.ps1, generate-project-map.ps1
 scripts/dev/                    # ui-capture.ps1 (roteiros na tela), bench.ps1 (medicao), make-test-folder.ps1
@@ -59,7 +59,12 @@ Itens com (?) apontam para algo que nao existe mais no codigo: atualize a lista 
 | Copiar, Mover e Compactar (com progresso e cancelamento) | MainWindowViewModel.ExecuteTransferAsync, MainWindowViewModel.ExecuteCompressAsync, FileOperationService.TryCopy, FileOperationService.TryCompress, NativeFileCopy, TransferProgressDialog, TransferProgressFormatter, OperationTimeouts |
 | Nova pasta, Renomear, Excluir, Lixeira | CenterToolbarViewModel, FilePaneViewModel, FileOperationService, DeleteChoiceDialog, RecycleBinService |
 | Aplicativo padrao ao lado do arquivo e "Abrir com" | FileAssociationService, DefaultApplicationOverrides, FilePaneControl.DefaultAppButton_Click, FileOpenService.TryShowNativeOpenWithDialog |
-| Localizar arquivos | CenterToolbarViewModel.RunSearchWithPattern, FileSearchService, SearchDialog |
+| Localizar arquivos (menu, colunas ajustaveis e Nova janela) | CenterToolbarViewModel.RunSearchWithPattern, FileSearchService, SearchDialog, SearchPopupSizing, CenterToolbarControl.SearchResizeGrip_DragDelta, CenterToolbarControl.SearchNewWindow_Click, Resources/Theme.xaml |
+| Duplicados (Pasta > Duplicados: padrao e profundo) | DuplicateFinderService, DuplicatesViewModel, DuplicateText, DuplicatesDialog, CenterToolbarViewModel.TryCreateDuplicates, CenterToolbarControl.DuplicatesMode_Click, Resources/CenterToolbarIcons.xaml |
+| Arrastar e soltar (onde cai, destaque da pasta de destino, soltar na raiz) | FilePaneControl.FindSelectableNodeAtHostY, RowHitTest, FilePaneControl.TreeHost_DragOver, FilePaneViewModel.SetDropTarget, FilePaneViewModel.TryResolveDropDirectory, NavigationTreeNodeViewModel, MainWindowViewModel.ExecuteDropTransferAsync |
+| Renomear (F2, clique devagar, nome sem a extensao, mouse na caixa) | FilePaneViewModel.BeginRenameNode, FilePaneViewModel.CanBeginSlowRename, RenameSelection, SystemMouse, FilePaneControl.FocusRenameBox, FilePaneControl.StartSlowRename, FilePaneControl.IsInsideRenameEditor |
+| Menu da Lixeira (botao direito na linha: esvaziar, restaurar tudo) | FilePaneControl.BuildRecycleBinRootContextMenu, FilePaneViewModel.TryEmptyRecycleBinAsync, FilePaneViewModel.TryRestoreAllRecycleBinItems, MainWindowViewModel.EmptyRecycleBinAsync, RecycleBinService.TryEmpty, RecycleBinText |
+| Atualizar so o que o painel mostra depois de copiar, mover e compactar | FilePaneViewModel.RefreshDirectoryIfShown, FilePaneViewModel.RefreshShownDirectories, MainWindowViewModel.RefreshShownAfterTransfer |
 | Ordenacao (menu e cabecalho das colunas) | CenterToolbarViewModel.ApplySortOptions, TreeEntrySorter, SortHeaderLogic, TreeSortOptions |
 | Favoritos | FavoritesService |
 | Arquivos compactados (ZIP, TAR, RAR) como pastas | ArchiveService, ArchivePathHelper |
@@ -94,22 +99,23 @@ CommunityToolkit.Mvvm 8.4.2, FluentFTP 51.1.0, Microsoft.Data.Sqlite 10.0.14, Mi
 
 Metodos com numero de linha: project-metodos.md.
 
-- `src/DoraExplorer.App/Controls/FilePaneControl.xaml.cs` - 3612 linhas
-- `src/DoraExplorer.App/ViewModels/FilePaneViewModel.cs` - 3582 linhas
+- `src/DoraExplorer.App/Controls/FilePaneControl.xaml.cs` - 3869 linhas
+- `src/DoraExplorer.App/ViewModels/FilePaneViewModel.cs` - 3692 linhas
 - `src/DoraExplorer.App/Services/NavigationTreeService.cs` - 1659 linhas
 - `src/DoraExplorer.App/Services/FtpServer.cs` - 1588 linhas
 - `src/DoraExplorer.App/Services/ArchiveService.cs` - 1111 linhas
-- `src/DoraExplorer.App/Controls/FilePaneControl.xaml` - 1072 linhas
-- `src/DoraExplorer.App/Resources/Theme.xaml` - 1071 linhas
+- `src/DoraExplorer.App/Resources/Theme.xaml` - 1094 linhas
+- `src/DoraExplorer.App/Controls/FilePaneControl.xaml` - 1081 linhas
 - `src/DoraExplorer.App/Services/FileAssociationService.cs` - 1011 linhas
 - `src/DoraExplorer.App/Services/SftpServerSession.cs` - 945 linhas
 - `src/DoraExplorer.App/Services/FileOperationService.cs` - 929 linhas
-- `src/DoraExplorer.App/ViewModels/MainWindowViewModel.cs` - 845 linhas
+- `src/DoraExplorer.App/ViewModels/MainWindowViewModel.cs` - 861 linhas
 - `src/DoraExplorer.App/Services/DirectoryIndexService.cs` - 754 linhas
 - `src/DoraExplorer.App/Services/ScpServerSession.cs` - 712 linhas
 - `src/DoraExplorer.App/Services/TftpServer.cs` - 680 linhas
-- `src/DoraExplorer.App/ViewModels/NavigationTreeNodeViewModel.cs` - 659 linhas
+- `src/DoraExplorer.App/ViewModels/NavigationTreeNodeViewModel.cs` - 663 linhas
 - `src/DoraExplorer.App/Services/NetworkFileService.cs` - 616 linhas
+- `src/DoraExplorer.App/Services/RecycleBinService.cs` - 615 linhas
 
 ## Indice de arquivos fonte
 
@@ -120,6 +126,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `AssemblyInfo.cs` (13)
 - `Contracts/IArchiveService.cs` (28) - **IArchiveService**
 - `Contracts/IDirectoryIndexService.cs` (25) - **IDirectoryIndexService**
+- `Contracts/IDuplicateFinderService.cs` (15) - **IDuplicateFinderService**
 - `Contracts/IElevationService.cs` (17) - **IElevationService**
 - `Contracts/IFileOperationService.cs` (64) - **IFileOperationService**
 - `Contracts/IFileSearchService.cs` (12) - **IFileSearchService**
@@ -131,10 +138,12 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `Contracts/IRemoteFileService.cs` (62) - **IRemoteFileService**
 - `Controls/CenterToolbarButton.xaml` (120)
 - `Controls/CenterToolbarButton.xaml.cs` (115) - **CenterToolbarButton**
-- `Controls/CenterToolbarControl.xaml` (360)
-- `Controls/CenterToolbarControl.xaml.cs` (196) - **CenterToolbarControl**
-- `Controls/FilePaneControl.xaml` (1072)
-- `Controls/FilePaneControl.xaml.cs` (3612) - **FilePaneControl**
+- `Controls/CenterToolbarControl.xaml` (443)
+- `Controls/CenterToolbarControl.xaml.cs` (269) - **CenterToolbarControl**
+- `Controls/FilePaneControl.xaml` (1081)
+- `Controls/FilePaneControl.xaml.cs` (3869) - **FilePaneControl**
+- `Controls/SearchPopupSizing.cs` (9) - **SearchPopupSizing**
+  - Metodos: Clamp
 - `Controls/SmoothScrollAnimator.cs` (355) - **SmoothScrollAnimator**
   - Metodos: HandleMouseWheel, ScrollTo, SyncTarget
 - `Controls/ThumbnailHoverPreview.cs` (192) - **ThumbnailHoverPreview**
@@ -178,12 +187,17 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: Read, Write
 - `Infrastructure/RangeObservableCollection.cs` (83) - **RangeObservableCollection**
   - Metodos: SyncTo, ReplaceAll
+- `Infrastructure/RenameSelection.cs` (26) - **RenameSelection**
+  - Metodos: GetRange
+- `Infrastructure/RowHitTest.cs` (39) - **RowHitTest**
+  - Metodos: FindExact
 - `Infrastructure/ServiceRegistration.cs` (35) - **ServiceRegistration**
   - Metodos: AddDoraExplorerServices
 - `Infrastructure/SingleInstanceGuard.cs` (48) - **SingleInstanceGuard**
   - Metodos: TryAcquire, Dispose
 - `Infrastructure/StartupArguments.cs` (47) - **StartupArguments**
   - Metodos: BuildRestartArguments, TryGetParentProcessId, WaitForParentExit
+- `Infrastructure/SystemMouse.cs` (26) - **SystemMouse**
 - `Infrastructure/TransferAccessDeniedException.cs` (17) - **TransferAccessDeniedException**
 - `MainWindow.xaml` (139)
 - `MainWindow.xaml.cs` (79) - **MainWindow**
@@ -192,6 +206,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `Models/ArchiveFormat.cs` (11) - **ArchiveFormat**
 - `Models/AssociatedApplication.cs` (10) - **AssociatedApplication**
 - `Models/DefaultApplicationEntry.cs` (9) - **DefaultApplicationEntry**
+- `Models/DuplicateModels.cs` (57) - **DuplicateMode, DuplicateScanRequest, DuplicateFile, DuplicateGroup, DuplicateScanResult, DuplicateScanProgress, DuplicateScanPhase**
 - `Models/ExplorerViewOptions.cs` (20) - **ExplorerViewOptions**
 - `Models/FileDeleteMode.cs` (7) - **FileDeleteMode**
 - `Models/FileOperationProgress.cs` (18) - **FileOperationProgress**
@@ -214,12 +229,12 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `Models/TreeSortField.cs` (9) - **TreeSortField**
 - `Models/TreeSortMode.cs` (12) - **TreeSortMode**
 - `Models/TreeSortOptions.cs` (9) - **TreeSortOptions**
-- `Resources/CenterToolbarIcons.xaml` (27)
+- `Resources/CenterToolbarIcons.xaml` (28)
 - `Resources/DarkTheme.xaml` (24)
 - `Resources/LightTheme.xaml` (24)
 - `Resources/MenuStyles.xaml` (204)
 - `Resources/ScrollBarStyles.xaml` (71)
-- `Resources/Theme.xaml` (1071)
+- `Resources/Theme.xaml` (1094)
 - `Services/AdministratorStartupService.cs` (96) - **AdministratorStartupService**
   - Metodos: Load, TryEnable, Disable, TryElevateOnStartup
 - `Services/AnimationFrameRateService.cs` (14) - **AnimationFrameRateService**
@@ -233,6 +248,8 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: Normalize, TryGet, Set, Clear
 - `Services/DirectoryIndexService.cs` (754) - **DirectoryIndexService**
   - Metodos: TryGetEntries, ReadFromDiskAndQueueStore, TryGetCounts, ComputeCountsFromDisk, WasAccessDenied, IsIndexedAndCurrent, TryGetSearchListing, Invalidate, ScheduleMaintenance, Dispose
+- `Services/DuplicateFinderService.cs` (318) - **DuplicateFinderService**
+  - Metodos: FindAsync, Find
 - `Services/ElevationService.cs` (97) - **ElevationService**
   - Metodos: TryRestartElevated, IsProcessElevated
 - `Services/ExplorerThemeResources.cs` (253) - **ExplorerThemeResources**
@@ -293,8 +310,10 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: Register, TryGetForPath, HasProtocol, UnregisterProtocol, ClearAll
 - `Services/PaneDisplaySettingsService.cs` (27) - **PaneDisplaySettingsService**
   - Metodos: Load, SaveLeftPane, SaveRightPane
-- `Services/RecycleBinService.cs` (549) - **RecycleBinService**
-  - Metodos: HasItems, GetCounts, GetEntries, IsRecycleBinDataPath, TryResolveOriginalPath, TryRestoreItems, TryDeletePermanently
+- `Services/RecycleBinService.cs` (615) - **RecycleBinService**
+  - Metodos: HasItems, TryEmpty, GetAllItemPaths, GetCounts, GetEntries, IsRecycleBinDataPath, TryResolveOriginalPath, TryRestoreItems, TryDeletePermanently
+- `Services/RecycleBinText.cs` (27) - **RecycleBinText**
+  - Metodos: ConfirmEmpty, ConfirmRestoreAll
 - `Services/RememberPathSettingsService.cs` (54) - **RememberPathSettingsService**
   - Metodos: Load, SetEnabled, SavePanePaths
 - `Services/RemoteFileService.cs` (338) - **RemoteFileService**
@@ -339,17 +358,19 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: Apply, ApplyToAllWindows
 - `ViewModels/AccentColorMenuItemViewModel.cs` (38) - **AccentColorMenuItemViewModel**
 - `ViewModels/BreadcrumbSegmentViewModel.cs` (23) - **BreadcrumbSegmentViewModel**
-- `ViewModels/CenterToolbarViewModel.cs` (536) - **CenterToolbarViewModel**
-  - Metodos: RefreshNetworkServiceStatus, RefreshSearchContext, RunSearchWithPattern, OpenSearchResult, ApplySortOptions
+- `ViewModels/CenterToolbarViewModel.cs` (572) - **CenterToolbarViewModel**
+  - Metodos: RefreshNetworkServiceStatus, RefreshSearchContext, RunSearchWithPattern, OpenSearchResult, TryCreateDuplicates, LocateDuplicate, ApplySortOptions
+- `ViewModels/DuplicatesViewModel.cs` (264) - **DuplicateRowViewModel, DuplicatesViewModel, DuplicateText**
+  - Metodos: StartAsync, Cancel, Size, Header, Row, Progress, Summary, Finished
 - `ViewModels/FileItemViewModel.cs` (72) - **FileItemViewModel**
-- `ViewModels/FilePaneViewModel.cs` (3582) - **FilePaneViewModel**
-  - Metodos: RestorePath, CompleteInitialPathRestore, ClearCenterNavigatedNode, UpdateResponsiveLayout, OnNavigationNodeExpanding, OnNavigationNodeExpanded, OnNavigationNodeCollapsed, OnNavigationNodeSelected, NavigateToPath, RefreshForViewOptionsChange, BeginDisplayMenu, CommitDisplayMenu, ClearItemSelection, SetSingleItemSelection, ToggleItemSelection, HandleShiftItemSelection, SelectSiblingItems, ShareSelectionParent, GetSelectableSiblings, GetParentNode, GetVisibleSelectableNodes, SelectSiblingRange, HasOpenableFilesInSelection, GetPrimarySelectedNode, HasActivatableSelection, GetOpenableFilePaths, OpenSelectedFiles, OpenArchiveExternally, GetSelectedItemPath, GetDeletableItemPaths (+45)
+- `ViewModels/FilePaneViewModel.cs` (3692) - **FilePaneViewModel**
+  - Metodos: RestorePath, CompleteInitialPathRestore, ClearCenterNavigatedNode, UpdateResponsiveLayout, OnNavigationNodeExpanding, OnNavigationNodeExpanded, OnNavigationNodeCollapsed, OnNavigationNodeSelected, NavigateToPath, RefreshForViewOptionsChange, BeginDisplayMenu, CommitDisplayMenu, ClearItemSelection, SetSingleItemSelection, ToggleItemSelection, HandleShiftItemSelection, SelectSiblingItems, ShareSelectionParent, GetSelectableSiblings, GetParentNode, GetVisibleSelectableNodes, SelectSiblingRange, HasOpenableFilesInSelection, GetPrimarySelectedNode, HasActivatableSelection, GetOpenableFilePaths, OpenSelectedFiles, OpenArchiveExternally, GetSelectedItemPath, GetDeletableItemPaths (+52)
 - `ViewModels/FilePaneViewModel.Remote.cs` (387) - **FilePaneViewModel**
 - `ViewModels/ItemPropertiesViewModel.cs` (532) - **PropertyRowViewModel, PropertySectionViewModel, ItemPropertiesViewModel**
   - Metodos: Create, LoadAsync, Dispose, ComputeHashAsync
-- `ViewModels/MainWindowViewModel.cs` (845) - **MainWindowViewModel**
-  - Metodos: OppositePane, GetPaneWithSelection, ApplyGlobalSortOptions, TryResolveTransfer, TryValidateTransfer, ExecuteDropTransferAsync, TryStageTransfer, TryPasteTransferAsync, ExecuteTransferAsync, ExecuteCompressAsync, ClearTransferClipboard, OnWindowLoaded, PersistPanePaths
-- `ViewModels/NavigationTreeNodeViewModel.cs` (659) - **NavigationTreeNodeViewModel**
+- `ViewModels/MainWindowViewModel.cs` (861) - **MainWindowViewModel**
+  - Metodos: OppositePane, EmptyRecycleBinAsync, RestoreAllFromRecycleBin, GetPaneWithSelection, ApplyGlobalSortOptions, TryResolveTransfer, TryValidateTransfer, ExecuteDropTransferAsync, TryStageTransfer, TryPasteTransferAsync, ExecuteTransferAsync, ExecuteCompressAsync, ClearTransferClipboard, OnWindowLoaded, PersistPanePaths
+- `ViewModels/NavigationTreeNodeViewModel.cs` (663) - **NavigationTreeNodeViewModel**
   - Metodos: SetName, SetIconFactory, SetDefaultApplication, RefreshDefaultApplication, SetHierarchyMetadata
 - `ViewModels/PaneDisplayMenuViewModel.cs` (53) - **PaneDisplayMenuViewModel**
   - Metodos: LoadFrom, DiffersFrom, ApplyTo
@@ -361,6 +382,9 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: TryChoose, ConfirmShortcut, DescribeTargets
 - `Views/Dialogs/DialogChrome.cs` (21) - **DialogChrome**
   - Metodos: Apply
+- `Views/Dialogs/DuplicatesDialog.xaml` (190)
+- `Views/Dialogs/DuplicatesDialog.xaml.cs` (129) - **DuplicatesDialog**
+  - Metodos: Show
 - `Views/Dialogs/MessageDialog.xaml` (48)
 - `Views/Dialogs/MessageDialog.xaml.cs` (95) - **MessageDialog**
   - Metodos: Show, Confirm, Ask
@@ -376,9 +400,9 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `Views/Dialogs/PropertiesDialog.xaml` (153)
 - `Views/Dialogs/PropertiesDialog.xaml.cs` (80) - **PropertiesDialog**
   - Metodos: Show
-- `Views/Dialogs/SearchDialog.xaml` (69)
-- `Views/Dialogs/SearchDialog.xaml.cs` (47) - **SearchDialog**
-  - Metodos: SetResults
+- `Views/Dialogs/SearchDialog.xaml` (106)
+- `Views/Dialogs/SearchDialog.xaml.cs` (90) - **SearchDialog**
+  - Metodos: ShowOrActivate
 - `Views/Dialogs/SortDialog.xaml` (43)
 - `Views/Dialogs/SortDialog.xaml.cs` (39) - **SortDialog**
   - Metodos: TrySelect
@@ -395,6 +419,9 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `ArchiveListingTests.cs` (407) - ArchiveListingTests
 - `DirectoryIndexTests.cs` (430) - DirectoryIndexTests
 - `DragPolicyTests.cs` (38) - DragPolicyTests
+- `DropTargetTests.cs` (236) - DropTargetTests
+- `DuplicateFinderTests.cs` (404) - DuplicateFinderTests
+- `DuplicatesViewModelTests.cs` (377) - DuplicatesViewModelTests
 - `ElevationTests.cs` (196) - ElevationTests
 - `FakeElevationService.cs` (28) - FakeElevationService
 - `FavoritesServiceTests.cs` (204) - FavoritesServiceTests
@@ -408,14 +435,17 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `ItemPropertiesViewModelTests.cs` (288) - ItemPropertiesViewModelTests
 - `LockedDrivesOptionTests.cs` (86) - LockedDrivesOptionTests
 - `MainMenuTests.cs` (88) - MainMenuTests
-- `MainWindowViewModelTests.cs` (445) - MainWindowViewModelTests
+- `MainWindowViewModelTests.cs` (519) - MainWindowViewModelTests
 - `NavigationTests.cs` (277) - SortHeaderLogicTests, NavigationHistoryTests, PathNavigationTests, RowDensitySettingTests, XamlResourceTests
 - `NetworkClientTests.cs` (306) - FtpClientSecurityTests, SshAuthenticationTests
 - `NetworkGroupTests.cs` (99) - AppStaticsGroup, NetworkGroupTests
 - `NetworkPortGuardTests.cs` (316) - ExternalProcessesGroup, NetworkPortGuardTests
 - `NetworkServerTests.cs` (879) - FtpServerTests, TftpServerTests
 - `PaneTestHarness.cs` (235) - PaneTestHarness
+- `RecycleBinMenuTests.cs` (200) - RecycleBinMenuTests
 - `RemoteFileTests.cs` (618) - FakeRemoteServer, CapturingProgress, RemoteTransferEngineTests, RemoteFileServiceTests, RemoteFileServiceFtpTests
+- `RenameTests.cs` (195) - RenameTests
+- `SearchWindowTests.cs` (192) - SearchWindowTests
 - `SecurityTests.cs` (664) - ArchiveExtractionPathTests, ArchiveServiceExtractionTests, ProtectedPasswordTests, LegacyPasswordMigrationTests, HostKeyTests, NetworkServerHardeningTests
 - `ServiceRegistrationTests.cs` (69) - ServiceRegistrationTests
 - `ShellIconTests.cs` (158) - ShellIconTests

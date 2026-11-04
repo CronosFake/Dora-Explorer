@@ -54,6 +54,9 @@ public partial class FilePaneControl : UserControl
     private bool _dragStillInsideApp;
     private bool _dragLeaveAsCopyOnly;
     private bool _itemDragCollapseOnRelease;
+    private bool _itemDragArmsSlowRename;
+    private DispatcherTimer? _slowRenameTimer;
+    private NavigationTreeNodeViewModel? _slowRenameNode;
     private Point _itemDragStart;
     private TreeViewItem? _itemDragClickItem;
     private NavigationTreeNodeViewModel? _itemDragClickNode;
@@ -93,6 +96,7 @@ public partial class FilePaneControl : UserControl
         TreeHost.AddHandler(UIElement.PreviewMouseRightButtonUpEvent, new MouseButtonEventHandler(TreeHost_PreviewMouseRightButtonUp), true);
         TreeHost.AllowDrop = true;
         TreeHost.DragOver += TreeHost_DragOver;
+        TreeHost.DragLeave += TreeHost_DragLeave;
         TreeHost.Drop += TreeHost_Drop;
         QueryContinueDrag += OnQueryContinueDrag;
         TreeHost.SizeChanged += (_, _) => SyncMarqueeCanvasSize();
@@ -208,6 +212,7 @@ public partial class FilePaneControl : UserControl
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        CancelSlowRename();
         CancelMarqueeTracking();
         CancelItemDragTracking();
         StopMarqueeAutoScrollTimer();
@@ -734,6 +739,8 @@ public partial class FilePaneControl : UserControl
 
     private void NavigationTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
+        CancelSlowRename();
+
         if (ViewModel?.IsRestoringInitialPath == true)
         {
             return;
@@ -775,6 +782,17 @@ public partial class FilePaneControl : UserControl
     private void NavigationTreeItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.OriginalSource is CheckBox)
+        {
+            return;
+        }
+
+        // Qualquer clique novo na árvore desfaz um clique devagar à espera de virar "renomear" (o segundo clique de um duplo clique abre o item).
+        CancelSlowRename();
+
+        // Dentro da caixa de renomear o clique é do TextBox: posicionar o cursor, selecionar arrastando o mouse, duplo clique numa palavra.
+        // Antes, esta rotina tratava o clique como clique no item: arrastar para selecionar texto começava a arrastar o ARQUIVO e o duplo
+        // clique o abria.
+        if (IsInsideRenameEditor(e.OriginalSource as DependencyObject))
         {
             return;
         }
@@ -856,11 +874,30 @@ public partial class FilePaneControl : UserControl
         // Apertar num item que já faz parte de uma seleção de vários: a seleção fica (para poder arrastá-la inteira) e o clique nativo
         // do WPF, que a trocaria já ao apertar, é suprimido. Se o botão for solto sem arrasto, a seleção vira só esse item (como no
         // Explorer): ver OnItemDragPreviewMouseUp.
+        // Clique no NOME de um item que já era o único selecionado: se ninguém clicar de novo logo em seguida, vira "renomear" (OnItemDragPreviewMouseUp).
+        var armSlowRename = pane.CanBeginSlowRename(targetNode) &&
+                            e.OriginalSource is TextBlock nameBlock &&
+                            ReferenceEquals(nameBlock.DataContext, targetNode) &&
+                            string.Equals(nameBlock.Text, targetNode.Name, StringComparison.Ordinal);
+
         var keepSelection = targetNode.IsItemSelected && pane.SelectedItems.Count > 1;
         if (keepSelection)
         {
             e.Handled = true;
-            clickedItem.Focus();
+
+            // Dar o foco a um TreeViewItem o SELECIONA (o WPF seleciona a linha que recebe o foco), e o SelectedItemChanged seguinte
+            // (SyncItemSelectionFromFocus) reduziria a seleção de vários a esta linha antes mesmo de o arrasto começar: com o retângulo
+            // de seleção, só o item em que se apertou saía do lugar. Por isso a linha vira a atual sem mexer na seleção de itens
+            // (o mesmo caminho do Ctrl+clique).
+            _suppressSelectionSync = true;
+            try
+            {
+                SelectExpandedNode(clickedItem, targetNode, preserveItemSelection: true, updateViewModel: false);
+            }
+            finally
+            {
+                _suppressSelectionSync = false;
+            }
         }
         else if (clickedItem.IsSelected && !(pane.SelectedItems.Count == 1 && ReferenceEquals(pane.SelectedItems[0], targetNode)))
         {
@@ -872,7 +909,7 @@ public partial class FilePaneControl : UserControl
 
         // Este evento é registrado no TreeView, então "sender" não é o TreeViewItem: o item vem do clique. O arrasto para o outro
         // painel, o Explorer e outros programas começa aqui (antes, esta parte do método nunca rodava e arrastar não funcionava).
-        BeginItemDragTracking(e.GetPosition(this), clickedItem, targetNode, collapseOnRelease: keepSelection);
+        BeginItemDragTracking(e.GetPosition(this), clickedItem, targetNode, collapseOnRelease: keepSelection, armSlowRename);
     }
 
     private static bool IsInsideButton(DependencyObject? source)
@@ -1015,10 +1052,16 @@ public partial class FilePaneControl : UserControl
     /// Fica de olho no mouse depois de apertar numa linha: se andar além do limite com o botão apertado, começa o arrasto dos itens
     /// (<see cref="StartFileDragDrop"/>). Não captura o mouse: a captura tiraria da linha o clique nativo que a seleciona.
     /// </summary>
-    private void BeginItemDragTracking(Point startPoint, TreeViewItem item, NavigationTreeNodeViewModel node, bool collapseOnRelease)
+    private void BeginItemDragTracking(
+        Point startPoint,
+        TreeViewItem item,
+        NavigationTreeNodeViewModel node,
+        bool collapseOnRelease,
+        bool armSlowRename)
     {
         CancelItemDragTracking();
 
+        _itemDragArmsSlowRename = armSlowRename;
         _itemDragPending = true;
         _itemDragStart = startPoint;
         _itemDragClickItem = item;
@@ -1090,7 +1133,13 @@ public partial class FilePaneControl : UserControl
         var item = _itemDragClickItem;
         var node = _itemDragClickNode;
         var collapse = _itemDragCollapseOnRelease;
+        var armSlowRename = _itemDragArmsSlowRename;
         EndItemDragTracking(keepClickState: false);
+
+        if (armSlowRename && node is not null)
+        {
+            StartSlowRename(node);
+        }
 
         // Apertou num item de uma seleção de vários e soltou sem arrastar: a seleção vira só esse item.
         if (collapse && item is not null && node is not null && ViewModel is { } pane)
@@ -1112,6 +1161,7 @@ public partial class FilePaneControl : UserControl
     {
         _itemDragPending = false;
         _itemDragCollapseOnRelease = false;
+        _itemDragArmsSlowRename = false;
         if (!keepClickState)
         {
             _itemDragClickItem = null;
@@ -1175,6 +1225,10 @@ public partial class FilePaneControl : UserControl
         {
             _dragLeaveAsCopyOnly = false;
             _dragStillInsideApp = false;
+
+            // Cancelar com Esc ou soltar fora não passa pelo Drop: garante que nenhum painel fique com uma pasta destacada.
+            main?.LeftPane.ClearDropTarget();
+            main?.RightPane.ClearDropTarget();
         }
 
         if (main is null)
@@ -1194,20 +1248,36 @@ public partial class FilePaneControl : UserControl
 
     private void TreeHost_DragOver(object sender, DragEventArgs e)
     {
-        if (!TryGetDropTarget(e, out _, out var effects))
+        if (!TryGetDropTarget(e, out var destinationDirectory, out var effects))
         {
+            ViewModel?.ClearDropTarget();
             e.Effects = DragDropEffects.None;
             e.Handled = true;
             return;
         }
 
+        // Destaca a pasta que receberia os itens: durante o arrasto o Windows não atualiza o "mouse em cima" das linhas.
+        ViewModel?.SetDropTarget(destinationDirectory);
         e.Effects = effects;
         e.Handled = true;
+    }
+
+    private void TreeHost_DragLeave(object sender, DragEventArgs e)
+    {
+        // O evento sobe também quando o cursor passa de uma linha para outra, ainda dentro da árvore: só apaga se saiu de verdade.
+        var position = e.GetPosition(TreeHost);
+        if (position.X >= 0 && position.Y >= 0 && position.X < TreeHost.ActualWidth && position.Y < TreeHost.ActualHeight)
+        {
+            return;
+        }
+
+        ViewModel?.ClearDropTarget();
     }
 
     private void TreeHost_Drop(object sender, DragEventArgs e)
     {
         e.Handled = true;
+        ViewModel?.ClearDropTarget();
 
         if (ViewModel is null || GetMainViewModel() is not { } main)
         {
@@ -1426,6 +1496,14 @@ public partial class FilePaneControl : UserControl
 
     private void TreeHost_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
+        CancelSlowRename();
+
+        if (TryGetRecycleBinRootContext(e.OriginalSource as DependencyObject, out _, out _))
+        {
+            NotifyPaneActivated();
+            return;
+        }
+
         if (!TryGetTreeItemContext(e.OriginalSource as DependencyObject, out var item, out var node))
         {
             if (IsTreeBackgroundClick(e.OriginalSource as DependencyObject))
@@ -1456,6 +1534,13 @@ public partial class FilePaneControl : UserControl
 
     private void TreeHost_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
+        if (TryGetRecycleBinRootContext(e.OriginalSource as DependencyObject, out var binItem, out var binNode))
+        {
+            ShowContextMenu(BuildRecycleBinRootContextMenu(binNode), binItem);
+            e.Handled = true;
+            return;
+        }
+
         if (TryGetTreeItemContext(e.OriginalSource as DependencyObject, out var item, out var node))
         {
             if (_activeTreeContextMenu is not null)
@@ -1478,6 +1563,124 @@ public partial class FilePaneControl : UserControl
             NotifyPaneActivated();
             ShowTreeBackgroundContextMenu();
             e.Handled = true;
+        }
+    }
+
+    private void ShowContextMenu(ContextMenu menu, FrameworkElement target)
+    {
+        if (_activeTreeContextMenu is not null)
+        {
+            _activeTreeContextMenu.IsOpen = false;
+            _activeTreeContextMenu = null;
+        }
+
+        _activeTreeContextMenu = menu;
+        menu.Closed += (_, _) => _activeTreeContextMenu = null;
+        menu.PlacementTarget = target;
+        menu.Placement = PlacementMode.MousePoint;
+        menu.IsOpen = true;
+    }
+
+    /// <summary>
+    /// O clique caiu na linha da própria Lixeira (a raiz, não um item dentro dela). Essa linha não é um item selecionável, então
+    /// <see cref="TryGetTreeItemContext"/> a recusava e o botão direito não abria menu nenhum.
+    /// </summary>
+    private static bool TryGetRecycleBinRootContext(
+        DependencyObject? source,
+        out TreeViewItem item,
+        out NavigationTreeNodeViewModel node)
+    {
+        item = null!;
+        node = null!;
+
+        if (source is CheckBox || HasDedicatedContextMenu(source))
+        {
+            return false;
+        }
+
+        if (FindTreeViewItem(source) is TreeViewItem treeViewItem &&
+            treeViewItem.DataContext is NavigationTreeNodeViewModel { Kind: NavigationNodeKind.RecycleBin, IsRecycleBinEntry: false } root)
+        {
+            item = treeViewItem;
+            node = root;
+            return true;
+        }
+
+        return false;
+    }
+
+    private ContextMenu BuildRecycleBinRootContextMenu(NavigationTreeNodeViewModel node)
+    {
+        var menu = new ContextMenu();
+        var hasItems = FilePaneViewModel.RecycleBinHasItems();
+
+        var openItem = new MenuItem { Header = node.IsExpanded ? "Recolher" : "Abrir" };
+        openItem.Click += (_, _) =>
+        {
+            if (node.IsExpanded)
+            {
+                CollapseFolderFromContextMenu(node);
+            }
+            else
+            {
+                ExpandFolderFromContextMenu(node);
+            }
+        };
+        menu.Items.Add(openItem);
+
+        var refreshItem = new MenuItem { Header = "Atualizar", InputGestureText = "F5" };
+        refreshItem.Click += (_, _) => ViewModel?.RefreshRecycleBinNode();
+        menu.Items.Add(refreshItem);
+
+        menu.Items.Add(new Separator());
+
+        var restoreItem = new MenuItem { Header = "Restaurar todos os itens", IsEnabled = hasItems };
+        restoreItem.Click += (_, _) => RestoreAllFromRecycleBinContextMenu(node);
+        menu.Items.Add(restoreItem);
+
+        var emptyItem = new MenuItem { Header = "Esvaziar Lixeira", IsEnabled = hasItems };
+        emptyItem.Click += (_, _) => EmptyRecycleBinFromContextMenu(node);
+        menu.Items.Add(emptyItem);
+
+        return menu;
+    }
+
+    private async void EmptyRecycleBinFromContextMenu(NavigationTreeNodeViewModel node)
+    {
+        if (ViewModel is not { } pane || GetMainViewModel() is not { } main)
+        {
+            return;
+        }
+
+        var owner = Application.Current.MainWindow;
+        if (!MessageDialog.Confirm(owner, RecycleBinText.ConfirmEmpty(node.FolderCount + node.FileCount), "Esvaziar Lixeira"))
+        {
+            return;
+        }
+
+        var (success, error) = await main.EmptyRecycleBinAsync(pane).ConfigureAwait(true);
+        if (!success && !string.IsNullOrWhiteSpace(error))
+        {
+            MessageDialog.Show(owner, error, "Esvaziar Lixeira");
+        }
+    }
+
+    private void RestoreAllFromRecycleBinContextMenu(NavigationTreeNodeViewModel node)
+    {
+        if (GetMainViewModel() is not { } main || ViewModel is not { } pane)
+        {
+            return;
+        }
+
+        var owner = Application.Current.MainWindow;
+        if (!MessageDialog.Confirm(owner, RecycleBinText.ConfirmRestoreAll(node.FolderCount + node.FileCount), "Restaurar todos os itens"))
+        {
+            return;
+        }
+
+        if (!main.RestoreAllFromRecycleBin(pane, out var error) && !string.IsNullOrWhiteSpace(error))
+        {
+            MessageDialog.Show(owner, error, "Restaurar todos os itens");
         }
     }
 
@@ -2716,6 +2919,8 @@ public partial class FilePaneControl : UserControl
 
     private void NavigationTree_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        CancelSlowRename();
+
         if (e.Key is Key.Up or Key.Down or Key.Left or Key.Right)
         {
             _lockTreeScroll = false;
@@ -3173,14 +3378,103 @@ public partial class FilePaneControl : UserControl
         }
     }
 
-    private void RenameTextBox_Loaded(object sender, RoutedEventArgs e)
+    // A caixa existe o tempo todo na linha (escondida): Loaded dispara quando a linha é criada, não quando o usuário começa a renomear.
+    // Por isso a caixa só recebia o foco se o usuário clicasse nela de novo. Agora o foco e a seleção vêm quando ela fica visível.
+    private void RenameTextBox_Loaded(object sender, RoutedEventArgs e) => FocusRenameBox(sender as TextBox);
+
+    private void RenameTextBox_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        if (sender is TextBox textBox)
+        if (e.NewValue is true)
         {
-            _renameEscapePressed = false;
-            textBox.Focus();
-            textBox.SelectAll();
+            FocusRenameBox(sender as TextBox);
         }
+    }
+
+    private void FocusRenameBox(TextBox? box, int attempt = 0)
+    {
+        if (box is null || !box.IsVisible || box.DataContext is not NavigationTreeNodeViewModel { IsRenaming: true } node)
+        {
+            return;
+        }
+
+        _renameEscapePressed = false;
+
+        // Espera a ligação do texto e o desenho da linha (o painel recarrega a árvore ao começar a renomear); se o foco ainda não
+        // pegou, tenta de novo algumas vezes.
+        box.Dispatcher.BeginInvoke(
+            () =>
+            {
+                if (!box.IsVisible || !node.IsRenaming)
+                {
+                    return;
+                }
+
+                box.Focus();
+                Keyboard.Focus(box);
+                var (start, length) = RenameSelection.GetRange(
+                    box.Text,
+                    isFile: node.Kind is NavigationNodeKind.File or NavigationNodeKind.Archive);
+                box.Select(start, length);
+
+                if (!box.IsKeyboardFocused && attempt < 5)
+                {
+                    FocusRenameBox(box, attempt + 1);
+                }
+            },
+            DispatcherPriority.Input);
+    }
+
+    /// <summary>O clique caiu dentro de uma caixa de texto (a de renomear) antes de chegar à linha do item?</summary>
+    private static bool IsInsideRenameEditor(DependencyObject? source)
+    {
+        while (source is not null)
+        {
+            if (source is TextBox)
+            {
+                return true;
+            }
+
+            if (source is TreeViewItem)
+            {
+                return false;
+            }
+
+            source = source is Visual or System.Windows.Media.Media3D.Visual3D
+                ? VisualTreeHelper.GetParent(source)
+                : LogicalTreeHelper.GetParent(source);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Começa a contar para renomear: um clique no nome de um item que já era o único selecionado vira "renomear" se nada mais
+    /// acontecer no tempo de um duplo clique (outro clique abriria o item, uma tecla ou outra seleção desfaz).
+    /// </summary>
+    private void StartSlowRename(NavigationTreeNodeViewModel node)
+    {
+        CancelSlowRename();
+
+        _slowRenameNode = node;
+        _slowRenameTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(SystemMouse.SlowRenameDelayMilliseconds) };
+        _slowRenameTimer.Tick += (_, _) =>
+        {
+            var pending = _slowRenameNode;
+            CancelSlowRename();
+            if (pending is not null && ViewModel is { } pane && pane.CanBeginSlowRename(pending) &&
+                Mouse.LeftButton == MouseButtonState.Released)
+            {
+                pane.BeginRenameNode(pending);
+            }
+        };
+        _slowRenameTimer.Start();
+    }
+
+    private void CancelSlowRename()
+    {
+        _slowRenameTimer?.Stop();
+        _slowRenameTimer = null;
+        _slowRenameNode = null;
     }
 
     private void RenameTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -3519,60 +3813,23 @@ public partial class FilePaneControl : UserControl
         return false;
     }
 
+    /// <summary>
+    /// A linha sob a altura <paramref name="y"/> (ou <see langword="null"/> em espaço em branco). Exata de propósito: a busca antiga
+    /// devolvia a linha MAIS PRÓXIMA e, numa pasta aberta, descia para o filho mais próximo mesmo com o mouse na linha da própria
+    /// pasta, então soltar sobre uma unidade aberta (C:, D:, disco externo) caía na primeira subpasta e nunca na raiz.
+    /// </summary>
     private NavigationTreeNodeViewModel? FindSelectableNodeAtHostY(double y)
     {
-        return FindBestTreeViewItemAtHostY(NavigationTree, y)?.DataContext as NavigationTreeNodeViewModel;
-    }
-
-    private TreeViewItem? FindBestTreeViewItemAtHostY(ItemsControl parent, double y)
-    {
-        TreeViewItem? bestItem = null;
-        var bestDistance = double.MaxValue;
-
-        foreach (var item in TreeContainers.Realized(parent))
-        {
-            var bounds = GetItemHeaderBoundsInHost(item);
-            if (y >= bounds.Top && y <= bounds.Bottom)
+        var item = RowHitTest.FindExact(
+            TreeContainers.Realized(NavigationTree),
+            y,
+            row =>
             {
-                if (item.IsExpanded)
-                {
-                    var nested = FindBestTreeViewItemAtHostY(item, y);
-                    if (nested is not null)
-                    {
-                        return nested;
-                    }
-                }
-
-                return item;
-            }
-
-            var distance = y < bounds.Top ? bounds.Top - y : y - bounds.Bottom;
-            if (distance < bestDistance)
-            {
-                bestDistance = distance;
-                bestItem = item;
-            }
-
-            if (item.IsExpanded)
-            {
-                var nested = FindBestTreeViewItemAtHostY(item, y);
-                if (nested is not null)
-                {
-                    var nestedBounds = GetItemHeaderBoundsInHost(nested);
-                    var nestedDistance = y < nestedBounds.Top
-                        ? nestedBounds.Top - y
-                        : y - nestedBounds.Bottom;
-                    if (y >= nestedBounds.Top && y <= nestedBounds.Bottom ||
-                        nestedDistance < bestDistance)
-                    {
-                        bestDistance = nestedDistance;
-                        bestItem = nested;
-                    }
-                }
-            }
-        }
-
-        return bestItem;
+                var bounds = GetItemHeaderBoundsInHost(row);
+                return (bounds.Top, bounds.Bottom);
+            },
+            row => row.IsExpanded ? TreeContainers.Realized(row) : []);
+        return item?.DataContext as NavigationTreeNodeViewModel;
     }
 
     private static bool HasDedicatedContextMenu(DependencyObject? source)

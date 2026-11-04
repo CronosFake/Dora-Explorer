@@ -9,6 +9,7 @@
     <sys:String x:Key="GlyphSearch">&#xE721;</sys:String>
     <sys:String x:Key="GlyphSort">&#xE8CB;</sys:String>
     <sys:String x:Key="GlyphRefresh">&#xE72C;</sys:String>
+    <sys:String x:Key="GlyphDuplicates">&#xE7C4;</sys:String>
 
     <!-- Arquivos -->
     <sys:String x:Key="GlyphCopy">&#xE8C8;</sys:String>

@@ -124,6 +124,22 @@ public partial class MainWindowViewModel : ObservableObject
     public FilePaneViewModel OppositePane(FilePaneViewModel pane) =>
         ReferenceEquals(pane, LeftPane) ? RightPane : LeftPane;
 
+    /// <summary>Esvazia a Lixeira (menu da linha dela) e atualiza a linha nos DOIS painéis: a Lixeira é uma só para os dois.</summary>
+    public async Task<(bool Success, string? ErrorMessage)> EmptyRecycleBinAsync(FilePaneViewModel pane)
+    {
+        var result = await pane.TryEmptyRecycleBinAsync().ConfigureAwait(true);
+        OppositePane(pane).RefreshRecycleBinNode();
+        return result;
+    }
+
+    /// <summary>Devolve tudo da Lixeira ao lugar de origem e atualiza a linha dela nos dois painéis.</summary>
+    public bool RestoreAllFromRecycleBin(FilePaneViewModel pane, out string? errorMessage)
+    {
+        var restored = pane.TryRestoreAllRecycleBinItems(out errorMessage);
+        OppositePane(pane).RefreshRecycleBinNode();
+        return restored;
+    }
+
     public FilePaneViewModel? GetPaneWithSelection()
     {
         var leftHasSelection = !string.IsNullOrWhiteSpace(LeftPane.GetSelectedItemPath());

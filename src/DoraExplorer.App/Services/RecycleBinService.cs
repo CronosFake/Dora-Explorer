@@ -27,6 +27,72 @@ public static class RecycleBinService
         return SHQueryRecycleBin(string.Empty, ref info) == 0 && info.I64NumItems > 0;
     }
 
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern int SHEmptyRecycleBin(IntPtr hwnd, string? pszRootPath, uint dwFlags);
+
+    // A confirmação é a do próprio app (MessageDialog); o Windows só mostra o progresso, que ajuda numa Lixeira grande.
+    private const uint SHERB_NOCONFIRMATION = 0x00000001;
+    private const uint SHERB_NOSOUND = 0x00000004;
+
+    // O que de fato esvazia a Lixeira do Windows. Os testes trocam por uma função de mentira: nunca esvazie a Lixeira do usuário num teste.
+    internal static Func<int> EmptyNative { get; set; } = () =>
+        SHEmptyRecycleBin(IntPtr.Zero, null, SHERB_NOCONFIRMATION | SHERB_NOSOUND);
+
+    // Quem diz se há itens (a consulta ao Windows); trocável pelos testes pelo mesmo motivo.
+    internal static Func<bool> HasItemsNative { get; set; } = HasItems;
+
+    /// <summary>
+    /// Esvazia a Lixeira de todas as unidades (o mesmo que "Esvaziar Lixeira" do Windows). Já vazia não é erro. O pedido ao Windows
+    /// vai por uma thread própria no modo STA, que é o que o shell espera, para não travar a tela numa Lixeira grande.
+    /// </summary>
+    public static bool TryEmpty(out string? errorMessage)
+    {
+        errorMessage = null;
+        if (!HasItemsNative())
+        {
+            return true;
+        }
+
+        var result = 0;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                result = EmptyNative();
+            }
+            catch (Exception ex) when (ExpectedFailures.IsShellInterop(ex))
+            {
+                AppLogService.Warning($"Falha ao esvaziar a lixeira: {ex.Message}");
+                result = ex.HResult != 0 ? ex.HResult : -1;
+            }
+        })
+        {
+            IsBackground = true
+        };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        // 0 = sucesso. 0x8000FFFF (E_UNEXPECTED) é o que algumas versões devolvem quando a Lixeira esvaziou sozinha no meio do pedido.
+        if (result == 0 || (uint)result == 0x8000FFFFu)
+        {
+            AppLogService.Info("Lixeira esvaziada.");
+            return true;
+        }
+
+        AppLogService.Warning($"Esvaziar a lixeira devolveu 0x{result:X8}.");
+        errorMessage = "Não foi possível esvaziar a Lixeira. Algum item pode estar em uso ou sem permissão.";
+        return false;
+    }
+
+    /// <summary>Caminhos (na Lixeira) de todos os itens que ela guarda, para restaurar tudo.</summary>
+    public static IReadOnlyList<string> GetAllItemPaths() =>
+        GetEntries()
+            .Where(entry => !string.IsNullOrWhiteSpace(entry.FullPath))
+            .Select(entry => entry.FullPath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
     public static (int Folders, int Files) GetCounts()
     {
         var folders = 0;

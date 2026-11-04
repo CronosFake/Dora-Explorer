@@ -73,6 +73,54 @@ public partial class CenterToolbarControl
         await ViewModel.CompressCommand.ExecuteAsync(format).ConfigureAwait(true);
     }
 
+    private void DuplicatesButton_MenuClick(object sender, RoutedEventArgs e)
+    {
+        if (DuplicatesButton.ContextMenu is not ContextMenu menu)
+        {
+            return;
+        }
+
+        menu.PlacementTarget = DuplicatesButton;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Right;
+        menu.DataContext = ViewModel;
+        menu.IsOpen = true;
+    }
+
+    private void DuplicatesMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        DuplicatesButton.IsMenuOpen = true;
+        if (sender is ContextMenu { PlacementTarget: null } menu)
+        {
+            menu.PlacementTarget = DuplicatesButton;
+        }
+    }
+
+    private void DuplicatesMenu_Closed(object sender, RoutedEventArgs e) => DuplicatesButton.IsMenuOpen = false;
+
+    private void DuplicatesMode_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null || sender is not MenuItem { Tag: string modeTag } ||
+            !Enum.TryParse<DuplicateMode>(modeTag, out var mode))
+        {
+            return;
+        }
+
+        if (DuplicatesButton.ContextMenu is { } menu)
+        {
+            menu.IsOpen = false;
+        }
+
+        var owner = Window.GetWindow(this);
+        if (!ViewModel.TryCreateDuplicates(mode, out var model, out var error) || model is null)
+        {
+            DoraExplorer.App.Views.Dialogs.MessageDialog.Show(owner, error ?? "Não foi possível procurar duplicados.");
+            return;
+        }
+
+        // Já começa a procurar na pasta aberta; a janela deixa trocar o tipo, a pasta e as subpastas e procurar de novo.
+        DoraExplorer.App.Views.Dialogs.DuplicatesDialog.Show(owner, model, ViewModel.LocateDuplicate);
+    }
+
     private void SearchButton_MenuClick(object sender, RoutedEventArgs e)
     {
         if (ViewModel is not null)
@@ -157,6 +205,31 @@ public partial class CenterToolbarControl
     }
 
     private void SearchRun_Click(object sender, RoutedEventArgs e) => RunSearch();
+
+    // Limites do menu Localizar ao arrastar a alça do canto: não fica menor que o necessário nem maior que a tela comporta.
+    private const double SearchMinWidth = 360;
+    private const double SearchMaxWidth = 1400;
+    private const double SearchMinListHeight = 120;
+    private const double SearchMaxListHeight = 900;
+
+    private void SearchResizeGrip_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        SearchPopupBorder.Width = SearchPopupSizing.Clamp(SearchPopupBorder.Width + e.HorizontalChange, SearchMinWidth, SearchMaxWidth);
+        SearchResultsList.Height = SearchPopupSizing.Clamp(SearchResultsList.Height + e.VerticalChange, SearchMinListHeight, SearchMaxListHeight);
+    }
+
+    private void SearchNewWindow_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        // A janela traz o texto digitado e os resultados que o menu mostra; o menu fecha para não ficar um por cima do outro.
+        ViewModel.SearchPattern = SearchPatternBox.Text;
+        SearchPopup.IsOpen = false;
+        DoraExplorer.App.Views.Dialogs.SearchDialog.ShowOrActivate(Window.GetWindow(this), ViewModel);
+    }
 
     private void SearchPatternBox_KeyDown(object sender, KeyEventArgs e)
     {

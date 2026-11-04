@@ -196,6 +196,10 @@ public partial class NavigationTreeNodeViewModel : ObservableObject
     [ObservableProperty]
     private bool _isItemSelected;
 
+    /// <summary>A pasta que receberia os itens se o arrasto em andamento fosse solto agora (destacada na linha).</summary>
+    [ObservableProperty]
+    private bool _isDropTarget;
+
 
 
     public bool IsFile => Kind == NavigationNodeKind.File;

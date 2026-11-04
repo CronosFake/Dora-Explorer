@@ -1,0 +1,190 @@
+<Window x:Class="DoraExplorer.App.Views.Dialogs.DuplicatesDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Itens duplicados"
+        Width="1000"
+        Height="640"
+        MinWidth="640"
+        MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        ShowInTaskbar="False"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource ForegroundBrush}">
+    <Window.Resources>
+        <!-- Linha de cabeçalho de grupo em destaque; as cópias em texto comum. -->
+        <Style x:Key="DuplicateCellTextStyle" TargetType="TextBlock">
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsHeader}" Value="True">
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="16,14,16,12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Pasta pesquisada -->
+        <Grid Grid.Row="0" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0"
+                       Text="Pasta:"
+                       VerticalAlignment="Center"
+                       Margin="0,0,8,0" />
+            <TextBlock Grid.Column="1"
+                       x:Name="RootPathText"
+                       Text="{Binding RootPath}"
+                       ToolTip="{Binding RootPath}"
+                       VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis" />
+            <Button Grid.Column="2"
+                    x:Name="ChangeFolderButton"
+                    Content="Alterar..."
+                    Style="{StaticResource DialogButtonStyle}"
+                    Width="90"
+                    Margin="8,0,0,0"
+                    IsEnabled="{Binding CanChangeOptions}"
+                    Click="ChangeFolder_Click" />
+        </Grid>
+
+        <!-- Tipo de verificação -->
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    Margin="0,0,0,4">
+            <RadioButton x:Name="StandardRadio"
+                         Content="Padrão (nome e tamanho)"
+                         GroupName="DuplicateMode"
+                         IsChecked="{Binding IsStandardMode, Mode=TwoWay}"
+                         IsEnabled="{Binding CanChangeOptions}"
+                         Margin="0,0,24,0" />
+            <RadioButton x:Name="DeepRadio"
+                         Content="Profundo (tamanho e hash)"
+                         GroupName="DuplicateMode"
+                         IsChecked="{Binding IsDeepMode, Mode=TwoWay}"
+                         IsEnabled="{Binding CanChangeOptions}"
+                         Margin="0,0,24,0" />
+            <CheckBox x:Name="SubfoldersCheckBox"
+                      Content="Incluir subpastas"
+                      IsChecked="{Binding IncludeSubfolders, Mode=TwoWay}"
+                      IsEnabled="{Binding CanChangeOptions}" />
+        </StackPanel>
+        <TextBlock Grid.Row="2"
+                   Text="{Binding ModeDescription}"
+                   FontSize="11"
+                   Opacity="0.85"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,10" />
+
+        <!-- Procurar / Cancelar e o resumo -->
+        <DockPanel Grid.Row="3"
+                   Margin="0,0,0,8">
+            <Button x:Name="StartButton"
+                    DockPanel.Dock="Left"
+                    Content="Procurar"
+                    Style="{StaticResource DialogAccentButtonStyle}"
+                    Width="100"
+                    IsEnabled="{Binding CanStart}"
+                    Click="Start_Click" />
+            <Button x:Name="CancelButton"
+                    DockPanel.Dock="Left"
+                    Content="Cancelar"
+                    Style="{StaticResource DialogButtonStyle}"
+                    Width="100"
+                    Margin="8,0,0,0"
+                    Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}"
+                    Click="Cancel_Click" />
+            <TextBlock Text="{Binding SummaryText}"
+                       VerticalAlignment="Center"
+                       FontWeight="SemiBold"
+                       Margin="16,0,0,0"
+                       TextTrimming="CharacterEllipsis" />
+        </DockPanel>
+
+        <!-- Os grupos: uma linha em destaque por grupo e, abaixo, as cópias. Duplo clique leva o painel até a cópia. -->
+        <ListView x:Name="ResultsList"
+                  Grid.Row="4"
+                  ItemsSource="{Binding Rows}"
+                  Style="{StaticResource FileListViewStyle}"
+                  ItemContainerStyle="{StaticResource FileListViewItemStyle}"
+                  MouseDoubleClick="ResultsList_MouseDoubleClick">
+            <ListView.ContextMenu>
+                <ContextMenu Opened="ResultsMenu_Opened">
+                    <MenuItem x:Name="LocateMenuItem"
+                              Header="Mostrar no painel"
+                              Click="Locate_Click" />
+                    <MenuItem x:Name="CopyPathMenuItem"
+                              Header="Copiar caminho"
+                              Click="CopyPath_Click" />
+                </ContextMenu>
+            </ListView.ContextMenu>
+            <ListView.View>
+                <GridView AllowsColumnReorder="False"
+                          ColumnHeaderContainerStyle="{StaticResource GridViewColumnHeaderStyle}">
+                    <GridViewColumn Header="Nome" Width="340">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}"
+                                           ToolTip="{Binding Name}"
+                                           Style="{StaticResource DuplicateCellTextStyle}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="Pasta" Width="340">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Folder}"
+                                           ToolTip="{Binding Folder}"
+                                           Style="{StaticResource DuplicateCellTextStyle}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="Tamanho" Width="90">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding SizeText}"
+                                           TextAlignment="Right"
+                                           Style="{StaticResource DuplicateCellTextStyle}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="Modificado" Width="140">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding ModifiedText}"
+                                           Style="{StaticResource DuplicateCellTextStyle}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+        </ListView>
+
+        <DockPanel Grid.Row="5"
+                   Margin="0,8,0,0">
+            <Button Content="Fechar"
+                    DockPanel.Dock="Right"
+                    Style="{StaticResource DialogButtonStyle}"
+                    Width="90"
+                    Click="Close_Click" />
+            <TextBlock Text="{Binding StatusText}"
+                       VerticalAlignment="Center"
+                       Opacity="0.85"
+                       TextTrimming="CharacterEllipsis"
+                       ToolTip="{Binding StatusText}" />
+        </DockPanel>
+    </Grid>
+</Window>

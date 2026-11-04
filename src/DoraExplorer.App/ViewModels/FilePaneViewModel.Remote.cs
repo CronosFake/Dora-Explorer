@@ -282,13 +282,13 @@ public partial class FilePaneViewModel
         }
 
         // Mesmo com falha ou cancelamento, parte dos itens pode já ter sido transferida.
-        RefreshDirectory(destinationDirectory);
+        RefreshDirectoryIfShown(destinationDirectory);
         if (move)
         {
             var sourceParent = sourceRemote ? RemoteParentUri(sourcePath) : Path.GetDirectoryName(sourcePath);
             if (!string.IsNullOrWhiteSpace(sourceParent))
             {
-                RefreshDirectory(sourceParent);
+                RefreshDirectoryIfShown(sourceParent);
             }
         }
 
@@ -347,7 +347,7 @@ public partial class FilePaneViewModel
                 var local = await _fileOperationService
                     .TryCompressAsync(localSources, destinationDirectory, format, progress, cancellationToken)
                     .ConfigureAwait(true);
-                RefreshDirectory(destinationDirectory);
+                RefreshDirectoryIfShown(destinationDirectory);
                 return (local.Success, local.ErrorMessage);
             }
 
@@ -369,7 +369,7 @@ public partial class FilePaneViewModel
             var uploaded = await _remoteFiles
                 .UploadAsync(destination, compressed.ArchivePath, destinationDirectory, progress, cancellationToken)
                 .ConfigureAwait(true);
-            RefreshDirectory(destinationDirectory);
+            RefreshDirectoryIfShown(destinationDirectory);
             return uploaded;
         }
         finally

@@ -100,6 +100,28 @@
                                                       Hint="Atualizar a pasta (F5)"
                                                       IconGlyph="{StaticResource GlyphRefresh}"
                                                       Command="{Binding RefreshCommand}" />
+
+                        <controls:CenterToolbarButton x:Name="DuplicatesButton"
+                                                      Label="Duplicados"
+                                                      Hint="Procurar arquivos duplicados na pasta aberta"
+                                                      IconGlyph="{StaticResource GlyphDuplicates}"
+                                                      OpensMenu="True"
+                                                      MenuClick="DuplicatesButton_MenuClick">
+                            <controls:CenterToolbarButton.ContextMenu>
+                                <ContextMenu Opened="DuplicatesMenu_Opened"
+                                             Closed="DuplicatesMenu_Closed"
+                                             Placement="Right">
+                                    <MenuItem Header="Padrão: nome e tamanho"
+                                              ToolTip="Rápido: não lê o conteúdo dos arquivos"
+                                              Tag="Standard"
+                                              Click="DuplicatesMode_Click" />
+                                    <MenuItem Header="Profundo: tamanho e hash"
+                                              ToolTip="Certeiro: compara o conteúdo (SHA-256) dos arquivos de mesmo tamanho"
+                                              Tag="Deep"
+                                              Click="DuplicatesMode_Click" />
+                                </ContextMenu>
+                            </controls:CenterToolbarButton.ContextMenu>
+                        </controls:CenterToolbarButton>
                     </UniformGrid>
 
                     <Border Style="{StaticResource CategorySeparatorStyle}" />
@@ -197,53 +219,114 @@
                Placement="Bottom"
                StaysOpen="False"
                AllowsTransparency="True">
-            <Border Background="{DynamicResource PanelBackgroundBrush}"
+            <Border x:Name="SearchPopupBorder"
+                    Background="{DynamicResource PanelBackgroundBrush}"
                     BorderBrush="{DynamicResource BorderBrushColor}"
                     BorderThickness="1"
                     Padding="8"
-                    MinWidth="320"
-                    MaxHeight="420">
-                <StackPanel>
-                    <TextBlock Text="Localizar"
-                               FontWeight="SemiBold"
-                               Margin="0,0,0,4" />
-                    <TextBlock Text="{Binding SearchRootPath}"
-                               FontSize="11"
-                               Opacity="0.85"
-                               TextTrimming="CharacterEllipsis"
-                               Margin="0,0,0,6" />
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBox x:Name="SearchPatternBox"
-                                 Style="{StaticResource ExplorerInputTextBoxStyle}"
-                                 Width="220"
-                                 Padding="6,4"
-                                 Margin="0,0,8,0"
-                                 KeyDown="SearchPatternBox_KeyDown" />
-                        <Button x:Name="SearchRunButton"
-                                Content="Pesquisar"
-                                Style="{StaticResource DialogButtonStyle}"
-                                Width="80"
-                                IsEnabled="{Binding IsSearchEnabled}"
-                                Click="SearchRun_Click" />
+                    Width="460">
+                <Grid>
+                    <StackPanel>
+                        <TextBlock Text="Localizar"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding SearchRootPath}"
+                                   ToolTip="{Binding SearchRootPath}"
+                                   FontSize="11"
+                                   Opacity="0.85"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="0,0,0,6" />
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="SearchPatternBox"
+                                     Grid.Column="0"
+                                     Style="{StaticResource ExplorerInputTextBoxStyle}"
+                                     Padding="6,4"
+                                     Margin="0,0,8,0"
+                                     KeyDown="SearchPatternBox_KeyDown" />
+                            <Button x:Name="SearchRunButton"
+                                    Grid.Column="1"
+                                    Content="Pesquisar"
+                                    Style="{StaticResource DialogButtonStyle}"
+                                    Width="80"
+                                    IsEnabled="{Binding IsSearchEnabled}"
+                                    Click="SearchRun_Click" />
+                        </Grid>
+                        <!-- As colunas se ajustam arrastando a borda do cabeçalho; a alça no canto de baixo aumenta o menu inteiro. -->
+                        <ListView x:Name="SearchResultsList"
+                                  ItemsSource="{Binding SearchResults}"
+                                  Style="{StaticResource FileListViewStyle}"
+                                  ItemContainerStyle="{StaticResource FileListViewItemStyle}"
+                                  Height="240"
+                                  MouseDoubleClick="SearchResultsList_MouseDoubleClick">
+                            <ListView.View>
+                                <GridView AllowsColumnReorder="False"
+                                          ColumnHeaderContainerStyle="{StaticResource GridViewColumnHeaderStyle}">
+                                    <GridViewColumn Header="Nome" Width="150">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Name}"
+                                                           ToolTip="{Binding Name}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Caminho" Width="260">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding FullPath}"
+                                                           ToolTip="{Binding FullPath}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                        <DockPanel Margin="0,6,0,0"
+                                   LastChildFill="True">
+                            <Button x:Name="SearchNewWindowButton"
+                                    DockPanel.Dock="Right"
+                                    Content="Nova janela"
+                                    ToolTip="Abrir os resultados numa janela maior, com as colunas ajustáveis"
+                                    Style="{StaticResource DialogButtonStyle}"
+                                    Margin="8,0,16,0"
+                                    Padding="10,3"
+                                    Click="SearchNewWindow_Click" />
+                            <TextBlock Text="{Binding SearchStatusText}"
+                                       VerticalAlignment="Center"
+                                       FontSize="11"
+                                       Opacity="0.85"
+                                       TextTrimming="CharacterEllipsis" />
+                        </DockPanel>
                     </StackPanel>
-                    <ListView x:Name="SearchResultsList"
-                              ItemsSource="{Binding SearchResults}"
-                              Style="{StaticResource FileListViewStyle}"
-                              ItemContainerStyle="{StaticResource FileListViewItemStyle}"
-                              Height="240"
-                              MouseDoubleClick="SearchResultsList_MouseDoubleClick">
-                        <ListView.View>
-                            <GridView ColumnHeaderContainerStyle="{StaticResource GridViewColumnHeaderStyle}">
-                                <GridViewColumn Header="Nome" DisplayMemberBinding="{Binding Name}" Width="120" />
-                                <GridViewColumn Header="Caminho" DisplayMemberBinding="{Binding FullPath}" Width="170" />
-                            </GridView>
-                        </ListView.View>
-                    </ListView>
-                    <TextBlock Text="{Binding SearchStatusText}"
-                               FontSize="11"
-                               Opacity="0.85"
-                               Margin="0,6,0,0" />
-                </StackPanel>
+
+                    <Thumb x:Name="SearchResizeGrip"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Bottom"
+                           Width="16"
+                           Height="16"
+                           Margin="0,0,-4,-4"
+                           Cursor="SizeNWSE"
+                           ToolTip="Arraste para aumentar o menu"
+                           DragDelta="SearchResizeGrip_DragDelta">
+                        <Thumb.Template>
+                            <ControlTemplate TargetType="Thumb">
+                                <Border Background="Transparent">
+                                    <TextBlock Text="&#x25E2;"
+                                               FontSize="12"
+                                               Foreground="{DynamicResource CenterToolbarForegroundBrush}"
+                                               Opacity="0.7"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Bottom" />
+                                </Border>
+                            </ControlTemplate>
+                        </Thumb.Template>
+                    </Thumb>
+                </Grid>
             </Border>
         </Popup>
 
