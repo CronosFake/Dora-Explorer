@@ -90,6 +90,9 @@ public partial class FilePaneViewModel : ObservableObject
 
     public event EventHandler? RenamingEnded;
 
+    /// <summary>Um item foi renomeado com sucesso: leva o caminho novo, para a tela devolver a seleção e o foco a ele.</summary>
+    public event EventHandler<PathRenamedEventArgs>? ItemRenamed;
+
     private bool _suppressSelectionUpdates;
 
     private bool _centerNavigatedNode;
@@ -2421,10 +2424,25 @@ public partial class FilePaneViewModel : ObservableObject
         {
             SelectedPath = newPath;
             CurrentPath = Directory.Exists(newPath) ? newPath : parent ?? CurrentPath;
-            SelectedNode = FindNodeByPath(newPath) ?? SelectedNode;
+            SelectRenamedItem(newPath);
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Depois de renomear a pasta que contém o item é recarregada (os nós são outros), e a seleção ia para a pasta, "a raiz onde o item
+    /// está". O item com o NOVO nome vira o único selecionado e o item atual, e a tela é avisada para lhe dar o foco.
+    /// </summary>
+    private void SelectRenamedItem(string newPath)
+    {
+        if (FindNodeByPath(newPath) is { } renamed)
+        {
+            SetSingleItemSelection(renamed);
+            SelectedNode = renamed;
+        }
+
+        ItemRenamed?.Invoke(this, new PathRenamedEventArgs(newPath));
     }
 
     public bool TryCopyTo(string destinationDirectory, out string? errorMessage)

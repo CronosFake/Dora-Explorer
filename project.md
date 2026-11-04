@@ -2,7 +2,7 @@
 
 > Auto-gerado por scripts/generate-project-map.ps1 (o Start.bat roda a cada execucao). Nao edite a mao.
 > Regras, comandos e armadilhas: AGENTS.md. Visao do produto e limitacoes conhecidas: README.md.
-> Ultima atualizacao: 2026-11-04 14:48
+> Ultima atualizacao: 2026-11-04 15:11
 
 ## Como usar este mapa
 
@@ -27,13 +27,13 @@ src/DoraExplorer.App/
   App.xaml.cs, MainWindow.xaml(.cs)   # inicializacao, DI, janela principal com dois paineis
   Assets/           0 arquivos      0 linhas  # Icones
   Contracts/       12 arquivos    337 linhas  # Interfaces dos servicos (DI e testes)
-  Controls/        14 arquivos   7706 linhas  # Controles WPF: paineis, toolbar, arvore, animacoes
+  Controls/        14 arquivos   7750 linhas  # Controles WPF: paineis, toolbar, arvore, animacoes
   Converters/       5 arquivos    123 linhas  # IValueConverter do WPF
   Infrastructure/  19 arquivos   1286 linhas  # DI, caminhos seguros, timeouts, instancia unica, colecao em bloco, enxugador de memoria
-  Models/          28 arquivos    699 linhas  # DTOs, enums e opcoes
+  Models/          28 arquivos    702 linhas  # DTOs, enums e opcoes
   Resources/        6 arquivos   1445 linhas  # Temas e estilos XAML
-  Services/        61 arquivos  18840 linhas  # Arquivos, rede, indice, tema, icones, logs, arquivos compactados
-  ViewModels/      11 arquivos   7157 linhas  # MVVM (CommunityToolkit.Mvvm)
+  Services/        61 arquivos  18875 linhas  # Arquivos, rede, indice, tema, icones, logs, arquivos compactados
+  ViewModels/      12 arquivos   7204 linhas  # MVVM (CommunityToolkit.Mvvm)
   Views/           23 arquivos   2498 linhas  # Dialogos do menu central
 tests/DoraExplorer.App.Tests/   # testes xUnit
 scripts/                        # stop-dora.ps1, generate-project-map.ps1
@@ -59,10 +59,10 @@ Itens com (?) apontam para algo que nao existe mais no codigo: atualize a lista 
 | Copiar, Mover e Compactar (com progresso e cancelamento) | MainWindowViewModel.ExecuteTransferAsync, MainWindowViewModel.ExecuteCompressAsync, FileOperationService.TryCopy, FileOperationService.TryCompress, NativeFileCopy, TransferProgressDialog, TransferProgressFormatter, OperationTimeouts |
 | Nova pasta, Renomear, Excluir, Lixeira | CenterToolbarViewModel, FilePaneViewModel, FileOperationService, DeleteChoiceDialog, RecycleBinService |
 | Aplicativo padrao ao lado do arquivo e "Abrir com" | FileAssociationService, DefaultApplicationOverrides, FilePaneControl.DefaultAppButton_Click, FileOpenService.TryShowNativeOpenWithDialog |
-| Localizar arquivos (menu, colunas ajustaveis e Nova janela) | CenterToolbarViewModel.RunSearchWithPattern, FileSearchService, SearchDialog, SearchPopupSizing, CenterToolbarControl.SearchResizeGrip_DragDelta, CenterToolbarControl.SearchNewWindow_Click, Resources/Theme.xaml |
+| Localizar arquivos (menu, colunas ajustaveis e Abrir em Janela) | CenterToolbarViewModel.RunSearchWithPattern, FileSearchService, SearchDialog, SearchPopupSizing, CenterToolbarControl.SearchResizeGrip_DragDelta, CenterToolbarControl.SearchNewWindow_Click, Resources/Theme.xaml |
 | Duplicados (Pasta > Duplicados: padrao e profundo) | DuplicateFinderService, DuplicatesViewModel, DuplicateText, DuplicatesDialog, CenterToolbarViewModel.TryCreateDuplicates, CenterToolbarControl.DuplicatesMode_Click, Resources/CenterToolbarIcons.xaml |
 | Arrastar e soltar (onde cai, destaque da pasta de destino, soltar na raiz) | FilePaneControl.FindSelectableNodeAtHostY, RowHitTest, FilePaneControl.TreeHost_DragOver, FilePaneViewModel.SetDropTarget, FilePaneViewModel.TryResolveDropDirectory, NavigationTreeNodeViewModel, MainWindowViewModel.ExecuteDropTransferAsync |
-| Renomear (F2, clique devagar, nome sem a extensao, mouse na caixa) | FilePaneViewModel.BeginRenameNode, FilePaneViewModel.CanBeginSlowRename, RenameSelection, SystemMouse, FilePaneControl.FocusRenameBox, FilePaneControl.StartSlowRename, FilePaneControl.IsInsideRenameEditor |
+| Renomear (F2, clique devagar, nome sem a extensao, mouse na caixa) | FilePaneViewModel.BeginRenameNode, FilePaneViewModel.CanBeginSlowRename, FilePaneViewModel.SelectRenamedItem, FilePaneControl.FocusAfterRename, RenameSelection, SystemMouse, FilePaneControl.FocusRenameBox, FilePaneControl.StartSlowRename, FilePaneControl.IsInsideRenameEditor |
 | Menu da Lixeira (botao direito na linha: esvaziar, restaurar tudo) | FilePaneControl.BuildRecycleBinRootContextMenu, FilePaneViewModel.TryEmptyRecycleBinAsync, FilePaneViewModel.TryRestoreAllRecycleBinItems, MainWindowViewModel.EmptyRecycleBinAsync, RecycleBinService.TryEmpty, RecycleBinText |
 | Atualizar so o que o painel mostra depois de copiar, mover e compactar | FilePaneViewModel.RefreshDirectoryIfShown, FilePaneViewModel.RefreshShownDirectories, MainWindowViewModel.RefreshShownAfterTransfer |
 | Ordenacao (menu e cabecalho das colunas) | CenterToolbarViewModel.ApplySortOptions, TreeEntrySorter, SortHeaderLogic, TreeSortOptions |
@@ -99,8 +99,8 @@ CommunityToolkit.Mvvm 8.4.2, FluentFTP 51.1.0, Microsoft.Data.Sqlite 10.0.14, Mi
 
 Metodos com numero de linha: project-metodos.md.
 
-- `src/DoraExplorer.App/Controls/FilePaneControl.xaml.cs` - 3869 linhas
-- `src/DoraExplorer.App/ViewModels/FilePaneViewModel.cs` - 3692 linhas
+- `src/DoraExplorer.App/Controls/FilePaneControl.xaml.cs` - 3913 linhas
+- `src/DoraExplorer.App/ViewModels/FilePaneViewModel.cs` - 3710 linhas
 - `src/DoraExplorer.App/Services/NavigationTreeService.cs` - 1659 linhas
 - `src/DoraExplorer.App/Services/FtpServer.cs` - 1588 linhas
 - `src/DoraExplorer.App/Services/ArchiveService.cs` - 1111 linhas
@@ -141,7 +141,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `Controls/CenterToolbarControl.xaml` (443)
 - `Controls/CenterToolbarControl.xaml.cs` (269) - **CenterToolbarControl**
 - `Controls/FilePaneControl.xaml` (1081)
-- `Controls/FilePaneControl.xaml.cs` (3869) - **FilePaneControl**
+- `Controls/FilePaneControl.xaml.cs` (3913) - **FilePaneControl**
 - `Controls/SearchPopupSizing.cs` (9) - **SearchPopupSizing**
   - Metodos: Clamp
 - `Controls/SmoothScrollAnimator.cs` (355) - **SmoothScrollAnimator**
@@ -213,7 +213,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `Models/FileSearchResults.cs` (8) - **FileSearchResults**
 - `Models/FileSystemEntry.cs` (33) - **FileSystemEntry**
 - `Models/FileTransferOperation.cs` (7) - **FileTransferOperation**
-- `Models/ItemProperties.cs` (36) - **ItemProperties, ExecutableDetails, DriveDetails, FolderTotals**
+- `Models/ItemProperties.cs` (39) - **ItemProperties, ExecutableDetails, DriveDetails, FolderTotals, FileHashes**
 - `Models/LocalNetworkAddressOption.cs` (12) - **LocalNetworkAddressOption**
 - `Models/NavigationNodeKind.cs` (18) - **NavigationNodeKind**
 - `Models/NetworkClientProfile.cs` (76) - **NetworkClientProfile**
@@ -276,8 +276,8 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: GetOrCreate
 - `Services/HostKeyVerifier.cs` (162) - **HostKeyDecision, HostKeyVerifier**
   - Metodos: BeginNonInteractive, Decide, Connect, Dispose
-- `Services/ItemPropertiesService.cs` (382) - **ItemPropertiesService**
-  - Metodos: Read, ReadDrive, ComputeTotalsAsync, ComputeSha256Async, TypeDescriptionOf, SizeOnDisk, ClusterSizeOf
+- `Services/ItemPropertiesService.cs` (417) - **ItemPropertiesService**
+  - Metodos: Read, ReadDrive, ComputeTotalsAsync, ComputeSha256Async, ComputeHashesAsync, TypeDescriptionOf, SizeOnDisk, ClusterSizeOf
 - `Services/KnownHostsStore.cs` (79) - **KnownHostEntry, KnownHostsStore**
   - Metodos: Key, TryGet, Save
 - `Services/LocalFileSystemService.cs` (87) - **LocalFileSystemService**
@@ -363,10 +363,10 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `ViewModels/DuplicatesViewModel.cs` (264) - **DuplicateRowViewModel, DuplicatesViewModel, DuplicateText**
   - Metodos: StartAsync, Cancel, Size, Header, Row, Progress, Summary, Finished
 - `ViewModels/FileItemViewModel.cs` (72) - **FileItemViewModel**
-- `ViewModels/FilePaneViewModel.cs` (3692) - **FilePaneViewModel**
+- `ViewModels/FilePaneViewModel.cs` (3710) - **FilePaneViewModel**
   - Metodos: RestorePath, CompleteInitialPathRestore, ClearCenterNavigatedNode, UpdateResponsiveLayout, OnNavigationNodeExpanding, OnNavigationNodeExpanded, OnNavigationNodeCollapsed, OnNavigationNodeSelected, NavigateToPath, RefreshForViewOptionsChange, BeginDisplayMenu, CommitDisplayMenu, ClearItemSelection, SetSingleItemSelection, ToggleItemSelection, HandleShiftItemSelection, SelectSiblingItems, ShareSelectionParent, GetSelectableSiblings, GetParentNode, GetVisibleSelectableNodes, SelectSiblingRange, HasOpenableFilesInSelection, GetPrimarySelectedNode, HasActivatableSelection, GetOpenableFilePaths, OpenSelectedFiles, OpenArchiveExternally, GetSelectedItemPath, GetDeletableItemPaths (+52)
-- `ViewModels/FilePaneViewModel.Remote.cs` (387) - **FilePaneViewModel**
-- `ViewModels/ItemPropertiesViewModel.cs` (532) - **PropertyRowViewModel, PropertySectionViewModel, ItemPropertiesViewModel**
+- `ViewModels/FilePaneViewModel.Remote.cs` (392) - **FilePaneViewModel**
+- `ViewModels/ItemPropertiesViewModel.cs` (549) - **PropertyRowViewModel, PropertySectionViewModel, ItemPropertiesViewModel**
   - Metodos: Create, LoadAsync, Dispose, ComputeHashAsync
 - `ViewModels/MainWindowViewModel.cs` (861) - **MainWindowViewModel**
   - Metodos: OppositePane, EmptyRecycleBinAsync, RestoreAllFromRecycleBin, GetPaneWithSelection, ApplyGlobalSortOptions, TryResolveTransfer, TryValidateTransfer, ExecuteDropTransferAsync, TryStageTransfer, TryPasteTransferAsync, ExecuteTransferAsync, ExecuteCompressAsync, ClearTransferClipboard, OnWindowLoaded, PersistPanePaths
@@ -374,6 +374,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: SetName, SetIconFactory, SetDefaultApplication, RefreshDefaultApplication, SetHierarchyMetadata
 - `ViewModels/PaneDisplayMenuViewModel.cs` (53) - **PaneDisplayMenuViewModel**
   - Metodos: LoadFrom, DiffersFrom, ApplyTo
+- `ViewModels/PathRenamedEventArgs.cs` (7) - **PathRenamedEventArgs**
 - `Views/Dialogs/AboutDialog.xaml` (59)
 - `Views/Dialogs/AboutDialog.xaml.cs` (100) - **AboutDialog**
   - Metodos: Show
@@ -431,8 +432,8 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `HealthServiceTests.cs` (186) - HealthServiceTests
 - `InfrastructureTests.cs` (379) - PathSafetyServiceTests, NetworkFileServiceTests, FileOpenServiceTests, OperationTrackerTests, ExpectedFailuresTests, SqliteSecurityTests, MemoryTrimmerTests, RangeObservableCollectionTests
 - `InterfaceTests.cs` (374) - StorageUsageTests, DeniedFolderRowTests, SelectionStatusFormatterTests, ThemeUsageColorsTests, ApplicationNameTests, DefaultApplicationOverridesTests
-- `ItemPropertiesServiceTests.cs` (331) - ItemPropertiesServiceTests
-- `ItemPropertiesViewModelTests.cs` (288) - ItemPropertiesViewModelTests
+- `ItemPropertiesServiceTests.cs` (408) - ItemPropertiesServiceTests
+- `ItemPropertiesViewModelTests.cs` (330) - ItemPropertiesViewModelTests
 - `LockedDrivesOptionTests.cs` (86) - LockedDrivesOptionTests
 - `MainMenuTests.cs` (88) - MainMenuTests
 - `MainWindowViewModelTests.cs` (519) - MainWindowViewModelTests
@@ -444,7 +445,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `PaneTestHarness.cs` (235) - PaneTestHarness
 - `RecycleBinMenuTests.cs` (200) - RecycleBinMenuTests
 - `RemoteFileTests.cs` (618) - FakeRemoteServer, CapturingProgress, RemoteTransferEngineTests, RemoteFileServiceTests, RemoteFileServiceFtpTests
-- `RenameTests.cs` (195) - RenameTests
+- `RenameTests.cs` (282) - RenameTests
 - `SearchWindowTests.cs` (192) - SearchWindowTests
 - `SecurityTests.cs` (664) - ArchiveExtractionPathTests, ArchiveServiceExtractionTests, ProtectedPasswordTests, LegacyPasswordMigrationTests, HostKeyTests, NetworkServerHardeningTests
 - `ServiceRegistrationTests.cs` (69) - ServiceRegistrationTests

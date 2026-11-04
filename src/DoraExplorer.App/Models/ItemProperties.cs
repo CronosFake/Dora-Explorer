@@ -34,3 +34,6 @@ public sealed record DriveDetails(string Root, string Label, string Format, stri
 
 /// <summary>Quanto há dentro de uma pasta (ou de várias): arquivos, pastas e bytes, no tamanho do arquivo e no espaço que ocupa no disco.</summary>
 public readonly record struct FolderTotals(long Files, long Folders, long Bytes, long BytesOnDisk, long Unreadable);
+
+/// <summary>As somas de verificação de um arquivo, em hexadecimal minúsculo: o SHA-256 e o MD5 (este só para conferir downloads).</summary>
+public sealed record FileHashes(string Sha256, string Md5);

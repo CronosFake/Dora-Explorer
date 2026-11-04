@@ -171,6 +171,11 @@ public partial class FilePaneViewModel
         newPath = result.NewPath;
         errorMessage = null;
         RefreshDirectory(RemoteParentUri(sourcePath));
+        if (!string.IsNullOrWhiteSpace(newPath))
+        {
+            SelectRenamedItem(newPath);
+        }
+
         return true;
     }
 

@@ -290,7 +290,7 @@
                                    LastChildFill="True">
                             <Button x:Name="SearchNewWindowButton"
                                     DockPanel.Dock="Right"
-                                    Content="Nova janela"
+                                    Content="Abrir em Janela"
                                     ToolTip="Abrir os resultados numa janela maior, com as colunas ajustáveis"
                                     Style="{StaticResource DialogButtonStyle}"
                                     Margin="8,0,16,0"

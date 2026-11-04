@@ -115,7 +115,7 @@ public sealed class SearchWindowTests : IDisposable
         grip!.Name.Should().Be(Wpf + "Thumb");
         ((string?)grip.Attribute("DragDelta")).Should().Be("SearchResizeGrip_DragDelta");
         button.Should().NotBeNull();
-        ((string?)button!.Attribute("Content")).Should().Be("Nova janela");
+        ((string?)button!.Attribute("Content")).Should().Be("Abrir em Janela");
         ((string?)button.Attribute("Click")).Should().Be("SearchNewWindow_Click");
     }
 

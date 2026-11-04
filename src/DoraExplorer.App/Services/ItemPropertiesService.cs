@@ -11,7 +11,7 @@ namespace DoraExplorer.App.Services;
 
 /// <summary>
 /// O que a janela Propriedades mostra: lê o que o Windows e o disco sabem sobre um arquivo, uma pasta ou uma unidade locais, soma o
-/// que há dentro de pastas (com cancelamento) e calcula o SHA-256 de um arquivo sob demanda. Nada aqui grava no disco.
+/// que há dentro de pastas (com cancelamento) e calcula o SHA-256 e o MD5 de um arquivo sob demanda. Nada aqui grava no disco.
 /// </summary>
 public static class ItemPropertiesService
 {
@@ -198,24 +198,59 @@ public static class ItemPropertiesService
     public static async Task<string> ComputeSha256Async(
         string path,
         IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default) =>
+        (await HashFileAsync(path, [HashAlgorithmName.SHA256], progress, cancellationToken).ConfigureAwait(false))[0];
+
+    /// <summary>
+    /// SHA-256 e MD5 do arquivo, os dois em hexadecimal minúsculo, lendo o arquivo UMA vez só. O MD5 está aqui por pedido do usuário,
+    /// só como soma de conferência (muitos sites publicam o MD5 de um download); não serve para segurança, e por isso a janela
+    /// Propriedades mostra o SHA-256 primeiro. <paramref name="progress"/> recebe a fração lida (0 a 1).
+    /// </summary>
+    public static async Task<FileHashes> ComputeHashesAsync(
+        string path,
+        IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
+    {
+        var hashes = await HashFileAsync(path, [HashAlgorithmName.SHA256, HashAlgorithmName.MD5], progress, cancellationToken).ConfigureAwait(false);
+        return new FileHashes(hashes[0], hashes[1]);
+    }
+
+    private static async Task<string[]> HashFileAsync(
+        string path,
+        HashAlgorithmName[] algorithms,
+        IProgress<double>? progress,
+        CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(
             path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 81920, FileOptions.Asynchronous | FileOptions.SequentialScan);
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        var buffer = new byte[81920];
-        var length = stream.Length;
-        long read = 0;
-        int count;
-        while ((count = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+        var hashes = algorithms.Select(IncrementalHash.CreateHash).ToArray();
+        try
         {
-            hash.AppendData(buffer, 0, count);
-            read += count;
-            progress?.Report(length > 0 ? (double)read / length : 1);
-        }
+            var buffer = new byte[81920];
+            var length = stream.Length;
+            long read = 0;
+            int count;
+            while ((count = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+            {
+                foreach (var hash in hashes)
+                {
+                    hash.AppendData(buffer, 0, count);
+                }
 
-        progress?.Report(1);
-        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+                read += count;
+                progress?.Report(length > 0 ? (double)read / length : 1);
+            }
+
+            progress?.Report(1);
+            return hashes.Select(hash => Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant()).ToArray();
+        }
+        finally
+        {
+            foreach (var hash in hashes)
+            {
+                hash.Dispose();
+            }
+        }
     }
 
     /// <summary>O nome do tipo que o Windows mostra ("Documento de Texto", "Pasta de arquivos"), sem tocar no disco.</summary>

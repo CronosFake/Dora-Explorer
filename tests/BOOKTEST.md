@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-04 14:48
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-04 15:11
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -24,8 +24,8 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 |------|-------|
 | Areas | 32 |
 | Classes de teste | 76 |
-| Metodos de teste | 675 |
-| Casos (cada InlineData conta um) | 971 |
+| Metodos de teste | 690 |
+| Casos (cada InlineData conta um) | 988 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -185,10 +185,10 @@ Painel ativo, area de transferencia de copiar e cortar, regras que recusam trans
 
 ### Janela Propriedades (botao direito)
 
-O que a janela mostra para um arquivo, uma pasta, varios itens, uma unidade e um item fora do disco: tamanho e espaco em disco, datas, atributos, dono, versao de executavel, dimensoes de imagem, soma do conteudo das pastas (sem seguir links, contando o que nao foi lido, cancelavel), SHA-256 (cancelavel) e que fechar a janela cancela o que estava rodando.
+O que a janela mostra para um arquivo, uma pasta, varios itens, uma unidade e um item fora do disco: tamanho e espaco em disco, datas, atributos, dono, versao de executavel, dimensoes de imagem, soma do conteudo das pastas (sem seguir links, contando o que nao foi lido, cancelavel), SHA-256 e MD5 numa leitura so, conferidos contra os valores publicados e contra o framework (cancelavel) e que fechar a janela cancela o que estava rodando.
 
 - Codigo: ItemPropertiesService, ItemPropertiesViewModel, PropertyRowViewModel, PropertySectionViewModel, PropertiesDialog
-- Testes (47 casos): ItemPropertiesServiceTests [ItemPropertiesServiceTests.cs], ItemPropertiesViewModelTests [ItemPropertiesViewModelTests.cs]
+- Testes (59 casos): ItemPropertiesServiceTests [ItemPropertiesServiceTests.cs], ItemPropertiesViewModelTests [ItemPropertiesViewModelTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~ItemPropertiesServiceTests|FullyQualifiedName~ItemPropertiesViewModelTests"`
 
 ### Menu superior: Exibir (unidades bloqueadas) e Preferencia
@@ -241,10 +241,10 @@ A linha sob o mouse e a que vale (uma unidade aberta recebe na raiz, nao na prim
 
 ### Renomear (F2, clique devagar, nome sem a extensao)
 
-Que trecho do nome ja vem selecionado (sem a extensao; pasta, .gitignore e nome sem extensao selecionam tudo), quando um clique devagar no nome comeca a renomear (so o item que ja era o unico selecionado, fora de unidade e Lixeira, sem outro em renomeacao) e confirmar ou cancelar.
+Que trecho do nome ja vem selecionado (sem a extensao; pasta, .gitignore e nome sem extensao selecionam tudo), quando um clique devagar no nome comeca a renomear (so o item que ja era o unico selecionado, fora de unidade e Lixeira, sem outro em renomeacao) e confirmar ou cancelar; depois de confirmar o item com o novo nome fica como unico selecionado (e a tela e avisada para dar o foco a ele).
 
 - Codigo: RenameSelection, SystemMouse, FilePaneViewModel
-- Testes (22 casos): RenameTests [RenameTests.cs]
+- Testes (27 casos): RenameTests [RenameTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~RenameTests"`
 
 ### Menu da Lixeira (esvaziar e restaurar tudo)
@@ -257,7 +257,7 @@ Esvaziar chama o Windows uma vez, Lixeira ja vazia nao e erro nem chama o Window
 
 ### Localizar (colunas ajustaveis e nova janela)
 
-O cabecalho das colunas tem a alca que o GridView procura (sem ela a largura nao muda), o menu pode ser aumentado e nao tem teto de altura, existe o botao Nova janela e a janela mostra Nome, Caminho e Tamanho ajustaveis (lidos do XAML); a pesquisa acha item em subpastas fundas e a barra alimenta a lista que a janela mostra.
+O cabecalho das colunas tem a alca que o GridView procura (sem ela a largura nao muda), o menu pode ser aumentado e nao tem teto de altura, existe o botao Abrir em Janela e a janela mostra Nome, Caminho e Tamanho ajustaveis (lidos do XAML); a pesquisa acha item em subpastas fundas e a barra alimenta a lista que a janela mostra.
 
 - Codigo: SearchDialog, SearchPopupSizing, FileSearchService, CenterToolbarViewModel
 - Testes (16 casos): SearchWindowTests [SearchWindowTests.cs]
@@ -407,8 +407,8 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 | Janela Propriedades: abrir pelo botao direito, o visual nos temas escuro e claro e os valores contra o disco | Os dados e o texto sao testados sem janela, mas a janela, o menu e o visual so existem com o app aberto. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario props (app fechado; AGENTS.md, armadilha 22): botao direito de verdade num arquivo, numa pasta, em dois itens e numa unidade, le as linhas pelo UI Automation, confere o SHA-256 contra o Get-FileHash e fotografa nos dois temas; cada verificacao sai [OK] ou [FALHOU]. |
 | Menu superior na tela (Exibir, Temas, Preferencia, Ajuda) e o aviso do Windows de "Iniciar sempre como administrador" | A estrutura do menu e as ligacoes sao testadas pelo XAML, mas o menu aberto so existe com a janela; o aviso do Windows (UAC) roda numa area protegida e nenhum roteiro consegue aceita-lo ou recusa-lo. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario menu (app fechado; AGENTS.md, armadilha 23) confere os menus, o estado dos checks e liga e desliga "Exibir unidades bloqueadas" de verdade (uma unidade travada some e volta nos dois paineis), sem nunca acionar o administrador. A mao: o menu superior mostra Exibir, Temas, Preferencia e Ajuda (sem Arquivo), com "Exibir unidades bloqueadas" em Exibir e "Iniciar sempre como administrador" em Preferencia. Marcar o administrador: o Windows pede a confirmacao; recusar deixa o check desmarcado, aceitar reabre o app (Gerenciador de Tarefas: Elevado = Sim) e, fechando e abrindo de novo, o aviso aparece ao abrir. Desmarcar nao pede nada. |
 | Selecionar com o retangulo (arrastar na borda esquerda) e arrastar a selecao, o destaque da pasta de destino durante o arrasto e soltar na raiz da unidade | A regra da linha sob o mouse (RowHitTest) e o destaque no modelo sao testados, mas o mouse apertado, o OLE e o desenho do destaque so existem com a janela aberta. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario marqueedrag (app fechado; AGENTS.md, armadilhas 25 e 26): retangulo de 4 itens, arrasto da selecao para o outro painel, o painel de origem continua na mesma pasta, fotos do destaque (dest e a linha C:) e a pasta solta na raiz de C:; cada verificacao sai [OK] ou [FALHOU]. |
-| Renomear na tela: F2 e clique devagar abrem a caixa com o foco e o nome sem a extensao selecionado, selecionar o texto com o mouse | O trecho selecionado e a regra do clique devagar sao testados, mas o foco, o mouse e o temporizador so existem com a janela aberta. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario rename (app fechado; AGENTS.md, armadilha 27): F2 e clique devagar (le a selecao pelo UI Automation), arrasto do mouse dentro da caixa (o arquivo nao pode sair do lugar), Enter renomeia no disco e Esc cancela. |
-| Menu da Lixeira na tela, Localizar (Nova janela e coluna ajustada com o mouse) e a janela Itens duplicados aberta pelo botao do grupo Pasta | As regras sao testadas sem janela, mas o menu, o botao, as janelas e o arrasto da borda do cabecalho so existem com o app aberto. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario newfeatures (app fechado; AGENTS.md, armadilhas 28 a 30): botao direito na Lixeira (so le o menu e recusa a pergunta de esvaziar), Localizar e Nova janela, largura da coluna Nome antes e depois de arrastar a borda, Duplicados nos tipos Padrao e Profundo; cada verificacao sai [OK] ou [FALHOU]. |
+| Renomear na tela: F2 e clique devagar abrem a caixa com o foco e o nome sem a extensao selecionado, selecionar o texto com o mouse | O trecho selecionado e a regra do clique devagar sao testados, mas o foco, o mouse e o temporizador so existem com a janela aberta. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario rename (app fechado; AGENTS.md, armadilha 27): F2 e clique devagar (le a selecao pelo UI Automation), arrasto do mouse dentro da caixa (o arquivo nao pode sair do lugar), Enter renomeia no disco e deixa o item com o novo nome selecionado e com o foco (a pasta que o contem nao), e Esc cancela. |
+| Menu da Lixeira na tela, Localizar (Abrir em Janela e coluna ajustada com o mouse) e a janela Itens duplicados aberta pelo botao do grupo Pasta | As regras sao testadas sem janela, mas o menu, o botao, as janelas e o arrasto da borda do cabecalho so existem com o app aberto. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario newfeatures (app fechado; AGENTS.md, armadilhas 28 a 30): botao direito na Lixeira (so le o menu e recusa a pergunta de esvaziar), Localizar e Abrir em Janela, largura da coluna Nome antes e depois de arrastar a borda, Duplicados nos tipos Padrao e Profundo; cada verificacao sai [OK] ou [FALHOU]. |
 | Esvaziar a Lixeira de verdade (SHEmptyRecycleBin) | Apaga para sempre a Lixeira do usuario; os testes trocam a chamada do Windows por uma de mentira e os roteiros de tela recusam a pergunta. | Numa maquina de teste, jogar arquivos de teste na Lixeira, botao direito na Lixeira > Esvaziar Lixeira > Sim e conferir que a Lixeira ficou vazia nos dois paineis. |
 | Janelas de dialogo (progresso, conexao de rede, ordenar, excluir) | Janelas WPF; sem teste automatico. | Abrir cada uma no app. |
 | Restaurar e excluir de verdade da Lixeira | Mexe na lixeira real do usuario; so as travas sao testadas. | Com arquivos de teste, na tela. |
@@ -844,18 +844,24 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - A_folder_has_no_size_of_its_own_and_is_flagged_as_a_directory
 - A_folder_the_user_may_not_list_is_counted_as_unreadable_and_the_rest_still_adds_up
 - A_junction_is_counted_as_a_folder_but_is_not_followed_so_nothing_is_counted_twice_or_forever
+- A_large_file_gets_the_same_md5_and_sha256_as_the_framework_computes_in_one_go
+- A_missing_file_fails_with_a_file_system_error_for_both_sums
 - A_path_that_no_longer_exists_has_no_properties
 - A_plain_text_file_has_no_executable_details_and_no_image_size
 - An_empty_folder_has_nothing_inside
 - An_executable_or_library_reports_its_version_details
 - An_image_reports_its_width_and_height_in_pixels
 - Attributes_reflect_what_is_set_on_the_file
+- Cancelled_sums_stop_instead_of_finishing
 - Loose_files_in_the_selection_count_as_files_next_to_the_folder_contents
 - Rounding_a_size_up_to_the_cluster (5 casos)
 - The_owner_of_a_file_created_by_this_user_is_this_user
+- The_sha256_and_md5_of_known_content_match_the_published_values (3 casos)
 - The_sha256_of_known_content_matches_the_published_value (2 casos)
 - The_sha256_reports_progress_up_to_the_end
 - The_size_on_disk_is_the_size_rounded_up_to_whole_clusters
+- The_sums_report_progress_up_to_the_end
+- The_two_sums_come_from_one_read_and_the_sha256_alone_is_unchanged
 
 ### ItemPropertiesViewModelTests (ItemPropertiesViewModelTests.cs)
 
@@ -864,6 +870,7 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - A_file_that_cannot_be_read_explains_it_in_the_sha256_row
 - A_file_that_is_a_favorite_says_so
 - A_file_that_is_gone_says_so_instead_of_showing_empty_rows
+- A_folder_has_neither_the_sha256_nor_the_md5_row
 - A_folder_shows_what_is_inside_it_once_the_count_finishes
 - A_library_shows_a_details_section_with_its_version
 - An_empty_folder_says_it_is_empty
@@ -872,10 +879,13 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Attribute_names (4 casos)
 - Attributes_are_listed_by_name_in_portuguese
 - Closing_the_window_while_a_folder_is_being_counted_stops_quietly
+- Computing_fills_the_md5_row_together_with_the_sha256_row
 - Computing_the_sha256_fills_its_row_and_gives_the_button_back
 - Items_from_different_folders_say_there_are_several_locations
 - Several_items_are_summed_and_the_common_folder_is_shown
 - Sizes_are_written_in_the_app_format_followed_by_the_exact_bytes
+- The_button_says_it_calculates_both_sums
+- The_md5_row_sits_right_after_the_sha256_row_and_starts_as_not_calculated
 
 ### LegacyPasswordMigrationTests (SecurityTests.cs)
 
@@ -1091,13 +1101,18 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - A_file_starts_with_the_name_selected_but_not_the_extension_and_a_folder_with_everything (11 casos)
 - A_folder_can_be_renamed_by_a_slow_click_too
 - A_slow_click_renames_the_item_that_was_already_the_only_one_selected
+- After_renaming_a_file_the_item_with_the_new_name_is_the_only_one_selected
+- After_renaming_a_folder_the_folder_with_the_new_name_is_selected
 - An_item_inside_a_selection_of_several_does_not_start_renaming
 - An_item_that_was_not_selected_yet_does_not_start_renaming
 - Cancelling_leaves_the_name_untouched
+- Cancelling_or_keeping_the_same_name_announces_nothing
 - Committing_a_new_name_renames_the_file_on_disk
 - Confirming_the_same_name_changes_nothing
 - Nothing_starts_renaming_while_another_item_is_being_renamed
+- Renaming_announces_the_new_path_so_the_screen_can_give_it_the_focus
 - Starting_to_rename_fills_the_box_with_the_current_name_and_says_so
+- The_old_name_is_not_left_selected_after_renaming
 - The_selected_range_never_leaves_the_text
 
 ### RowDensitySettingTests (NavigationTests.cs)

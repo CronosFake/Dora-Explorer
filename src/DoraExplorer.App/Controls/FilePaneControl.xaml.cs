@@ -356,6 +356,7 @@ public partial class FilePaneControl : UserControl
             oldViewModel.NavigationApplied -= OnNavigationApplied;
             oldViewModel.RenamingStarted -= OnRenamingStarted;
             oldViewModel.RenamingEnded -= OnRenamingEnded;
+            oldViewModel.ItemRenamed -= OnItemRenamed;
         }
 
         if (e.NewValue is FilePaneViewModel newViewModel)
@@ -365,6 +366,7 @@ public partial class FilePaneControl : UserControl
             newViewModel.NavigationApplied += OnNavigationApplied;
             newViewModel.RenamingStarted += OnRenamingStarted;
             newViewModel.RenamingEnded += OnRenamingEnded;
+            newViewModel.ItemRenamed += OnItemRenamed;
         }
     }
 
@@ -3168,6 +3170,48 @@ public partial class FilePaneControl : UserControl
             if (node is not null && attempt < maxAttempts)
             {
                 FocusAfterRemoval(path, attempt + 1);
+                return;
+            }
+
+            NavigationTree.Focus();
+        }, DispatcherPriority.Loaded);
+    }
+
+    private void OnItemRenamed(object? sender, PathRenamedEventArgs e) => FocusAfterRename(e.NewPath, attempt: 0);
+
+    /// <summary>
+    /// Depois de renomear a pasta que contém o item é recarregada e o TreeViewItem que tinha o foco deixa de existir (a seleção caía na
+    /// pasta). Espera a árvore ser refeita (até 6 tentativas em <see cref="DispatcherPriority.Loaded"/>), deixa o item com o NOVO nome
+    /// como único selecionado e devolve a ele o foco do teclado, como <see cref="FocusAfterRemoval"/> faz depois de apagar.
+    /// </summary>
+    private void FocusAfterRename(string path, int attempt)
+    {
+        const int maxAttempts = 6;
+
+        Dispatcher.BeginInvoke(() =>
+        {
+            var node = ViewModel?.FindNodeByPath(path);
+            if (node is not null && FindTreeViewItemForNode(NavigationTree, node) is TreeViewItem item)
+            {
+                _suppressSelectionSync = true;
+                try
+                {
+                    ViewModel?.SetSingleItemSelection(node);
+                    SelectExpandedNode(item, node, preserveItemSelection: true);
+                }
+                finally
+                {
+                    _suppressSelectionSync = false;
+                }
+
+                // Pelo teclado: o item novo pode cair noutra posição (ordenação por nome) e precisa ficar visível.
+                FocusNavigationItem(item, keyboardNavigation: true);
+                return;
+            }
+
+            if (attempt < maxAttempts)
+            {
+                FocusAfterRename(path, attempt + 1);
                 return;
             }
 

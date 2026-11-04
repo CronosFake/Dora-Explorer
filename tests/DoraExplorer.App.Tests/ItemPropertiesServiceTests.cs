@@ -302,6 +302,83 @@ public sealed class ItemPropertiesServiceTests : IDisposable
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
+    // ---- SHA-256 e MD5 numa leitura só ----
+
+    [Theory]
+    [InlineData("abc", "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", "900150983cd24fb0d6963f7d28e17f72")]
+    [InlineData("", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "d41d8cd98f00b204e9800998ecf8427e")]
+    [InlineData("The quick brown fox jumps over the lazy dog", "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592", "9e107d9d372bb6826bd81d3542a419d6")]
+    public async Task The_sha256_and_md5_of_known_content_match_the_published_values(string content, string sha256, string md5)
+    {
+        var path = NewFile("hashes.txt", content);
+
+        var hashes = await ItemPropertiesService.ComputeHashesAsync(path);
+
+        hashes.Sha256.Should().Be(sha256);
+        hashes.Md5.Should().Be(md5, "o MD5 sai em hexadecimal minúsculo, como o SHA-256");
+    }
+
+    [Fact]
+    public async Task A_large_file_gets_the_same_md5_and_sha256_as_the_framework_computes_in_one_go()
+    {
+        // Maior que o bloco de leitura (80 KB) e com tamanho quebrado: confere que nenhum bloco é pulado ou contado duas vezes.
+        var bytes = new byte[300_000 + 17];
+        new Random(42).NextBytes(bytes);
+        var path = Path.Combine(_work, "aleatorio.bin");
+        await File.WriteAllBytesAsync(path, bytes);
+
+        var hashes = await ItemPropertiesService.ComputeHashesAsync(path);
+
+#pragma warning disable CA5351 // referência independente (o MD5 do framework numa chamada só), usada apenas para conferir a soma
+        var expectedMd5 = Convert.ToHexString(System.Security.Cryptography.MD5.HashData(bytes)).ToLowerInvariant();
+#pragma warning restore CA5351
+        hashes.Md5.Should().Be(expectedMd5);
+        hashes.Sha256.Should().Be(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant());
+    }
+
+    [Fact]
+    public async Task The_two_sums_come_from_one_read_and_the_sha256_alone_is_unchanged()
+    {
+        var path = NewFile("par.txt", "abc");
+
+        var hashes = await ItemPropertiesService.ComputeHashesAsync(path);
+
+        hashes.Sha256.Should().Be(await ItemPropertiesService.ComputeSha256Async(path));
+    }
+
+    [Fact]
+    public async Task The_sums_report_progress_up_to_the_end()
+    {
+        var path = NewFile("grande2.bin", new string('y', 300_000));
+        var steps = new List<double>();
+
+        await ItemPropertiesService.ComputeHashesAsync(path, new SynchronousProgress(steps.Add));
+
+        steps.Should().NotBeEmpty();
+        steps.Should().BeInAscendingOrder();
+        steps[^1].Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Cancelled_sums_stop_instead_of_finishing()
+    {
+        var path = NewFile("cancelado2.bin", new string('y', 300_000));
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        var act = () => ItemPropertiesService.ComputeHashesAsync(path, null, cancellation.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task A_missing_file_fails_with_a_file_system_error_for_both_sums()
+    {
+        var act = () => ItemPropertiesService.ComputeHashesAsync(Path.Combine(_work, "nao-existe.bin"));
+
+        await act.Should().ThrowAsync<FileNotFoundException>();
+    }
+
     // ---- unidade ----
 
     [Fact]

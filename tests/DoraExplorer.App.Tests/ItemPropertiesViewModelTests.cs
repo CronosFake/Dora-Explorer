@@ -253,6 +253,46 @@ public sealed class ItemPropertiesViewModelTests : IDisposable
         model.HashButtonText.Should().Be(ItemPropertiesViewModel.HashButtonIdle);
     }
 
+    // ---- MD5 ao lado do SHA-256
+
+    [Fact]
+    public async Task The_md5_row_sits_right_after_the_sha256_row_and_starts_as_not_calculated()
+    {
+        var model = await Loaded(FileNode(NewFile("ordem.txt", "abc")));
+
+        var rows = model.Sections.Single(section => section.Title == "Verificação").Rows;
+
+        rows.Select(row => row.Label).Should().Equal("SHA-256", "MD5");
+        Row(model, "Verificação", "MD5").Should().Be(ItemPropertiesViewModel.HashIdleText);
+    }
+
+    [Fact]
+    public async Task Computing_fills_the_md5_row_together_with_the_sha256_row()
+    {
+        var model = await Loaded(FileNode(NewFile("abc2.txt", "abc")));
+
+        await model.ComputeHashAsync();
+
+        Row(model, "Verificação", "MD5").Should().Be("900150983cd24fb0d6963f7d28e17f72");
+        Row(model, "Verificação", "SHA-256").Should().Be("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    }
+
+    [Fact]
+    public void The_button_says_it_calculates_both_sums()
+    {
+        ItemPropertiesViewModel.HashButtonIdle.Should().Be("Calcular SHA-256 e MD5");
+    }
+
+    [Fact]
+    public async Task A_folder_has_neither_the_sha256_nor_the_md5_row()
+    {
+        var folder = Path.Combine(_work, "sem-hash");
+        Directory.CreateDirectory(folder);
+        var model = await Loaded(new NavigationTreeNodeViewModel("sem-hash", NavigationNodeKind.Directory, folder));
+
+        model.Sections.SelectMany(section => section.Rows).Select(row => row.Label).Should().NotContain(["SHA-256", "MD5"]);
+    }
+
     [Fact]
     public async Task Asking_again_while_the_sha256_runs_cancels_it()
     {
@@ -270,6 +310,7 @@ public sealed class ItemPropertiesViewModelTests : IDisposable
         await running;
 
         Row(model, "Verificação", "SHA-256").Should().Be("Cálculo cancelado");
+        Row(model, "Verificação", "MD5").Should().Be("Cálculo cancelado");
         model.HashButtonText.Should().Be(ItemPropertiesViewModel.HashButtonIdle);
     }
 
@@ -283,6 +324,7 @@ public sealed class ItemPropertiesViewModelTests : IDisposable
         await model.ComputeHashAsync();
 
         Row(model, "Verificação", "SHA-256").Should().StartWith("Não foi possível ler o arquivo");
+        Row(model, "Verificação", "MD5").Should().StartWith("Não foi possível ler o arquivo");
         model.HashButtonText.Should().Be(ItemPropertiesViewModel.HashButtonIdle);
     }
 }

@@ -26,7 +26,7 @@
             <Setter Property="Focusable" Value="True" />
         </Style>
 
-        <!-- O botão do SHA-256 só existe para arquivos do disco (para pastas e itens de fora ele some) -->
+        <!-- O botão das somas (SHA-256 e MD5) só existe para arquivos do disco (para pastas e itens de fora ele some) -->
         <Style x:Key="HashButtonStyle" TargetType="Button" BasedOn="{StaticResource DialogButtonStyle}">
             <Setter Property="Visibility" Value="Collapsed" />
             <Style.Triggers>

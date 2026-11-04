@@ -30,13 +30,13 @@ public sealed class PropertySectionViewModel(string title, IReadOnlyList<Propert
 /// <summary>
 /// O que a janela Propriedades mostra para um item, vários itens, uma unidade ou um item que não está no disco local (servidor,
 /// dentro de arquivo compactado). Monta o texto em português e completa em segundo plano o que demora: o que há dentro de pastas
-/// e o SHA-256, que a pessoa pede. Fechar a janela (<see cref="Dispose"/>) cancela o que estiver rodando.
+/// e o SHA-256 e o MD5, que a pessoa pede. Fechar a janela (<see cref="Dispose"/>) cancela o que estiver rodando.
 /// </summary>
 public sealed partial class ItemPropertiesViewModel : ObservableObject, IDisposable
 {
     public const string CalculatingText = "Calculando…";
     public const string HashIdleText = "Ainda não calculado";
-    public const string HashButtonIdle = "Calcular SHA-256";
+    public const string HashButtonIdle = "Calcular SHA-256 e MD5";
     public const string HashButtonRunning = "Cancelar cálculo";
 
     private static readonly CultureInfo Br = CultureInfo.GetCultureInfo("pt-BR");
@@ -45,6 +45,7 @@ public sealed partial class ItemPropertiesViewModel : ObservableObject, IDisposa
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _hashCancellation;
     private PropertyRowViewModel? _hashRow;
+    private PropertyRowViewModel? _md5Row;
     private string? _hashPath;
     private readonly object _gate = new();
     private bool _totalsFinished;
@@ -234,10 +235,13 @@ public sealed partial class ItemPropertiesViewModel : ObservableObject, IDisposa
 
         if (!properties.IsDirectory)
         {
+            // SHA-256 primeiro (o que serve para conferir integridade com segurança); o MD5 vem junto, na mesma leitura do arquivo, para
+            // comparar com sites que só publicam MD5.
             _hashRow = new PropertyRowViewModel("SHA-256", HashIdleText);
+            _md5Row = new PropertyRowViewModel("MD5", HashIdleText);
             _hashPath = path;
             CanComputeHash = true;
-            Sections.Add(new PropertySectionViewModel("Verificação", [_hashRow]));
+            Sections.Add(new PropertySectionViewModel("Verificação", [_hashRow, _md5Row]));
         }
 
         IsLoading = false;
@@ -433,10 +437,13 @@ public sealed partial class ItemPropertiesViewModel : ObservableObject, IDisposa
         }
     }
 
-    /// <summary>Calcula o SHA-256 do arquivo (ou cancela, se já estiver calculando). O resultado vai para a linha "SHA-256".</summary>
+    /// <summary>
+    /// Calcula o SHA-256 e o MD5 do arquivo numa leitura só (ou cancela, se já estiver calculando). Os resultados vão para as linhas
+    /// "SHA-256" e "MD5"; o andamento, o cancelamento e a falha de leitura aparecem nas duas.
+    /// </summary>
     public async Task ComputeHashAsync()
     {
-        if (_hashRow is null || _hashPath is null)
+        if (_hashRow is null || _md5Row is null || _hashPath is null)
         {
             return;
         }
@@ -450,34 +457,44 @@ public sealed partial class ItemPropertiesViewModel : ObservableObject, IDisposa
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _hashCancellation = cancellation;
         HashButtonText = HashButtonRunning;
-        _hashRow.Value = $"Calculando… {0.ToString("P0", Br)}";
-        var row = _hashRow;
+        var waiting = $"Calculando… {0.ToString("P0", Br)}";
+        _hashRow.Value = waiting;
+        _md5Row.Value = waiting;
+        var sha256Row = _hashRow;
+        var md5Row = _md5Row;
         var finished = false;
-        void Show(string text, bool final)
+        void Show(string sha256, string md5, bool final)
         {
             lock (_gate)
             {
                 if (!finished)
                 {
-                    row.Value = text;
+                    sha256Row.Value = sha256;
+                    md5Row.Value = md5;
                     finished = final;
                 }
             }
         }
 
-        var progress = new Progress<double>(fraction => Show($"Calculando… {fraction.ToString("P0", Br)}", final: false));
+        var progress = new Progress<double>(fraction =>
+        {
+            var text = $"Calculando… {fraction.ToString("P0", Br)}";
+            Show(text, text, final: false);
+        });
 
         try
         {
-            Show(await ItemPropertiesService.ComputeSha256Async(_hashPath, progress, cancellation.Token).ConfigureAwait(true), final: true);
+            var hashes = await ItemPropertiesService.ComputeHashesAsync(_hashPath, progress, cancellation.Token).ConfigureAwait(true);
+            Show(hashes.Sha256, hashes.Md5, final: true);
         }
         catch (OperationCanceledException)
         {
-            Show("Cálculo cancelado", final: true);
+            Show("Cálculo cancelado", "Cálculo cancelado", final: true);
         }
         catch (Exception ex) when (ExpectedFailures.IsFileSystem(ex))
         {
-            Show("Não foi possível ler o arquivo: " + FileErrorText.WithoutMarker(FileErrorText.Describe(ex, _hashPath)), final: true);
+            var message = "Não foi possível ler o arquivo: " + FileErrorText.WithoutMarker(FileErrorText.Describe(ex, _hashPath));
+            Show(message, message, final: true);
         }
         finally
         {

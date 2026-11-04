@@ -72,7 +72,7 @@ public partial class PropertiesDialog : Window
         }
         catch (Exception ex)
         {
-            AppLogService.Error("Falha ao calcular o SHA-256", ex);
+            AppLogService.Error("Falha ao calcular o SHA-256 e o MD5", ex);
         }
     }
 

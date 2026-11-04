@@ -31,7 +31,7 @@
 #             solta uma pasta na RAIZ da unidade (linha C: aberta). Mesmo formato de resultado e de restauracao dos outros roteiros.
 #   rename  : F2 e clique devagar no nome (como no Explorer): a caixa abre ja com o foco, o nome vem selecionado sem a extensao (pasta: tudo),
 #             selecionar o texto com o mouse nao arrasta o arquivo, Enter renomeia no disco e Esc cancela.
-#   newfeatures: menu de contexto da Lixeira (so le; recusa a confirmacao de esvaziar), Localizar (Nova janela e coluna ajustavel) e a janela
+#   newfeatures: menu de contexto da Lixeira (so le; recusa a confirmacao de esvaziar), Localizar (Abrir em Janela e coluna ajustavel) e a janela
 #             de Duplicados aberta pelo botao do grupo Pasta, nos tipos Padrao e Profundo.
 #   about   : abre Ajuda > Sobre e confere que a tela mostra a versao declarada em <Version> no csproj do app (AGENTS.md: versao).
 #             Mesmo formato de resultado e de restauracao do estado do usuario dos outros roteiros com [OK] e [FALHOU].
@@ -1128,11 +1128,15 @@ public static class FrameCount {
                 Check 'o tipo mostra a extensao' ((Prop $m '^Tipo$') -match '\(\.txt\)$') (Prop $m '^Tipo$')
                 Snap $dlg 'props-arquivo-escuro'
                 # SHA-256 sob demanda, conferido contra o Windows
-                Check 'o botao Calcular SHA-256 existe' (Press-DialogButton $dlg 'Calcular SHA-256')
+                Check 'o botao Calcular SHA-256 e MD5 existe' (Press-DialogButton $dlg 'Calcular SHA-256 e MD5')
                 $expected = (Get-FileHash -LiteralPath $file1 -Algorithm SHA256).Hash.ToLowerInvariant()
+                $expectedMd5 = (Get-FileHash -LiteralPath $file1 -Algorithm MD5).Hash.ToLowerInvariant()
                 $sw = [Diagnostics.Stopwatch]::StartNew(); $hash = $null
                 while ($sw.ElapsedMilliseconds -lt 8000) { $hash = Prop (Read-Props ($AE::FromHandle($dlg))) '^SHA-256'; if ($hash -match '^[0-9a-f]{64}$') { break }; Start-Sleep -Milliseconds 300 }
                 Check 'o SHA-256 mostrado e o mesmo do Get-FileHash' ($hash -eq $expected) "$hash"
+                $md5 = Prop (Read-Props ($AE::FromHandle($dlg))) '^MD5'
+                Check 'o MD5 mostrado e o mesmo do Get-FileHash -Algorithm MD5' ($md5 -eq $expectedMd5) "$md5"
+                Snap $dlg 'props-arquivo-hashes'
                 # tema claro: a janela aberta muda junto?
                 [void](Menu-Invoke $root 'Temas' 'Claro' 'Tema')
                 Start-Sleep -Milliseconds 800
@@ -1149,7 +1153,7 @@ public static class FrameCount {
                 while ($sw.ElapsedMilliseconds -lt 8000) { $m = Read-Props ($AE::FromHandle($dlg)); if ((Prop $m '^Conte.do') -match '^\d+ arquivo') { break }; Start-Sleep -Milliseconds 300 }
                 Check 'o conteudo da pasta e contado (1 arquivo, 0 pastas)' ((Prop $m '^Conte.do') -eq '1 arquivo, 0 pastas') (Prop $m '^Conte.do')
                 Check 'o tamanho da pasta e a soma do que ha dentro' ((Prop $m '^Tamanho$') -match '\(3 bytes\)') (Prop $m '^Tamanho$')
-                Check 'a pasta nao tem o botao SHA-256' (-not (Press-DialogButton $dlg 'Calcular SHA-256'))
+                Check 'a pasta nao tem o botao SHA-256 e MD5' (-not (Press-DialogButton $dlg 'Calcular SHA-256 e MD5'))
                 Snap $dlg 'props-pasta'
                 [void](Press-DialogButton $dlg 'OK')
             }
@@ -1288,6 +1292,18 @@ public static class FrameCount {
                 [System.Windows.Forms.SendKeys]::SendWait('novo-nome.docx'); Start-Sleep -Milliseconds 300
                 [System.Windows.Forms.SendKeys]::SendWait('{ENTER}'); Start-Sleep -Milliseconds 1500
                 Check 'Enter confirma e o arquivo foi renomeado no disco' ((Test-Path -LiteralPath (Join-Path $uiRoot 'novo-nome.docx')) -and -not (Test-Path -LiteralPath (Join-Path $uiRoot 'relatorio.final1.docx'))) (Names-In $uiRoot)
+                # depois do Enter o item com o NOVO nome fica selecionado e com o foco, e a pasta que o contem nao
+                $renamedRow = Wait-Row (Ui-Item $root 0) 'novo-nome.docx' 8000
+                Check 'o item com o novo nome aparece na lista' ($null -ne $renamedRow)
+                if ($renamedRow) {
+                    $isSelected = try { $renamedRow.GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Current.IsSelected } catch { $false }
+                    Check 'depois do Enter o item com o NOVO nome fica selecionado' $isSelected
+                    Start-Sleep -Milliseconds 600
+                    Check 'e fica com o foco do teclado' ((Focused-Name) -like '*novo-nome.docx*') (Focused-Name)
+                }
+                $parentSelected = try { (Ui-Item $root 0).GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Current.IsSelected } catch { $false }
+                Check 'a pasta que contem o item NAO fica selecionada' (-not $parentSelected)
+                Snap-Screen $h 'rename-2b-depois-do-enter'
             }
 
             # 2) clique devagar: selecionar, esperar mais que o duplo clique e clicar no NOME de novo
@@ -1320,7 +1336,7 @@ public static class FrameCount {
             Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
         }
         'newfeatures' {
-            # Menu da Lixeira (botao direito na linha dela), Localizar (colunas e Nova janela) e Duplicados (Pasta no menu central).
+            # Menu da Lixeira (botao direito na linha dela), Localizar (colunas e Abrir em Janela) e Duplicados (Pasta no menu central).
             $root.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern).Move(0, 0); Start-Sleep -Milliseconds 800
             # ---- Lixeira: so le o menu; nunca esvazia a Lixeira do usuario (a confirmacao e recusada)
             $bin = @(TopItems $root 0) | Where-Object { $_.Current.Name -like 'Lixeira*' } | Select-Object -First 1
@@ -1344,19 +1360,19 @@ public static class FrameCount {
                 } else { Close-Menu; 'a Lixeira esta vazia nesta maquina: Esvaziar Lixeira aparece desligado (nada a confirmar)' }
             }
 
-            # ---- Localizar: abre o menu, pesquisa, abre em Nova janela e ajusta uma coluna
+            # ---- Localizar: abre o menu, pesquisa, abre os resultados em janela e ajusta uma coluna
             Expand ((TopItems $root 0)[0]); [void](Choose-Item (Child ((TopItems $root 0)[0]) (Split-Path $uiRoot -Leaf)))
             [void](Ensure-Foreground $h)
             Check 'o botao Localizar abre o menu' (Invoke-Button $root 'Localizar*')
             Start-Sleep -Milliseconds 600
             [System.Windows.Forms.SendKeys]::SendWait('achado-raro{ENTER}'); Start-Sleep -Milliseconds 2500
-            $newWin = $root.FindAll($TS::Descendants, (Cond $CT::Button)) | Where-Object { $_.Current.Name -eq 'Nova janela' } | Select-Object -First 1
-            Check 'o menu Localizar tem o botao Nova janela' ($null -ne $newWin)
+            $newWin = $root.FindAll($TS::Descendants, (Cond $CT::Button)) | Where-Object { $_.Current.Name -eq 'Abrir em Janela' } | Select-Object -First 1
+            Check 'o menu Localizar tem o botao Abrir em Janela' ($null -ne $newWin)
             Snap-Screen $h 'newfeatures-2-localizar-menu'
             if ($newWin) {
                 $newWin.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 1500
                 $sw = Wait-Dialog $proc.Id 'Localizar' 6000
-                Check 'Nova janela abre a janela Localizar com os resultados' ($sw -ne [IntPtr]::Zero)
+                Check 'Abrir em Janela abre a janela Localizar com os resultados' ($sw -ne [IntPtr]::Zero)
                 if ($sw -ne [IntPtr]::Zero) {
                     $win = $AE::FromHandle($sw)
                     $items = @($win.FindAll($TS::Descendants, (Cond $CT::DataItem)) + $win.FindAll($TS::Descendants, (Cond $CT::ListItem)))

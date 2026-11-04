@@ -164,6 +164,93 @@ public sealed class RenameTests : IDisposable
         pane.RenamingNode.Should().BeNull();
     }
 
+    // ---- depois de confirmar, o item com o NOVO nome fica selecionado (e nada mais, nem a pasta que o contém)
+
+    [Fact]
+    public void After_renaming_a_file_the_item_with_the_new_name_is_the_only_one_selected()
+    {
+        var (pane, file, _) = PaneWithFileAndFolder();
+        var node = PaneTestHarness.Find(pane, file)!;
+        pane.SetSingleItemSelection(node);
+        pane.BeginRenameNode(node);
+        node.RenameText = "novo.txt";
+        var newPath = Path.Combine(Path.GetDirectoryName(file)!, "novo.txt");
+
+        pane.CommitRename();
+
+        var renamed = PaneTestHarness.Find(pane, newPath);
+        renamed.Should().NotBeNull("a pasta foi recarregada e o item novo está na árvore");
+        pane.SelectedItems.Should().ContainSingle().Which.Should().BeSameAs(renamed);
+        renamed!.IsItemSelected.Should().BeTrue();
+        pane.SelectedNode.Should().BeSameAs(renamed, "a seleção não pode ir para a pasta que contém o item");
+        pane.GetSelectedItemPath().Should().Be(newPath);
+    }
+
+    [Fact]
+    public void After_renaming_a_folder_the_folder_with_the_new_name_is_selected()
+    {
+        var (pane, _, folder) = PaneWithFileAndFolder();
+        var node = PaneTestHarness.Find(pane, folder)!;
+        pane.SetSingleItemSelection(node);
+        pane.BeginRenameNode(node);
+        node.RenameText = "pasta-nova";
+        var newPath = Path.Combine(Path.GetDirectoryName(folder)!, "pasta-nova");
+
+        pane.CommitRename();
+
+        var renamed = PaneTestHarness.Find(pane, newPath);
+        renamed.Should().NotBeNull();
+        pane.SelectedItems.Should().ContainSingle().Which.Should().BeSameAs(renamed);
+        pane.GetSelectedItemPath().Should().Be(newPath);
+    }
+
+    [Fact]
+    public void The_old_name_is_not_left_selected_after_renaming()
+    {
+        var (pane, file, _) = PaneWithFileAndFolder();
+        var node = PaneTestHarness.Find(pane, file)!;
+        pane.SetSingleItemSelection(node);
+        pane.BeginRenameNode(node);
+        node.RenameText = "outro.txt";
+
+        pane.CommitRename();
+
+        pane.SelectedItems.Select(item => item.TargetPath).Should().NotContain(file);
+        PaneTestHarness.Find(pane, file).Should().BeNull("o nome antigo não existe mais");
+    }
+
+    [Fact]
+    public void Renaming_announces_the_new_path_so_the_screen_can_give_it_the_focus()
+    {
+        var (pane, file, _) = PaneWithFileAndFolder();
+        var node = PaneTestHarness.Find(pane, file)!;
+        var announced = new List<string>();
+        pane.ItemRenamed += (_, e) => announced.Add(e.NewPath);
+        pane.BeginRenameNode(node);
+        node.RenameText = "avisado.txt";
+
+        pane.CommitRename();
+
+        announced.Should().Equal(Path.Combine(Path.GetDirectoryName(file)!, "avisado.txt"));
+    }
+
+    [Fact]
+    public void Cancelling_or_keeping_the_same_name_announces_nothing()
+    {
+        var (pane, file, _) = PaneWithFileAndFolder();
+        var node = PaneTestHarness.Find(pane, file)!;
+        var announced = 0;
+        pane.ItemRenamed += (_, _) => announced++;
+
+        pane.BeginRenameNode(node);
+        node.RenameText = "descartado.txt";
+        pane.CancelRename();
+        pane.BeginRenameNode(node);
+        pane.CommitRename();
+
+        announced.Should().Be(0);
+    }
+
     [Fact]
     public void Cancelling_leaves_the_name_untouched()
     {
