@@ -447,6 +447,7 @@ public partial class FilePaneControl : UserControl
         }, attempt < 4 ? DispatcherPriority.Loaded : DispatcherPriority.Render);
     }
 
+
     private void ScheduleSearchReveal(NavigationTreeNodeViewModel node)
     {
         var version = ViewModel?.SearchNavigationGeneration ?? 0;
@@ -455,14 +456,21 @@ public partial class FilePaneControl : UserControl
             return;
         }
 
-        var scrollViewer = _treeScrollViewer ?? FindScrollViewer(NavigationTree);
-        if (scrollViewer is not null)
+        // As primeiras passadas rodam agora, uma atrás da outra no mesmo turno do Dispatcher: o WPF só desenha entre turnos,
+        // então a tela vai direto da lista antiga para o arquivo selecionado, sem mostrar a pasta no topo nem um salto
+        // intermediário. Só se ainda faltar o container do alvo depois delas as tentativas esperam um quadro.
+        for (var attempt = 0; attempt < SynchronousRevealPasses; attempt++)
         {
-            TreeScrollHelper.JumpScrollNearTarget(node, ViewModel.NavigationRoots, scrollViewer);
+            if (ExecuteSearchRevealPass(node, version, attempt))
+            {
+                return;
+            }
         }
 
-        RunSearchRevealPass(node, version, attempt: 0);
+        RunSearchRevealPass(node, version, SynchronousRevealPasses);
     }
+
+    private const int SynchronousRevealPasses = 3;
 
     private void RunSearchRevealPass(NavigationTreeNodeViewModel node, int version, int attempt)
     {
@@ -474,57 +482,71 @@ public partial class FilePaneControl : UserControl
 
         var priority = attempt switch
         {
-            0 => DispatcherPriority.Loaded,
             <= 2 => DispatcherPriority.Render,
             _ => DispatcherPriority.ApplicationIdle
         };
 
         Dispatcher.BeginInvoke(() =>
         {
-            if (!IsSearchRevealCurrent(version) || ViewModel is null)
-            {
-                return;
-            }
-
-            RunSuppressingReveal(() =>
-            {
-                EnsureTreeContainersForNode(node);
-                MaterializeParentFolderContainers(node);
-                ApplyExpansionFromViewModel(NavigationTree);
-                TreeViewHierarchy.UpdateTree(NavigationTree);
-            });
-
-            var scrollViewer = _treeScrollViewer ?? FindScrollViewer(NavigationTree);
-            var item = FindTreeViewItemForNode(NavigationTree, node);
-
-            if (scrollViewer is not null)
-            {
-                if (item is not null)
-                {
-                    SelectSearchTreeItem(item, node);
-                    scrollViewer.UpdateLayout();
-                    NavigationTree.UpdateLayout();
-                    item.UpdateLayout();
-                    TreeScrollHelper.TryCenterSearchItem(
-                        item,
-                        node,
-                        ViewModel.NavigationRoots,
-                        scrollViewer);
-                }
-                else
-                {
-                    TreeScrollHelper.JumpScrollNearTarget(node, ViewModel.NavigationRoots, scrollViewer);
-                }
-            }
-
-            if (item is null && attempt < maxAttempts)
+            if (!ExecuteSearchRevealPass(node, version, attempt) && attempt < maxAttempts)
             {
                 RunSearchRevealPass(node, version, attempt + 1);
-                return;
             }
-
-            ViewModel.ClearCenterNavigatedNode(version);
         }, priority);
+    }
+
+    /// <summary>
+    /// Uma passada para mostrar o resultado do Localizar/Duplicados: gera os containers do caminho, seleciona o item e o
+    /// centraliza. Devolve true quando terminou (achou o item, ou a navegação já foi substituída por outra) e false quando o
+    /// container do alvo ainda não existe e vale tentar de novo.
+    /// </summary>
+    private bool ExecuteSearchRevealPass(NavigationTreeNodeViewModel node, int version, int attempt)
+    {
+        const int maxAttempts = 8;
+        if (!IsSearchRevealCurrent(version) || ViewModel is null)
+        {
+            return true;
+        }
+
+        RunSuppressingReveal(() =>
+        {
+            EnsureTreeContainersForNode(node);
+            MaterializeParentFolderContainers(node);
+            ApplyExpansionFromViewModel(NavigationTree);
+            TreeViewHierarchy.UpdateTree(NavigationTree);
+        });
+
+        var scrollViewer = _treeScrollViewer ?? FindScrollViewer(NavigationTree);
+        var item = FindTreeViewItemForNode(NavigationTree, node);
+
+        if (scrollViewer is not null)
+        {
+            if (item is not null)
+            {
+                SelectSearchTreeItem(item, node);
+                scrollViewer.UpdateLayout();
+                NavigationTree.UpdateLayout();
+                item.UpdateLayout();
+                TreeScrollHelper.TryCenterSearchItem(
+                    item,
+                    node,
+                    ViewModel.NavigationRoots,
+                    scrollViewer,
+                    BuildRowMetrics());
+            }
+            else
+            {
+                JumpTowardTarget(node, scrollViewer, attempt);
+            }
+        }
+
+        if (item is null && attempt < maxAttempts)
+        {
+            return false;
+        }
+
+        ViewModel.ClearCenterNavigatedNode(version);
+        return true;
     }
 
     private void SelectSearchTreeItem(TreeViewItem item, NavigationTreeNodeViewModel node)
@@ -546,6 +568,69 @@ public partial class FilePaneControl : UserControl
         {
             _suppressSelectionScroll = false;
         }
+    }
+
+    /// <summary>
+    /// Leva o scroll para perto do alvo: pela régua de uma linha irmã já desenhada (posição e altura reais) e, se nenhuma
+    /// estiver desenhada, pela estimativa a partir da árvore de ViewModels.
+    /// </summary>
+    private void JumpTowardTarget(NavigationTreeNodeViewModel node, ScrollViewer scrollViewer, int attempt)
+    {
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        if (ViewModel.GetParentNode(node) is { } parent)
+        {
+            // Primeiro por índice (o painel da pasta traz o filho para a tela); se não resolver, pela régua de uma linha
+            // irmã desenhada e, por último, pela estimativa.
+            if (attempt == 0 &&
+                FindTreeViewItemForNode(NavigationTree, parent) is { } parentItem &&
+                TreeScrollHelper.TryBringChildIntoView(parentItem, parent.Children.IndexOf(node), scrollViewer))
+            {
+                return;
+            }
+
+            if (TreeScrollHelper.TryJumpUsingRealizedSibling(NavigationTree, node, parent, scrollViewer))
+            {
+                return;
+            }
+        }
+
+        TreeScrollHelper.JumpScrollNearTarget(node, ViewModel.NavigationRoots, scrollViewer, BuildRowMetrics());
+    }
+
+    /// <summary>
+    /// Altura das linhas para estimar onde o alvo fica: no modo confortável usa a altura real de uma linha de arquivo já
+    /// desenhada (assim a estimativa acompanha o modelo da linha, sem depender de uma constante).
+    /// </summary>
+    private TreeRowMetrics BuildRowMetrics()
+    {
+        var comfortable = ViewModel?.ShowComfortableRows == true;
+        return new TreeRowMetrics(comfortable, comfortable ? MeasureRealizedFileRowHeight() : null);
+    }
+
+    private double? MeasureRealizedFileRowHeight()
+    {
+        var pending = new Stack<DependencyObject>();
+        pending.Push(NavigationTree);
+        while (pending.Count > 0)
+        {
+            var current = pending.Pop();
+            if (current is TreeViewItem { DataContext: NavigationTreeNodeViewModel { IsFile: true, ShowFileMetadataFooter: true } } row &&
+                row.ActualHeight > 0)
+            {
+                return row.ActualHeight;
+            }
+
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(current); i++)
+            {
+                pending.Push(VisualTreeHelper.GetChild(current, i));
+            }
+        }
+
+        return null;
     }
 
     private bool IsSearchRevealCurrent(int version) =>

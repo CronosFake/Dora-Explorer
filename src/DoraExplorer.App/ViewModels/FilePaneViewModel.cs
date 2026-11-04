@@ -695,6 +695,18 @@ public partial class FilePaneViewModel : ObservableObject
                 continue;
             }
 
+            if (child.IsFile && child.Children.Count == 0 && !path.Contains(child))
+            {
+                // Arquivo: não há o que recolher. Em pasta com milhares de arquivos, rodar a verificação de seleção abaixo
+                // para cada um (cada uma varre a árvore inteira atrás do pai) custava de 200 a 300 ms só no Localizar.
+                if (SelectedItems.Count > 0 && SelectedItems.Contains(child))
+                {
+                    ClearItemSelection();
+                }
+
+                continue;
+            }
+
             if (!path.Contains(child))
             {
                 ClearItemSelectionIfUnder(child);
@@ -1025,6 +1037,11 @@ public partial class FilePaneViewModel : ObservableObject
         foreach (var segment in relative.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries))
         {
             var next = FindDirectoryChild(current, segment);
+            if (next is null && _navigationTreeService.CompleteChunkedFill(current))
+            {
+                next = FindDirectoryChild(current, segment);
+            }
+
             if (next is null)
             {
                 if (!current.ChildrenLoaded)
@@ -1112,6 +1129,12 @@ public partial class FilePaneViewModel : ObservableObject
             }
 
             var next = FindDirectoryChild(current, segment);
+            if (next is null && _navigationTreeService.CompleteChunkedFill(current))
+            {
+                // Pasta grande ainda sendo preenchida em lotes: termina agora e procura de novo.
+                next = FindDirectoryChild(current, segment);
+            }
+
             if (next is null)
             {
                 if (IsDirectoryPopulationInProgress(current))
@@ -3283,14 +3306,21 @@ public partial class FilePaneViewModel : ObservableObject
                     var parentNode = FindNodeByPath(parent);
                     if (parentNode is not null)
                     {
-                        if (IsDirectoryPopulationInProgress(parentNode))
+                        // Pasta grande: os filhos só entram na árvore no fim do preenchimento em lotes. Termina agora para o
+                        // arquivo existir como nó (antes ele nem era achado e ficava selecionada só a pasta).
+                        if (_navigationTreeService.CompleteChunkedFill(parentNode))
+                        {
+                            targetNode = FindNodeByPath(item.FullPath);
+                        }
+
+                        if (targetNode is null && IsDirectoryPopulationInProgress(parentNode))
                         {
                             targetNode = _navigationTreeService.TryMaterializeChild(
                                 parentNode,
                                 item.FullPath,
                                 _viewSettings.Options);
                         }
-                        else
+                        else if (targetNode is null)
                         {
                             ReloadDirectoryChildrenForNavigation(parentNode);
                             targetNode = FindNodeByPath(item.FullPath);
@@ -3320,6 +3350,9 @@ public partial class FilePaneViewModel : ObservableObject
             }
 
             var capturedNavId = navId;
+            // Prioridade acima da de desenho (Render): o controle revela o item no mesmo turno em que o WPF ainda não
+            // desenhou a árvore já alterada. Com Loaded (abaixo de Render) a tela mostrava a pasta aberta no topo, depois
+            // o salto até o arquivo (medido: 3 a 5 estados visuais entre o clique e o resultado).
             System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
             {
                 if (capturedNavId != _searchNavigationGeneration)
@@ -3328,7 +3361,7 @@ public partial class FilePaneViewModel : ObservableObject
                 }
 
                 NavigationApplied?.Invoke(this, EventArgs.Empty);
-            }, System.Windows.Threading.DispatcherPriority.Loaded);
+            }, System.Windows.Threading.DispatcherPriority.Normal);
         }
         finally
         {

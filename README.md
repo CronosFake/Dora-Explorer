@@ -114,7 +114,7 @@ O menu central mostra todas as seções em duas colunas, sem rolagem, a partir d
 
 | Botão | Função |
 |-------|--------|
-| **Localizar** | Pesquisa ficheiros e pastas (com opção de incluir subpastas); duplo clique abre o resultado. Colunas ajustáveis, menu que se aumenta pela alça e botão **Abrir em Janela** (ver *Funcionalidades*) |
+| **Localizar** | Pesquisa ficheiros e pastas (com opção de incluir subpastas); duplo clique abre a pasta do resultado, **seleciona o arquivo** e o mostra mais ou menos no meio da lista (também em pastas com milhares de arquivos, no Localizar e nos Duplicados). Colunas ajustáveis, menu que se aumenta pela alça e botão **Abrir em Janela** (ver *Funcionalidades*) |
 | **Nova pasta** | Cria uma pasta na localização atual do painel ativo, escolhendo um nome livre ("Nova pasta", "Nova pasta (2)", ...) que pula tanto pastas quanto arquivos com esse nome. Pedir um nome que já existe (pasta ou arquivo) é recusado com "Já existe um item chamado ...", em vez de parecer que criou |
 | **Ordenar** | Define a ordenação dos itens da pasta atual (nome, tipo, tamanho, data) |
 | **Atualizar** | Relê a pasta atual |

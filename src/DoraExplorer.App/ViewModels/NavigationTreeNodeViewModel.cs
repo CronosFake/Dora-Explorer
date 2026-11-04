@@ -373,6 +373,13 @@ public partial class NavigationTreeNodeViewModel : ObservableObject
     // foi recolhido/recarregado), evitando duplicar filhos ou escrever num nó já obsoleto.
     public int LoadGeneration { get; set; }
 
+    /// <summary>
+    /// Não nulo enquanto uma pasta grande ainda está sendo preenchida em lotes (os filhos só entram na árvore no fim):
+    /// termina o preenchimento agora, de uma vez. A navegação por caminho (Localizar, Duplicados) usa isto para o
+    /// arquivo procurado existir como nó antes de ser selecionado.
+    /// </summary>
+    public Action? CompleteChunkedFillNow { get; set; }
+
 
 
     public bool IsPlaceholder { get; init; }

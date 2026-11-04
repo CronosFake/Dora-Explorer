@@ -23,6 +23,8 @@ public interface INavigationTreeService
         string directoryName,
         ExplorerViewOptions viewOptions);
 
+    bool CompleteChunkedFill(NavigationTreeNodeViewModel node);
+
     void LoadDirectoryChildren(
         NavigationTreeNodeViewModel node,
         ILocalFileSystemService fileSystemService,

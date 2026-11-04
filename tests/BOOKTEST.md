@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-04 16:23
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-04 17:20
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -22,10 +22,10 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 
 | Item | Valor |
 |------|-------|
-| Areas | 32 |
-| Classes de teste | 76 |
-| Metodos de teste | 727 |
-| Casos (cada InlineData conta um) | 1070 |
+| Areas | 33 |
+| Classes de teste | 77 |
+| Metodos de teste | 746 |
+| Casos (cada InlineData conta um) | 1089 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -271,6 +271,14 @@ Padrao agrupa por nome (sem diferenciar maiusculas) e tamanho sem ler arquivo; p
 - Testes (134 casos): DuplicateFinderTests [DuplicateFinderTests.cs], DuplicatesViewModelTests [DuplicatesViewModelTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~DuplicateFinderTests|FullyQualifiedName~DuplicatesViewModelTests"`
 
+### Localizar e Duplicados: duplo clique leva ao arquivo
+
+Em pasta grande ainda preenchida em lotes o arquivo existe como no e fica como unico selecionado (e a pasta do caminho tambem); terminar o preenchimento na hora e seguro contra lote atrasado e pasta recarregada; a selecao de arquivo vizinho continua limpa ao abrir outra pasta; a altura estimada da linha (compacta 32, confortavel 48, medida real quando existe, pasta fechada, arquivo sem rodape).
+
+- Codigo: NavigationTreeService, TreeScrollHelper, FilePaneViewModel
+- Testes (19 casos): SearchNavigationTests [SearchNavigationTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~SearchNavigationTests"`
+
 ### Registro de servicos (injecao de dependencia)
 
 Todo servico registrado tem as dependencias registradas; um servico novo esquecido estouraria so ao abrir o app.
@@ -320,7 +328,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | FileErrorText | Acesso negado e reiniciar como administrador |
 | FileOpenService | Abrir com e programas padrao |
 | FileOperationService | Copiar, mover e compactar (progresso, cancelamento, tempo limite); Painel de arquivos (um lado da janela) |
-| FilePaneViewModel | Painel de arquivos (um lado da janela); Arrastar e soltar: onde cai e o destaque da pasta de destino; Renomear (F2, clique devagar, nome sem a extensao) |
+| FilePaneViewModel | Painel de arquivos (um lado da janela); Arrastar e soltar: onde cai e o destaque da pasta de destino; Renomear (F2, clique devagar, nome sem a extensao); Localizar e Duplicados: duplo clique leva ao arquivo |
 | FileSearchService | Localizar (colunas ajustaveis e nova janela) |
 | FileThumbnailService | Previa de imagens e PDF |
 | FtpCertificateVerifier | Confianca em servidores (chaves, certificados, login do cliente) |
@@ -338,7 +346,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | NavigationHistory | Navegacao e caminhos |
 | NavigationNodeKind | Pasta Rede na arvore |
 | NavigationTreeNodeViewModel | Painel de arquivos (um lado da janela); Arrastar e soltar: onde cai e o destaque da pasta de destino |
-| NavigationTreeService | Pasta Rede na arvore; Arquivos compactados (abrir como pasta); Menu superior: Exibir (unidades bloqueadas) e Preferencia |
+| NavigationTreeService | Pasta Rede na arvore; Arquivos compactados (abrir como pasta); Menu superior: Exibir (unidades bloqueadas) e Preferencia; Localizar e Duplicados: duplo clique leva ao arquivo |
 | NetworkClientHealthService | Clientes de rede (sessoes, copia entre servidores, saude dos perfis) |
 | NetworkFileService | Clientes de rede (sessoes, copia entre servidores, saude dos perfis) |
 | NetworkPortGuard | Travas dos servidores locais (pasta raiz e portas) |
@@ -384,6 +392,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | TransferOutcome | Janela principal (copiar e colar entre os paineis) |
 | TransferProgressFormatter | Copiar, mover e compactar (progresso, cancelamento, tempo limite) |
 | TransferScanner | Copiar, mover e compactar (progresso, cancelamento, tempo limite) |
+| TreeScrollHelper | Localizar e Duplicados: duplo clique leva ao arquivo |
 
 ## Conferido so na tela ou sem teste automatico
 
@@ -1182,6 +1191,28 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Source_reports_missing_files_and_refuses_unsafe_paths
 - Source_sends_a_file
 - Source_sends_a_folder_only_when_recursive
+
+### SearchNavigationTests (SearchNavigationTests.cs)
+
+- A_big_folder_found_as_a_result_opens_with_everything_in_it
+- A_collapsed_folder_does_not_count_the_rows_inside_it
+- A_file_in_a_big_folder_still_being_filled_is_found_and_selected
+- A_file_without_size_or_date_has_no_footer_even_with_comfortable_rows
+- A_fill_forced_to_finish_is_not_applied_again_by_the_queued_batches
+- A_folder_inside_a_big_folder_still_being_filled_is_found_on_the_way_to_the_file
+- A_folder_row_keeps_the_plain_height_in_comfortable_rows
+- A_stale_forced_finish_after_the_folder_was_reloaded_does_not_touch_the_new_children
+- Comfortable_rows_use_the_measured_height_of_a_drawn_file_row
+- Comfortable_rows_without_a_measured_row_add_the_footer_height
+- Compact_rows_are_estimated_at_the_plain_row_height_with_no_footer
+- Completing_a_chunked_fill_puts_every_child_in_the_node_at_once
+- Completing_a_fill_that_is_not_pending_does_nothing
+- Expanding_a_sibling_folder_clears_the_selection_of_a_file_next_to_it
+- Navigating_finishes_the_pending_fill_so_the_selected_node_is_the_one_that_stays_in_the_tree
+- Navigating_to_a_file_in_another_folder_clears_the_selection_of_the_first_folder
+- Navigating_to_a_file_leaves_only_that_file_selected
+- Opening_a_path_through_a_big_folder_still_being_filled_reaches_the_end_of_the_path
+- The_fill_of_a_small_folder_is_not_left_pending
 
 ### SearchWindowTests (SearchWindowTests.cs)
 

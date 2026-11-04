@@ -223,7 +223,7 @@ function Menu-Invoke($root, $top, $like, $mid = $null) {
 $uiFailures = 0
 $uiRoot = $null
 $userState = $null
-if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu', 'marqueedrag', 'rename', 'newfeatures') {
+if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu', 'marqueedrag', 'rename', 'newfeatures', 'locate') {
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -TypeDefinition @'
 using System; using System.Runtime.InteropServices;
@@ -269,6 +269,15 @@ public static class Kb {
     if ($Scenario -eq 'rename') {
         1..2 | ForEach-Object { Set-Content -LiteralPath (Join-Path $uiRoot "relatorio.final$_.docx") -Value 'x' -Encoding Ascii }
         New-Item -ItemType Directory -Path (Join-Path $uiRoot 'pasta.v2') -Force | Out-Null
+    }
+    if ($Scenario -eq 'locate') {
+        # Duas arvores fundas e iguais com 2500 arquivos cada (acima do limite em que a pasta e preenchida em lotes), e um arquivo
+        # com tamanho proprio (IMG_1777, 777 bytes) para ser o primeiro da lista de duplicados e achar o resultado facil.
+        foreach ($ano in '2023-10-16 - Celular', '2025-04-02 - Poco F3') {
+            $dir = Join-Path $uiRoot "Backup\$ano\Pictures\Canon EOS Rebel SL3"
+            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+            1..2500 | ForEach-Object { [IO.File]::WriteAllText((Join-Path $dir ('IMG_{0:D4}.JPG' -f $_)), $(if ($_ -eq 1777) { 'x' * 777 } else { 'x' })) }
+        }
     }
     if ($Scenario -eq 'newfeatures') {
         # Subpastas fundas com um arquivo raro (Localizar) e pares de arquivos iguais (Duplicados).
@@ -1451,6 +1460,153 @@ public static class FrameCount {
             }
             Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
         }
+        'locate' {
+            # Duplo clique num resultado do Localizar e numa copia da janela de Duplicados: a pasta abre, o ARQUIVO fica selecionado e
+            # aparece mais ou menos no meio da lista (a pasta tem 2500 arquivos, entao e preenchida em lotes).
+            $root.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern).Move(0, 0); Start-Sleep -Milliseconds 800
+            $c = (TopItems $root 0)[0]; Expand $c
+            $dirRow = Child $c (Split-Path $uiRoot -Leaf)
+            Check 'a pasta de teste aparece em C:' ($null -ne $dirRow)
+            if (-not $dirRow) { break }
+            [void](Choose-Item $dirRow)
+            function Tree-Box { $t = $root.FindAll($TS::Descendants, (Cond $CT::Tree)) | Select-Object -First 1; $t.Current.BoundingRectangle }
+            function Selected-File-Rows($like) {
+                @($root.FindAll($TS::Descendants, (Cond $CT::TreeItem)) | Where-Object { $_.Current.Name -like $like })
+            }
+            if (-not ('FrameSig' -as [type])) {
+                Add-Type -ReferencedAssemblies 'System.Drawing.dll' -TypeDefinition @"
+using System; using System.Drawing; using System.Drawing.Imaging; using System.Runtime.InteropServices;
+public static class FrameSig {
+  public static ulong Hash(Bitmap bmp) {
+    var d = bmp.LockBits(new Rectangle(0, 0, bmp.Width, bmp.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+    ulong h = 1469598103934665603UL;
+    try {
+      var row = new byte[bmp.Width * 4];
+      for (int y = 0; y < bmp.Height; y += 2) {
+        Marshal.Copy(IntPtr.Add(d.Scan0, y * d.Stride), row, 0, row.Length);
+        for (int i = 0; i < row.Length; i += 8) { h = (h ^ row[i]) * 1099511628211UL; h = (h ^ row[i + 1]) * 1099511628211UL; h = (h ^ row[i + 2]) * 1099511628211UL; }
+      }
+    } finally { bmp.UnlockBits(d); }
+    return h;
+  }
+}
+"@
+            }
+            # Depois do duplo clique: ate $ms, tira quadros da arvore (so a parte nao coberta por janela) e mede quanto tempo uma
+            # chamada UIA leva para ser atendida pela interface (se a interface trava, a chamada espera: e a medida da "travada").
+            function Watch-Transition($label, $ms, $tb, $clipRight) {
+                $right = [Math]::Min($tb.Right, $clipRight)
+                $w = [int]($right - $tb.Left - 4); $ht = [int]($tb.Height - 8)
+                $clock = [Diagnostics.Stopwatch]::StartNew()
+                $frames = 0; $states = 0; $lastHash = [uint64]0; $lastChange = 0; $maxPing = 0; $pingAt = 0; $slow = 0
+                while ($clock.Elapsed.TotalMilliseconds -lt $ms) {
+                    $t0 = $clock.Elapsed.TotalMilliseconds
+                    try { [void]$root.Current.IsEnabled } catch { }
+                    $ping = $clock.Elapsed.TotalMilliseconds - $t0
+                    if ($ping -gt $maxPing) { $maxPing = $ping; $pingAt = $t0 }
+                    if ($ping -gt 100) { $slow++ }
+                    $bm = New-Object System.Drawing.Bitmap $w, $ht
+                    $g = [System.Drawing.Graphics]::FromImage($bm)
+                    $g.CopyFromScreen([int]$tb.Left + 2, [int]$tb.Top + 4, 0, 0, (New-Object System.Drawing.Size $w, $ht)); $g.Dispose()
+                    $hash = [FrameSig]::Hash($bm)
+                    $frames++
+                    if ($hash -ne $lastHash) {
+                        $states++; $lastHash = $hash; $lastChange = $clock.Elapsed.TotalMilliseconds
+                        if ($states -le 6) { $bm.Save((Join-Path $outDir ("$Prefix-watch-$label-estado$states-" + [int]$lastChange + 'ms.png')), [System.Drawing.Imaging.ImageFormat]::Png) }
+                    }
+                    $bm.Dispose()
+                }
+                $bm = New-Object System.Drawing.Bitmap $w, $ht
+                $g = [System.Drawing.Graphics]::FromImage($bm)
+                $g.CopyFromScreen([int]$tb.Left + 2, [int]$tb.Top + 4, 0, 0, (New-Object System.Drawing.Size $w, $ht)); $g.Dispose()
+                $bm.Save((Join-Path $outDir "$Prefix-watch-$label-ultimo.png"), [System.Drawing.Imaging.ImageFormat]::Png); $bm.Dispose()
+                $script:LastWatch = [pscustomobject]@{ States = $states; Settle = [int]$lastChange; MaxWait = [int]$maxPing }
+                ('{0}: quadros={1} estados_visuais={2} ultimo_estado_em={3}ms maior_espera_da_interface={4}ms (em {5}ms) esperas_acima_de_100ms={6}' -f $label, $frames, $states, [int]$lastChange, [int]$maxPing, [int]$pingAt, $slow)
+            }
+            function Report-Selection($label, $like) {
+                $rows = @(Selected-File-Rows $like)
+                "$label : linhas de arvore existentes na tela (virtualizacao): " + @($root.FindAll($TS::Descendants, (Cond $CT::TreeItem))).Count
+                Snap-Screen $h ("locate-" + ($label -replace '[^A-Za-z0-9]', ''))
+                Check "$label : o arquivo aparece na lista" ($rows.Count -ge 1) "linhas achadas: $($rows.Count)"
+                if ($rows.Count -ge 1) {
+                    $r = $rows[0]
+                    $sel = try { $r.GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Current.IsSelected } catch { $false }
+                    Check "$label : o arquivo esta SELECIONADO" $sel
+                    $box = Tree-Box
+                    $mid = $r.Current.BoundingRectangle.Top + $r.Current.BoundingRectangle.Height / 2
+                    $rel = ($mid - $box.Top) / [Math]::Max(1, $box.Height)
+                    Check "$label : fica mais ou menos no meio da lista (entre 25% e 75% da altura)" (($rel -ge 0.25) -and ($rel -le 0.75)) ('{0:P0} da altura' -f $rel)
+                }
+            }
+
+            # ---- Duplicados (a pasta de teste e a atual: a janela procura nas duas arvores)
+            [void](Ensure-Foreground $h)
+            Check 'o botao Duplicados abre o menu' (Invoke-Button $root 'Duplicados*')
+            Start-Sleep -Milliseconds 600
+            [void](Pick-Menu-Entry $proc.Id $h ('Padr' + [char]0xE3 + 'o: nome e tamanho'))
+            $dd = Wait-Dialog $proc.Id 'Itens duplicados' 8000
+            Check 'a janela Itens duplicados abre' ($dd -ne [IntPtr]::Zero)
+            if ($dd -ne [IntPtr]::Zero) {
+                $dw = $AE::FromHandle($dd)
+                Start-Sleep -Milliseconds 5000
+                $file = $dw.FindAll($TS::Descendants, (Cond $CT::Text)) | Where-Object { $_.Current.Name -eq 'IMG_1777.JPG' } | Select-Object -First 1
+                Check 'a lista de duplicados mostra IMG_1777.JPG (o maior arquivo, primeiro)' ($null -ne $file)
+                if ($file) {
+                    $r = $file.Current.BoundingRectangle
+                    $clip = $dw.Current.BoundingRectangle.Left
+                    $tb = Tree-Box
+                    [Kb]::Click([int]($r.Left + 20), [int]($r.Top + $r.Height / 2)); Start-Sleep -Milliseconds 120
+                    [Kb]::Click([int]($r.Left + 20), [int]($r.Top + $r.Height / 2))
+                    Watch-Transition 'Duplicados' 4500 $tb $clip
+                    Check 'Duplicados : a tela vai direto ao resultado (so o estado de antes e o de depois, sem a pasta no topo no meio)' ($script:LastWatch.States -le 2) "estados visuais: $($script:LastWatch.States)"
+                    Report-Selection 'Duplicados' '*IMG_1777.JPG*'
+                }
+                [void](Press-DialogButton $dd 'Fechar')
+            }
+
+            # ---- Localizar (volta antes para a pasta de teste pelo caminho de navegacao: o Duplicados deixou o painel na subpasta)
+            [void](Ensure-Foreground $h)
+            Check 'volta para a pasta de teste pelo caminho de navegacao' (Invoke-Button $root (Split-Path $uiRoot -Leaf))
+            Start-Sleep -Milliseconds 800
+            Check 'o botao Localizar abre o menu' (Invoke-Button $root 'Localizar*')
+            Start-Sleep -Milliseconds 600
+            [System.Windows.Forms.SendKeys]::SendWait('IMG_1777{ENTER}'); Start-Sleep -Milliseconds 3500
+            $items = @($root.FindAll($TS::Descendants, (Cond $CT::DataItem)) + $root.FindAll($TS::Descendants, (Cond $CT::ListItem)))
+            Check 'o Localizar acha IMG_1777 nas duas arvores' ($items.Count -ge 2) "itens: $($items.Count)"
+            if ($items.Count -ge 1) {
+                $r = $items[0].Current.BoundingRectangle
+                $tb = Tree-Box
+                [Kb]::Click([int]($r.Left + 60), [int]($r.Top + $r.Height / 2)); Start-Sleep -Milliseconds 120
+                [Kb]::Click([int]($r.Left + 60), [int]($r.Top + $r.Height / 2))
+                Watch-Transition 'Localizar' 4500 $tb ([double]::MaxValue)
+                Check 'Localizar : a tela vai direto ao resultado (so o estado de antes e o de depois, sem a pasta no topo no meio)' ($script:LastWatch.States -le 2) "estados visuais: $($script:LastWatch.States)"
+                Report-Selection 'Localizar' '*IMG_1777.JPG*'
+            }
+
+            # ---- Linhas confortaveis: o rodape de data e tamanho sob o nome deixa a linha mais alta, e a estimativa de onde o arquivo
+            # fica na lista tem de acompanhar (no modo compacto, o padrao, a linha mede so 32 px).
+            [void](Ensure-Foreground $h)
+            [void](Menu-Invoke $root 'Exibir' 'Linhas compactas*')
+            [void](Ensure-Foreground $h)
+            Check 'volta para a pasta de teste (linhas confortaveis)' (Invoke-Button $root (Split-Path $uiRoot -Leaf))
+            Start-Sleep -Milliseconds 800
+            Check 'o botao Localizar abre o menu (linhas confortaveis)' (Invoke-Button $root 'Localizar*')
+            Start-Sleep -Milliseconds 600
+            [System.Windows.Forms.SendKeys]::SendWait('^a'); Start-Sleep -Milliseconds 200
+            [System.Windows.Forms.SendKeys]::SendWait('IMG_1777{ENTER}'); Start-Sleep -Milliseconds 3500
+            $items = @($root.FindAll($TS::Descendants, (Cond $CT::DataItem)) + $root.FindAll($TS::Descendants, (Cond $CT::ListItem)))
+            Check 'o Localizar acha IMG_1777 nas duas arvores (linhas confortaveis)' ($items.Count -ge 2) "itens: $($items.Count)"
+            if ($items.Count -ge 1) {
+                $r = $items[0].Current.BoundingRectangle
+                $tb = Tree-Box
+                [Kb]::Click([int]($r.Left + 60), [int]($r.Top + $r.Height / 2)); Start-Sleep -Milliseconds 120
+                [Kb]::Click([int]($r.Left + 60), [int]($r.Top + $r.Height / 2))
+                Watch-Transition 'LocalizarConfortavel' 4500 $tb ([double]::MaxValue)
+                Check 'Localizar (linhas confortaveis) : poucos estados visuais (a selecao ganha o realce em seguida; antes eram 5 a 12)' ($script:LastWatch.States -le 4) "estados visuais: $($script:LastWatch.States)"
+                Report-Selection 'Localizar (linhas confortaveis)' '*IMG_1777.JPG*'
+            }
+            Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
+        }
         'windows' {
             $c = (TopItems $root)[0]; Expand $c
             $w = Child $c 'Windows'; if ($w) { try { Expand $w } catch { "expandir Windows: $($_.Exception.Message)" } }
@@ -1459,11 +1615,11 @@ public static class FrameCount {
     }
 } catch { "erro: $($_.Exception.Message) (linha $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim()))" }
 [void]$proc.CloseMainWindow(); [void]$proc.WaitForExit(10000); 'app fechado: ' + $proc.HasExited
-if (($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu', 'marqueedrag', 'rename', 'newfeatures') -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; 'o app nao fechou sozinho (ficou uma janela aberta?): encerrado a forca'; Start-Sleep -Seconds 1 }
+if (($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu', 'marqueedrag', 'rename', 'newfeatures', 'locate') -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; 'o app nao fechou sozinho (ficou uma janela aberta?): encerrado a forca'; Start-Sleep -Seconds 1 }
 foreach ($path in $cleanup) { Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue }
 if ($Scenario -eq 'blink' -and $blinkRoot) { Clear-BlinkIndexRows $blinkRoot }
 if ($userState) { Restore-UserState }
-if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu', 'marqueedrag', 'rename', 'newfeatures') {
+if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu', 'marqueedrag', 'rename', 'newfeatures', 'locate') {
     [void][Kb]::SetCursorPos($cursor0.X, $cursor0.Y)
     'pasta de teste removida: ' + (-not (Test-Path -LiteralPath $uiRoot))
     "verificacoes com falha: $uiFailures"

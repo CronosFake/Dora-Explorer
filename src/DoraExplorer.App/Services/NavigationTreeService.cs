@@ -880,11 +880,19 @@ public sealed class NavigationTreeService : INavigationTreeService
         int generation)
     {
         var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        var scheduler = ChunkedFillScheduler ??
+            (dispatcher is null
+                ? null
+                : new Action<Action>(batch => dispatcher.BeginInvoke(batch, System.Windows.Threading.DispatcherPriority.Background)));
         var built = new List<NavigationTreeNodeViewModel>(sorted.Count);
         var position = 0;
+        var finished = false;
 
         void Finish()
         {
+            finished = true;
+            node.CompleteChunkedFillNow = null;
+
             // Um filho pode ter sido criado antes (a navegação por caminho materializa o nó que precisa selecionar):
             // reaproveita a instância para a seleção não ficar apontando para um nó que saiu da árvore.
             if (node.Children.Count > 0)
@@ -918,13 +926,13 @@ public sealed class NavigationTreeService : INavigationTreeService
 
         void BuildNextBatch()
         {
-            // O nó foi recarregado/substituído: abortar sem tocar na coleção atual.
-            if (node.LoadGeneration != generation)
+            // O nó foi recarregado/substituído (ou o preenchimento já foi terminado à força): abortar sem tocar na coleção atual.
+            if (finished || node.LoadGeneration != generation)
             {
                 return;
             }
 
-            var end = dispatcher is null ? sorted.Count : Math.Min(position + BuildBatchSize, sorted.Count);
+            var end = scheduler is null ? sorted.Count : Math.Min(position + BuildBatchSize, sorted.Count);
             for (; position < end; position++)
             {
                 built.Add(CreateChildNode(sorted[position]));
@@ -932,15 +940,57 @@ public sealed class NavigationTreeService : INavigationTreeService
 
             if (position < sorted.Count)
             {
-                dispatcher!.BeginInvoke(BuildNextBatch, System.Windows.Threading.DispatcherPriority.Background);
+                scheduler!(BuildNextBatch);
                 return;
             }
 
             Finish();
         }
 
+        // Navegação por caminho (Localizar, Duplicados): termina o que falta agora, no mesmo passo, para o nó procurado existir.
+        void CompleteNow()
+        {
+            if (finished || node.LoadGeneration != generation)
+            {
+                node.CompleteChunkedFillNow = null;
+                return;
+            }
+
+            for (; position < sorted.Count; position++)
+            {
+                built.Add(CreateChildNode(sorted[position]));
+            }
+
+            Finish();
+        }
+
         BuildNextBatch();
+        if (!finished)
+        {
+            node.CompleteChunkedFillNow = CompleteNow;
+        }
     }
+
+    /// <summary>
+    /// Termina na hora o preenchimento em lotes de uma pasta grande (se houver um em andamento): os filhos entram na árvore de
+    /// uma vez e o nó que a navegação procura passa a existir. Devolve false quando não havia preenchimento pendente.
+    /// </summary>
+    public bool CompleteChunkedFill(NavigationTreeNodeViewModel node)
+    {
+        if (node.CompleteChunkedFillNow is not { } complete)
+        {
+            return false;
+        }
+
+        complete();
+        return true;
+    }
+
+    /// <summary>
+    /// Troca o agendador dos lotes do preenchimento em lotes (só os testes usam): por padrão cada lote vai para a fila do
+    /// Dispatcher em prioridade Background, ou tudo é feito de uma vez quando não há janela (testes sem Application).
+    /// </summary>
+    public Action<Action>? ChunkedFillScheduler { get; set; }
     private void ApplyKnownCounts(NavigationTreeNodeViewModel child)
     {
         if (string.IsNullOrWhiteSpace(child.TargetPath))
