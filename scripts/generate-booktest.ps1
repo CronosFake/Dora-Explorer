@@ -140,8 +140,8 @@ $areas = @(
         @('SearchDialog', 'SearchPopupSizing', 'FileSearchService', 'CenterToolbarViewModel') `
         @('SearchWindowTests')),
     (New-Area 'Duplicados (padrao: nome e tamanho; profundo: tamanho e hash)' `
-        'Padrao agrupa por nome (sem diferenciar maiusculas) e tamanho sem ler arquivo; profundo confirma por SHA-256 (inclusive diferenca so no ultimo byte de um arquivo grande), so le arquivo que tem o tamanho de outro, conta o travado como ilegivel e segue; vazio, juncao e pasta inexistente; cancelar e andamento; a lista plana da janela (cabecalho de grupo + copias), modo, subpastas, textos, o botao no grupo Pasta e o icone novo e unico da mesma fonte.' `
-        @('DuplicateFinderService', 'DuplicatesViewModel', 'DuplicateText', 'DuplicatesDialog', 'DuplicateRowViewModel') `
+        'Padrao agrupa por nome (sem diferenciar maiusculas) e tamanho sem ler arquivo; profundo confirma por SHA-256 (inclusive diferenca so no ultimo byte de um arquivo grande), so le arquivo que tem o tamanho de outro, conta o travado como ilegivel e segue; vazio, juncao e pasta inexistente; cancelar e andamento; a leitura enxuta correta em todos os tamanhos ao redor do bloco de leitura (64 KB e 1 MiB, inclusive diferenca so no ultimo byte), arquivo so da nuvem nao lido, varias leituras ao mesmo tempo com o mesmo resultado de uma so, a escolha do numero de leituras pelo tipo de disco (SSD x HD x desconhecido), as pastas do sistema de fora so no topo de uma unidade (e a opcao de inclui-las), a lista plana da janela (cabecalho de grupo + copias), modo, subpastas, textos, o botao no grupo Pasta e o icone novo e unico da mesma fonte.' `
+        @('DuplicateFinderService', 'DuplicateWorkers', 'StorageKind', 'DuplicatesViewModel', 'DuplicateText', 'DuplicatesDialog', 'DuplicateRowViewModel') `
         @('DuplicateFinderTests', 'DuplicatesViewModelTests')),
     (New-Area 'Registro de servicos (injecao de dependencia)' `
         'Todo servico registrado tem as dependencias registradas; um servico novo esquecido estouraria so ao abrir o app.' `

@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-04 15:11
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-04 15:54
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -24,8 +24,8 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 |------|-------|
 | Areas | 32 |
 | Classes de teste | 76 |
-| Metodos de teste | 690 |
-| Casos (cada InlineData conta um) | 988 |
+| Metodos de teste | 707 |
+| Casos (cada InlineData conta um) | 1044 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -265,10 +265,10 @@ O cabecalho das colunas tem a alca que o GridView procura (sem ela a largura nao
 
 ### Duplicados (padrao: nome e tamanho; profundo: tamanho e hash)
 
-Padrao agrupa por nome (sem diferenciar maiusculas) e tamanho sem ler arquivo; profundo confirma por SHA-256 (inclusive diferenca so no ultimo byte de um arquivo grande), so le arquivo que tem o tamanho de outro, conta o travado como ilegivel e segue; vazio, juncao e pasta inexistente; cancelar e andamento; a lista plana da janela (cabecalho de grupo + copias), modo, subpastas, textos, o botao no grupo Pasta e o icone novo e unico da mesma fonte.
+Padrao agrupa por nome (sem diferenciar maiusculas) e tamanho sem ler arquivo; profundo confirma por SHA-256 (inclusive diferenca so no ultimo byte de um arquivo grande), so le arquivo que tem o tamanho de outro, conta o travado como ilegivel e segue; vazio, juncao e pasta inexistente; cancelar e andamento; a leitura enxuta correta em todos os tamanhos ao redor do bloco de leitura (64 KB e 1 MiB, inclusive diferenca so no ultimo byte), arquivo so da nuvem nao lido, varias leituras ao mesmo tempo com o mesmo resultado de uma so, a escolha do numero de leituras pelo tipo de disco (SSD x HD x desconhecido), as pastas do sistema de fora so no topo de uma unidade (e a opcao de inclui-las), a lista plana da janela (cabecalho de grupo + copias), modo, subpastas, textos, o botao no grupo Pasta e o icone novo e unico da mesma fonte.
 
-- Codigo: DuplicateFinderService, DuplicatesViewModel, DuplicateText, DuplicatesDialog, DuplicateRowViewModel
-- Testes (52 casos): DuplicateFinderTests [DuplicateFinderTests.cs], DuplicatesViewModelTests [DuplicatesViewModelTests.cs]
+- Codigo: DuplicateFinderService, DuplicateWorkers, StorageKind, DuplicatesViewModel, DuplicateText, DuplicatesDialog, DuplicateRowViewModel
+- Testes (108 casos): DuplicateFinderTests [DuplicateFinderTests.cs], DuplicatesViewModelTests [DuplicatesViewModelTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~DuplicateFinderTests|FullyQualifiedName~DuplicatesViewModelTests"`
 
 ### Registro de servicos (injecao de dependencia)
@@ -307,6 +307,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | DuplicatesDialog | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
 | DuplicatesViewModel | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
 | DuplicateText | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
+| DuplicateWorkers | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
 | ElevationPrompt | Acesso negado e reiniciar como administrador |
 | ElevationService | Acesso negado e reiniciar como administrador |
 | ExpectedFailures | Falhas esperadas do sistema |
@@ -371,6 +372,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | SshFileServer | Servidor SFTP e SCP |
 | SshHostKeyStore | Servidor SFTP e SCP |
 | StartupArguments | Acesso negado e reiniciar como administrador |
+| StorageKind | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
 | StorageUsage | Tema, cores e interface |
 | SystemMouse | Renomear (F2, clique devagar, nome sem a extensao) |
 | TftpClient | TFTP (servidor e cliente) |
@@ -563,18 +565,28 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 - A_blank_folder_gives_an_empty_result
 - A_cancelled_search_stops_with_an_operation_cancelled_exception
+- A_file_that_only_exists_in_the_cloud_is_not_read_by_the_deep_search_but_still_seen_by_the_standard_one
+- A_folder_called_windows_is_searched_normally_when_the_search_does_not_start_at_a_drive_root
 - A_folder_that_does_not_exist_gives_an_empty_result_instead_of_failing
 - A_junction_to_another_folder_is_not_followed_so_nothing_is_counted_twice
+- An_ssd_gets_one_read_per_processor_up_to_sixteen_and_a_hard_disk_or_an_unknown_disk_keeps_four (8 casos)
+- Asking_the_disk_kind_never_throws_and_gives_up_on_paths_it_cannot_ask_about
+- At_a_drive_root_the_system_folders_are_left_out_and_named_in_the_result
 - Deep_catches_a_difference_in_the_first_byte_without_reading_the_whole_file
 - Deep_catches_a_difference_in_the_very_last_byte_of_a_large_file
 - Deep_confirms_a_large_file_that_is_really_identical
+- Deep_confirms_identical_files_of_every_size_around_the_read_block_boundaries (8 casos)
 - Deep_counts_a_locked_candidate_as_unreadable_and_still_finds_the_other_duplicates
 - Deep_does_not_group_files_of_different_sizes_even_if_one_is_the_start_of_the_other
 - Deep_finds_the_same_content_under_different_names_and_reports_the_sha256
 - Deep_handles_many_candidates_in_one_group_and_several_groups_at_once
 - Deep_never_reads_a_file_whose_size_nobody_else_has
 - Deep_separates_files_that_have_the_same_name_and_size_but_different_content
+- Deep_tells_apart_files_that_differ_only_in_the_last_byte_at_every_size (5 casos)
 - Empty_files_are_never_duplicates_of_each_other
+- Including_the_system_folders_brings_everything_back_and_reports_nothing_skipped
+- Many_reads_at_once_give_the_same_groups_as_one_at_a_time
+- Only_the_root_of_a_drive_or_of_a_network_share_counts_as_a_drive_root (8 casos)
 - Standard_does_not_tell_capitals_apart_in_the_name
 - Standard_groups_files_with_the_same_name_and_size_in_different_folders
 - Standard_ignores_the_same_name_with_a_different_size
@@ -582,8 +594,12 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Standard_reports_three_copies_as_one_group_and_the_wasted_space_of_two
 - The_async_search_runs_off_the_calling_thread_and_honours_cancellation
 - The_groups_that_waste_the_most_come_first
+- The_listing_carries_the_attributes_so_no_second_lookup_is_needed
 - The_modified_date_and_folder_of_each_copy_are_reported_for_the_list
 - The_search_reports_listing_and_then_reading_progress_ending_with_everything_read
+- The_system_folders_are_left_out_only_at_a_drive_root_and_only_when_not_asked_for (6 casos)
+- The_system_folders_at_the_top_of_a_drive_are_recognised_by_name_or_by_the_system_attribute (10 casos)
+- Without_subfolders_nothing_is_reported_as_skipped_because_nothing_would_have_been_entered
 - Without_subfolders_only_the_chosen_folder_is_searched
 
 ### DuplicatesViewModelTests (DuplicatesViewModelTests.cs)
@@ -606,7 +622,10 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - The_menu_tags_are_the_names_of_the_two_modes
 - The_model_notifies_when_the_mode_changes_so_both_radio_buttons_update
 - The_progress_text_names_the_phase_and_the_counts (2 casos)
+- The_status_names_the_system_folders_that_were_left_out_and_how_to_include_them
+- The_status_says_nothing_about_system_folders_when_none_were_skipped
 - The_subfolder_option_is_passed_to_the_search
+- The_system_folders_option_starts_off_and_is_passed_to_the_search
 - The_toolbar_prepares_the_window_for_the_folder_open_in_the_active_pane
 - The_window_has_both_checks_the_subfolder_option_and_adjustable_columns
 - Unchecking_a_radio_button_does_not_change_the_mode (2 casos)

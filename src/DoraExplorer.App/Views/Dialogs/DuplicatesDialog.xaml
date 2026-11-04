@@ -80,6 +80,12 @@
             <CheckBox x:Name="SubfoldersCheckBox"
                       Content="Incluir subpastas"
                       IsChecked="{Binding IncludeSubfolders, Mode=TwoWay}"
+                      IsEnabled="{Binding CanChangeOptions}"
+                      Margin="0,0,24,0" />
+            <CheckBox x:Name="SystemFoldersCheckBox"
+                      Content="Incluir pastas do sistema"
+                      ToolTip="Só vale ao procurar na raiz de uma unidade (C:\, D:\). Windows, Program Files, ProgramData e as pastas ocultas do sistema ficam de fora por padrão: lá os duplicados são links físicos e a procura demora muito mais."
+                      IsChecked="{Binding IncludeSystemFolders, Mode=TwoWay}"
                       IsEnabled="{Binding CanChangeOptions}" />
         </StackPanel>
         <TextBlock Grid.Row="2"

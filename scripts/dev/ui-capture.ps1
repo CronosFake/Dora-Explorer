@@ -1408,6 +1408,8 @@ public static class FrameCount {
             Check 'a janela Itens duplicados abre' ($dd -ne [IntPtr]::Zero)
             if ($dd -ne [IntPtr]::Zero) {
                 $dw = $AE::FromHandle($dd)
+                $sysBox = $dw.FindAll($TS::Descendants, (Cond $CT::CheckBox)) | Where-Object { $_.Current.Name -like 'Incluir pastas do sistema*' } | Select-Object -First 1
+                Check 'a janela tem a caixa Incluir pastas do sistema, desligada por padrao' (($null -ne $sysBox) -and ((Toggle-State $sysBox) -eq 'Off')) (Toggle-State $sysBox)
                 Start-Sleep -Milliseconds 2500
                 $rows = @($dw.FindAll($TS::Descendants, (Cond $CT::DataItem)) + $dw.FindAll($TS::Descendants, (Cond $CT::ListItem)))
                 Check 'no tipo Padrao a lista tem 2 grupos (2 cabecalhos + 4 copias = 6 linhas)' ($rows.Count -eq 6) "linhas: $($rows.Count)"

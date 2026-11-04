@@ -92,6 +92,54 @@ public sealed class DuplicatesViewModelTests : IDisposable
         model.Rows.Should().BeEmpty();
     }
 
+    /// <summary>Procura de mentira: guarda o pedido recebido e devolve um resultado combinado.</summary>
+    private sealed class CapturingFinder(DuplicateScanResult result) : IDuplicateFinderService
+    {
+        public DuplicateScanRequest? Request { get; private set; }
+
+        public Task<DuplicateScanResult> FindAsync(
+            DuplicateScanRequest request,
+            IProgress<DuplicateScanProgress>? progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            Request = request;
+            return Task.FromResult(result);
+        }
+    }
+
+    [Fact]
+    public async Task The_system_folders_option_starts_off_and_is_passed_to_the_search()
+    {
+        var finder = new CapturingFinder(DuplicateScanResult.Empty);
+        var model = Model(Folder("dup-sistema"), finder: finder);
+        model.IncludeSystemFolders.Should().BeFalse("por padrão as pastas do sistema ficam de fora");
+
+        await model.StartAsync();
+        finder.Request!.IncludeSystemFolders.Should().BeFalse();
+
+        model.IncludeSystemFolders = true;
+        await model.StartAsync();
+        finder.Request!.IncludeSystemFolders.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task The_status_names_the_system_folders_that_were_left_out_and_how_to_include_them()
+    {
+        var result = new DuplicateScanResult([], 10, 0, 0) { SkippedSystemFolders = ["Program Files", "Windows"] };
+        var model = Model(Folder("dup-ignoradas"), finder: new CapturingFinder(result));
+
+        await model.StartAsync();
+
+        model.StatusText.Should().Contain("Pastas do sistema ignoradas: Program Files, Windows")
+            .And.Contain("Incluir pastas do sistema");
+    }
+
+    [Fact]
+    public void The_status_says_nothing_about_system_folders_when_none_were_skipped()
+    {
+        DuplicateText.Finished(new DuplicateScanResult([], 10, 0, 0)).Should().NotContain("sistema");
+    }
+
     [Fact]
     public async Task A_new_search_replaces_the_old_rows()
     {
@@ -367,7 +415,8 @@ public sealed class DuplicatesViewModelTests : IDisposable
 
         window.Descendants(Wpf + "RadioButton").Select(radio => (string?)radio.Attribute("Content"))
             .Should().Equal("Padrão (nome e tamanho)", "Profundo (tamanho e hash)");
-        window.Descendants(Wpf + "CheckBox").Select(box => (string?)box.Attribute("Content")).Should().Equal("Incluir subpastas");
+        window.Descendants(Wpf + "CheckBox").Select(box => (string?)box.Attribute("Content")).Should().Equal("Incluir subpastas", "Incluir pastas do sistema");
+        ((string?)window.Descendants(Wpf + "CheckBox").Last().Attribute("IsChecked")).Should().Contain("IncludeSystemFolders");
         var gridView = window.Descendants(Wpf + "GridView").Single();
         ((string?)gridView.Attribute("ColumnHeaderContainerStyle")).Should().Contain("GridViewColumnHeaderStyle");
         gridView.Elements(Wpf + "GridViewColumn").Select(column => (string?)column.Attribute("Header"))

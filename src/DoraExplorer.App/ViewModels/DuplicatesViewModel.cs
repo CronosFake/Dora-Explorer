@@ -64,6 +64,13 @@ public sealed partial class DuplicatesViewModel : ObservableObject
     [ObservableProperty]
     private bool _includeSubfolders;
 
+    /// <summary>
+    /// Incluir <c>Windows</c>, <c>Program Files</c>, <c>ProgramData</c> e as pastas ocultas do sistema quando a pasta é a raiz de uma
+    /// unidade. Desligado por padrão: lá os duplicados são links físicos e a procura demora muito mais.
+    /// </summary>
+    [ObservableProperty]
+    private bool _includeSystemFolders;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanStart))]
     [NotifyPropertyChangedFor(nameof(CanChangeOptions))]
@@ -142,7 +149,7 @@ public sealed partial class DuplicatesViewModel : ObservableObject
         try
         {
             var result = await _finder
-                .FindAsync(new DuplicateScanRequest(RootPath, Mode, IncludeSubfolders), progress, cancellation.Token)
+                .FindAsync(new DuplicateScanRequest(RootPath, Mode, IncludeSubfolders, IncludeSystemFolders), progress, cancellation.Token)
                 .ConfigureAwait(true);
 
             if (cancellation.IsCancellationRequested)
@@ -259,6 +266,12 @@ public static class DuplicateText
             text += $". {result.Unreadable} não puderam ser lidos (em uso, sem permissão ou só na nuvem)";
         }
 
-        return text + ".";
+        text += ".";
+        if (result.SkippedSystemFolders.Count > 0)
+        {
+            text += $" Pastas do sistema ignoradas: {string.Join(", ", result.SkippedSystemFolders)} (marque \"Incluir pastas do sistema\" para incluí-las).";
+        }
+
+        return text;
     }
 }
