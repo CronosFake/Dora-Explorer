@@ -349,7 +349,7 @@ public sealed class SearchNavigationTests : IDisposable
         var distance = OffsetOf(root, files[1776], metrics) - OffsetOf(root, files[0], metrics);
 
         distance.Should().Be(1776 * (TreeViewHierarchy.HeaderRowHeight + TreeScrollHelper.MetadataFooterHeight));
-        (TreeViewHierarchy.HeaderRowHeight + TreeScrollHelper.MetadataFooterHeight).Should().Be(48, "a linha confortável mede 48 px na tela");
+        (TreeViewHierarchy.HeaderRowHeight + TreeScrollHelper.MetadataFooterHeight).Should().Be(54, "a linha confortável mede 54 px na tela (2 px acima e 4 abaixo da caixa do aplicativo padrão)");
     }
 
     [Fact]

@@ -132,7 +132,7 @@ internal sealed class PaneTestHarness : IDisposable
         return path;
     }
 
-    public FilePaneViewModel CreatePane(string initialPath, PaneDisplayOptions? options = null) => new(
+    public FilePaneViewModel CreatePane(string initialPath, PaneDisplayOptions? options = null, Action? saveDisplayOptions = null) => new(
         Files,
         Tree,
         ViewSettings,
@@ -144,7 +144,7 @@ internal sealed class PaneTestHarness : IDisposable
         Index,
         Health,
         options ?? BareOptions(),
-        () => { },
+        saveDisplayOptions ?? (() => { }),
         initialPath);
 
     /// <summary>Janela principal com os dois painéis (sem Favoritos, Lixeira nem Rede) nas pastas dadas.</summary>

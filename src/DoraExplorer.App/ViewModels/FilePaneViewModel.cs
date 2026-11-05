@@ -391,15 +391,68 @@ public partial class FilePaneViewModel : ObservableObject
 
     public bool ShowComfortableRows => !CompactRows;
 
-    public double SizeColumnWidth => 68;
+    // Modo em colunas: Tipo, Modificado e Tamanho têm largura fixa e folgada (mostram sempre o conteúdo inteiro e não mudam
+    // com o painel nem com a rolagem). Só o Nome se alarga, arrastando a borda direita dele no cabeçalho.
+    public double SizeColumnWidth => PaneColumnWidths.Size;
 
     /// <summary>Reserva à direita para a estrela de favorito e a marca de seleção.</summary>
     public double TrailingColumnWidth => CompactRows ? 36 : 0;
 
-    public double DateColumnWidth => ShowFileModifiedDate ? (ShowFileModifiedTime ? 104 : 80) : 0;
+    public double DateColumnWidth => PaneColumnWidths.Date;
 
-    [ObservableProperty]
-    private double _typeColumnWidth = 84;
+    public double TypeColumnWidth => PaneColumnWidths.Type;
+
+    /// <summary>Largura que o usuário deu ao Nome (guardada por painel); 0 = automática (o que sobrar no painel).</summary>
+    public double NameColumnWidth => PaneColumnWidths.ClampName(_displayOptions.NameColumnWidth);
+
+    /// <summary>
+    /// Durante o arrasto da borda direita do Nome: a largura de <paramref name="startWidth"/> mais o quanto o mouse andou para
+    /// a direita. Só muda na tela; a gravação vem em <see cref="CommitColumnWidths"/>, no fim do arrasto. O Nome nunca fica
+    /// menor que o espaço do painel (a lista ignora o mínimo que cabe no painel), então arrastar para a esquerda só volta até aí.
+    /// </summary>
+    public void ResizeNameColumn(double startWidth, double horizontalChange)
+    {
+        _displayOptions.NameColumnWidth = PaneColumnWidths.AfterNameDrag(startWidth, horizontalChange);
+        OnPropertyChanged(nameof(NameColumnWidth));
+        OnPropertyChanged(nameof(NameRowWidth));
+    }
+
+    /// <summary>Volta o Nome para a largura automática (duplo clique na borda) e grava.</summary>
+    public void ResetNameColumnWidth()
+    {
+        _displayOptions.NameColumnWidth = 0;
+        OnPropertyChanged(nameof(NameColumnWidth));
+        OnPropertyChanged(nameof(NameRowWidth));
+        CommitColumnWidths();
+    }
+
+    /// <summary>Mede o texto do nome de uma linha em pixels (os testes trocam por uma conta simples).</summary>
+    public Func<string, double> NameTextMeasure { get; set; } = NameTextMeasurer.Measure;
+
+    private double _widestNameRow;
+
+    /// <summary>
+    /// Largura que TODAS as linhas da lista têm (modo em colunas; 0 nas confortáveis): a da linha mais larga entre as pastas
+    /// abertas, ou a que o usuário deu ao Nome se for maior. Cada linha dá à célula do nome a largura mínima que completa isto
+    /// (<c>NameCellMinWidthConverter</c>). É pela largura natural das linhas que o ScrollViewer sabe quanto há para rolar, e ele só
+    /// conhece as linhas desenhadas: sem isto a barra horizontal mudava de tamanho e andava conforme a lista descia.
+    /// </summary>
+    public double NameRowWidth => CompactRows ? Math.Max(NameColumnWidth, _widestNameRow) : 0;
+
+    /// <summary>Refaz a largura da linha mais larga (chamado quando as pastas abertas mudam, sem pressa).</summary>
+    public void RefreshWidestNameRow()
+    {
+        var widest = CompactRows ? NameWidthScanner.WidestRowWidth(NavigationRoots, NameTextMeasure) : 0;
+        if (Math.Abs(widest - _widestNameRow) < 0.5)
+        {
+            return;
+        }
+
+        _widestNameRow = widest;
+        OnPropertyChanged(nameof(NameRowWidth));
+    }
+
+    public void CommitColumnWidths() => _saveDisplayOptions();
 
     public string NameHeaderText => "Nome" + SortHeaderLogic.Indicator(SortOptions, TreeSortField.Name);
 
@@ -408,10 +461,6 @@ public partial class FilePaneViewModel : ObservableObject
     public string DateHeaderText => "Modificado" + SortHeaderLogic.Indicator(SortOptions, TreeSortField.Date);
 
     public string SizeHeaderText => "Tamanho" + SortHeaderLogic.Indicator(SortOptions, TreeSortField.Size);
-
-    partial void OnShowFileModifiedDateChanged(bool value) => OnPropertyChanged(nameof(DateColumnWidth));
-
-    partial void OnShowFileModifiedTimeChanged(bool value) => OnPropertyChanged(nameof(DateColumnWidth));
 
     partial void OnSortOptionsChanged(TreeSortOptions value)
     {
@@ -458,6 +507,7 @@ public partial class FilePaneViewModel : ObservableObject
         OnPropertyChanged(nameof(CompactRows));
         OnPropertyChanged(nameof(ShowComfortableRows));
         OnPropertyChanged(nameof(TrailingColumnWidth));
+        OnPropertyChanged(nameof(NameRowWidth));
         ApplyResponsiveLayout();
     }
 
@@ -476,6 +526,16 @@ public partial class FilePaneViewModel : ObservableObject
 
     private void ApplyResponsiveLayout()
     {
+        // Em colunas as colunas nunca somem: se não cabem, a lista ganha a barra de rolagem horizontal (e o usuário
+        // escolhe a largura de cada uma arrastando a borda no cabeçalho).
+        if (CompactRows)
+        {
+            ShowFileModifiedTime = true;
+            UseShortModifiedDate = false;
+            ShowFileModifiedDate = true;
+            return;
+        }
+
         if (_availableWidth <= 0)
         {
             return;
@@ -484,17 +544,12 @@ public partial class FilePaneViewModel : ObservableObject
         const double showTimeMinWidth = 460;   // data completa + hora + tamanho
         const double shortDateMaxWidth = 360;  // abaixo disto usa data curta (dd/MM)
 
-        // Em colunas, data e tipo disputam espaço com o nome: só aparecem quando ainda sobra
-        // uma largura útil para ele. Nas linhas confortáveis a data fica numa linha própria.
-        var showDateMinWidth = CompactRows ? 400 : 250;
-        var showTypeMinWidth = CompactRows ? 520 : 480;
+        // Nas linhas confortáveis a data fica numa linha própria, abaixo do nome, e vai sumindo quando o painel estreita.
+        const double showDateMinWidth = 250;
 
         ShowFileModifiedTime = _availableWidth >= showTimeMinWidth;
         UseShortModifiedDate = _availableWidth < shortDateMaxWidth;
         ShowFileModifiedDate = _availableWidth >= showDateMinWidth;
-
-        // A coluna "Tipo" (contagens e aplicativo padrão) é a primeira a sair quando o painel estreita.
-        TypeColumnWidth = _availableWidth >= showTypeMinWidth ? 84 : 0;
     }
 
     [ObservableProperty]

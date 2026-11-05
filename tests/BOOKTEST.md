@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-04 17:20
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-05 01:05
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -22,10 +22,10 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 
 | Item | Valor |
 |------|-------|
-| Areas | 33 |
-| Classes de teste | 77 |
-| Metodos de teste | 746 |
-| Casos (cada InlineData conta um) | 1089 |
+| Areas | 34 |
+| Classes de teste | 78 |
+| Metodos de teste | 796 |
+| Casos (cada InlineData conta um) | 1159 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -279,6 +279,14 @@ Em pasta grande ainda preenchida em lotes o arquivo existe como no e fica como u
 - Testes (19 casos): SearchNavigationTests [SearchNavigationTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~SearchNavigationTests"`
 
+### Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada
+
+Tipo, Modificado e Tamanho com largura fixa e folgada (nao mudam nem quando o Nome e alargado); a largura da linha mais larga da lista INTEIRA (so as pastas abertas, o nivel vem da descida, so os 4 nomes mais compridos de cada pasta sao medidos, raiz fechada e pasta fechada nao contam, marcador de lugar e nome vazio sao ignorados) e a largura minima que cada linha da ao nome para todas terem a mesma largura natural (a barra horizontal nao muda de tamanho nem anda quando a lista rola); so o Nome se alarga (a conta do arrasto, parte da largura que a coluna tem na tela, so cresce, volta ao automatico), guardada por painel, gravada so no fim do arrasto e lida ao abrir, painel antigo ou com as larguras da versao anterior le o padrao; em colunas nenhuma coluna some quando o painel estreita (nas linhas confortaveis a data continua sumindo); a linha da unidade fica parada na rolagem horizontal SEMPRE, com ou sem rolagem (a conta pura; ligar e desligar fazia a tela piscar); o touchpad de dois dedos e a roda inclinada (o valor com sinal do giro, a soma de passos pequenos, os limites); as barras de rolagem de 12 px e o canto sem o quadrado branco; as bordas de arrasto so no Nome, o cabecalho que anda num Canvas recortado, a barra horizontal da lista e a caixa do aplicativo padrao dentro da linha confortavel (lidos do XAML).
+
+- Codigo: PaneColumnWidths, PaneDisplayOptions, StickyToViewport, NameWidthScanner, NameTextMeasurer, NameCellMinWidthConverter, TreeScrollHelper, FilePaneViewModel
+- Testes (70 casos): PaneColumnsTests [PaneColumnsTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~PaneColumnsTests"`
+
 ### Registro de servicos (injecao de dependencia)
 
 Todo servico registrado tem as dependencias registradas; um servico novo esquecido estouraria so ao abrir o app.
@@ -328,7 +336,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | FileErrorText | Acesso negado e reiniciar como administrador |
 | FileOpenService | Abrir com e programas padrao |
 | FileOperationService | Copiar, mover e compactar (progresso, cancelamento, tempo limite); Painel de arquivos (um lado da janela) |
-| FilePaneViewModel | Painel de arquivos (um lado da janela); Arrastar e soltar: onde cai e o destaque da pasta de destino; Renomear (F2, clique devagar, nome sem a extensao); Localizar e Duplicados: duplo clique leva ao arquivo |
+| FilePaneViewModel | Painel de arquivos (um lado da janela); Arrastar e soltar: onde cai e o destaque da pasta de destino; Renomear (F2, clique devagar, nome sem a extensao); Localizar e Duplicados: duplo clique leva ao arquivo; Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
 | FileSearchService | Localizar (colunas ajustaveis e nova janela) |
 | FileThumbnailService | Previa de imagens e PDF |
 | FtpCertificateVerifier | Confianca em servidores (chaves, certificados, login do cliente) |
@@ -342,6 +350,9 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | LoginThrottle | Servidor SFTP e SCP |
 | MainWindowViewModel | Janela principal (copiar e colar entre os paineis) |
 | MemoryTrimmer | Cache de pastas e carga sem piscar |
+| NameCellMinWidthConverter | Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
+| NameTextMeasurer | Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
+| NameWidthScanner | Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
 | NativeFileCopy | Copiar, mover e compactar (progresso, cancelamento, tempo limite) |
 | NavigationHistory | Navegacao e caminhos |
 | NavigationNodeKind | Pasta Rede na arvore |
@@ -353,7 +364,8 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | NetworkServerService | Travas dos servidores locais (pasta raiz e portas) |
 | OperationTimeouts | Copiar, mover e compactar (progresso, cancelamento, tempo limite) |
 | OperationTracker | Copiar, mover e compactar (progresso, cancelamento, tempo limite) |
-| PaneDisplayOptions | Pasta Rede na arvore |
+| PaneColumnWidths | Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
+| PaneDisplayOptions | Pasta Rede na arvore; Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
 | PaneDisplaySettingsService | Janela principal (copiar e colar entre os paineis) |
 | PathNavigation | Navegacao e caminhos |
 | PathSafetyService | Navegacao e caminhos |
@@ -381,6 +393,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | SshFileServer | Servidor SFTP e SCP |
 | SshHostKeyStore | Servidor SFTP e SCP |
 | StartupArguments | Acesso negado e reiniciar como administrador |
+| StickyToViewport | Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
 | StorageKind | Duplicados (padrao: nome e tamanho; profundo: tamanho e hash) |
 | StorageUsage | Tema, cores e interface |
 | SystemMouse | Renomear (F2, clique devagar, nome sem a extensao) |
@@ -392,7 +405,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | TransferOutcome | Janela principal (copiar e colar entre os paineis) |
 | TransferProgressFormatter | Copiar, mover e compactar (progresso, cancelamento, tempo limite) |
 | TransferScanner | Copiar, mover e compactar (progresso, cancelamento, tempo limite) |
-| TreeScrollHelper | Localizar e Duplicados: duplo clique leva ao arquivo |
+| TreeScrollHelper | Localizar e Duplicados: duplo clique leva ao arquivo; Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
 
 ## Conferido so na tela ou sem teste automatico
 
@@ -1066,6 +1079,59 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - An_operation_counts_as_active_only_while_it_is_registered
 - Cancelling_all_gives_up_after_the_timeout_when_an_operation_never_stops
 - Cancelling_all_waits_for_the_operation_to_finish_its_cleanup
+
+### PaneColumnsTests (PaneColumnsTests.cs)
+
+- A_closed_folder_does_not_count_what_is_inside_it
+- A_closed_top_level_row_does_not_count_its_children
+- A_deeper_row_counts_its_larger_indent
+- A_name_widened_by_the_user_wins_over_the_widest_name_but_never_goes_below_it
+- A_name_width_that_makes_no_sense_means_automatic (4 casos)
+- A_new_pane_has_the_fixed_widths_and_an_automatic_name
+- A_settings_file_with_the_old_per_column_widths_loads_with_an_automatic_name
+- A_swipe_to_the_right_scrolls_right_and_to_the_left_scrolls_left_inside_the_scrollable_range
+- An_element_that_starts_inside_the_viewport_gets_only_the_width_that_is_left
+- An_element_with_no_visible_area_is_left_alone
+- Comfortable_rows_still_drop_the_date_when_the_pane_gets_narrow_and_the_columns_come_back_in_columns_mode
+- Double_clicking_the_edge_goes_back_to_automatic_and_saves
+- Dragging_changes_the_name_width_on_screen_but_only_saves_at_the_end_of_the_drag
+- Dragging_the_right_edge_of_the_name_to_the_right_widens_it
+- Each_pane_keeps_its_own_name_width
+- Each_row_gives_its_name_the_width_that_completes_the_widest_row (7 casos)
+- Every_row_ends_up_with_the_same_natural_width_whatever_its_level
+- In_a_huge_folder_only_the_longest_names_are_measured
+- In_columns_mode_no_column_is_hidden_when_the_pane_gets_narrow (3 casos)
+- Only_the_name_column_has_a_grip_in_the_header
+- Placeholders_and_empty_names_are_ignored
+- Refreshing_tells_the_list_only_when_the_widest_row_changed
+- Small_touchpad_steps_add_up_like_one_notch
+- The_converter_gives_each_row_its_minimum_width
+- The_corner_where_the_two_scroll_bars_meet_is_not_the_white_system_color
+- The_default_application_box_can_grow_as_wide_as_the_type_column_allows
+- The_default_application_box_fits_inside_the_comfortable_row
+- The_drag_starts_from_the_width_the_column_has_on_screen (4 casos)
+- The_fixed_column_headers_take_their_widths_from_the_pane
+- The_fixed_columns_add_up_to_what_sits_to_the_right_of_the_name
+- The_fixed_columns_are_wide_enough_for_their_content
+- The_header_moves_with_the_horizontal_scroll_of_the_list
+- The_horizontal_wheel_delta_is_the_signed_high_word_of_wParam (3 casos)
+- The_list_has_a_horizontal_scroll_bar_when_needed
+- The_name_cell_of_each_row_takes_its_minimum_width_from_the_widest_row
+- The_name_width_saved_in_the_pane_options_is_used_when_the_pane_opens
+- The_name_width_stays_between_zero_and_the_maximum
+- The_name_width_survives_saving_and_loading_the_settings
+- The_other_columns_never_change_when_the_name_is_widened
+- The_pane_row_width_is_the_widest_row_of_the_open_folders
+- The_row_of_a_root_such_as_a_drive_is_pinned_while_the_list_scrolls_sideways
+- The_row_width_is_zero_in_comfortable_rows_and_comes_back_in_columns_mode
+- The_scroll_bars_are_half_again_as_thick_as_before
+- The_sticky_element_always_takes_the_visible_width_even_without_scroll
+- The_sticky_width_is_the_same_before_and_after_it_was_already_moved
+- The_top_level_rows_are_not_counted_because_they_only_take_the_visible_area
+- The_widest_row_is_the_longest_name_in_the_open_folders_with_its_indent_and_icon
+- What_sits_left_of_the_name_is_the_indent_of_the_deepest_row_plus_the_icon (5 casos)
+- Widening_the_name_tells_the_list_that_the_row_width_changed
+- With_horizontal_scroll_the_element_moves_right_by_the_offset_and_keeps_the_visible_width
 
 ### PathNavigationTests (NavigationTests.cs)
 

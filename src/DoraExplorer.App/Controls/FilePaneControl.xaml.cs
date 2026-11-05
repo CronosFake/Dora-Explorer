@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
@@ -212,6 +213,7 @@ public partial class FilePaneControl : UserControl
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        DetachHorizontalWheelHook();
         CancelSlowRename();
         CancelMarqueeTracking();
         CancelItemDragTracking();
@@ -224,9 +226,60 @@ public partial class FilePaneControl : UserControl
         }
     }
 
+    // ---- Rolagem horizontal do touchpad (dois dedos para o lado) e da roda inclinada: chega como WM_MOUSEHWHEEL, que o WPF não
+    // trata (só o WM_MOUSEWHEEL vertical).
+    private const int WmMouseHWheel = 0x020E;
+    private HwndSource? _hwndSource;
+
+    private void AttachHorizontalWheelHook()
+    {
+        DetachHorizontalWheelHook();
+        _hwndSource = PresentationSource.FromVisual(this) as HwndSource;
+        _hwndSource?.AddHook(OnWindowMessage);
+    }
+
+    private void DetachHorizontalWheelHook()
+    {
+        _hwndSource?.RemoveHook(OnWindowMessage);
+        _hwndSource = null;
+    }
+
+    private IntPtr OnWindowMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg != WmMouseHWheel || _treeScrollViewer is not { ScrollableWidth: > 0 } scroll)
+        {
+            return IntPtr.Zero;
+        }
+
+        var delta = TreeScrollHelper.HorizontalWheelDelta(wParam.ToInt64());
+        var screenX = (short)(lParam.ToInt64() & 0xFFFF);
+        var screenY = (short)((lParam.ToInt64() >> 16) & 0xFFFF);
+
+        Point position;
+        try
+        {
+            position = NavigationTree.PointFromScreen(new Point(screenX, screenY));
+        }
+        catch (InvalidOperationException)
+        {
+            return IntPtr.Zero;
+        }
+
+        if (position.X < 0 || position.Y < 0 || position.X > NavigationTree.ActualWidth || position.Y > NavigationTree.ActualHeight)
+        {
+            return IntPtr.Zero;
+        }
+
+        scroll.ScrollToHorizontalOffset(TreeScrollHelper.HorizontalWheelOffset(scroll.HorizontalOffset, delta, scroll.ScrollableWidth));
+        handled = true;
+        return IntPtr.Zero;
+    }
+
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        AttachHorizontalWheelHook();
         AttachTreeScrollViewer();
+        RequestNameWidthUpdate();
         SyncMarqueeCanvasSize();
         RequestHierarchyUpdate();
         Dispatcher.BeginInvoke(() =>
@@ -268,7 +321,7 @@ public partial class FilePaneControl : UserControl
     }
 
     // Borda (1) e espaçamento interno (4) à direita do item da árvore: o conteúdo das linhas termina antes da borda.
-    private const double RowContentRightInset = 5;
+    private const double RowContentRightInset = PaneColumnWidths.RowRightInset;
 
     // As colunas do cabeçalho têm de coincidir com as das linhas. O ScrollViewer da árvore reserva a faixa de
     // arrasto da seleção à esquerda e, quando visível, a barra de rolagem à direita.
@@ -279,7 +332,79 @@ public partial class FilePaneControl : UserControl
             : TreeViewHierarchy.GlobalMarqueeGutterWidth;
         var left = TreeViewHierarchy.GlobalMarqueeGutterWidth;
         var right = Math.Max(0, reserved - left) + RowContentRightInset;
-        ColumnHeaderGrid.Margin = new Thickness(left, 0, right, 0);
+        ColumnHeaderViewport.Margin = new Thickness(left, 0, right, 0);
+        UpdateColumnHeaderScroll();
+    }
+
+    // Rolagem horizontal da lista: o cabeçalho ganha a largura do conteúdo das linhas (as colunas ficam coladas na direita,
+    // como nelas) e rola o mesmo tanto que elas.
+    private void UpdateColumnHeaderScroll()
+    {
+        if (_treeScrollViewer is not { } scroll)
+        {
+            return;
+        }
+
+        var width = Math.Max(scroll.ViewportWidth, scroll.ExtentWidth) - RowContentRightInset;
+        var newWidth = width > 0 ? width : double.NaN;
+        if (double.IsNaN(newWidth) != double.IsNaN(ColumnHeaderGrid.Width) ||
+            (!double.IsNaN(newWidth) && Math.Abs(ColumnHeaderGrid.Width - newWidth) > 0.5))
+        {
+            ColumnHeaderGrid.Width = newWidth;
+        }
+
+        Canvas.SetLeft(ColumnHeaderGrid, -scroll.HorizontalOffset);
+    }
+
+    // ---- Arrastar a borda direita do Nome (a única coluna que se alarga no modo em colunas)
+
+    private double _nameDragStartWidth;
+    private double _nameDragStartX;
+
+    private void NameGrip_DragStarted(object sender, System.Windows.Controls.Primitives.DragStartedEventArgs e)
+    {
+        // O arrasto parte da largura que a coluna Nome tem na tela, para acompanhar o mouse desde o primeiro pixel.
+        _nameDragStartWidth = PaneColumnWidths.NameDragStart(
+            ViewModel?.NameColumnWidth ?? 0,
+            ColumnHeaderGrid.ColumnDefinitions[0].ActualWidth);
+        _nameDragStartX = Mouse.GetPosition(ColumnHeaderViewport).X;
+    }
+
+    private void NameGrip_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        // A posição do mouse é medida num elemento que não se mexe (a faixa do cabeçalho). O DragDelta do Thumb é relativo à
+        // própria borda, que anda junto com a coluna: somar os deltas contava o arrasto várias vezes (40 px viravam 124).
+        var total = Mouse.GetPosition(ColumnHeaderViewport).X - _nameDragStartX;
+        ViewModel.ResizeNameColumn(_nameDragStartWidth, total);
+        UpdateColumnHeaderScroll();
+    }
+
+    private void NameGrip_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e) =>
+        ViewModel?.CommitColumnWidths();
+
+    private void NameGrip_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        ViewModel?.ResetNameColumnWidth();
+        UpdateColumnHeaderScroll();
+        e.Handled = true;
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(FilePaneViewModel.CompactRows) or nameof(FilePaneViewModel.NameRowWidth))
+        {
+            UpdateColumnHeaderScroll();
+        }
+
+        if (e.PropertyName is nameof(FilePaneViewModel.CompactRows))
+        {
+            RequestNameWidthUpdate();
+        }
     }
 
     private void OnTreeScrollChanged(object sender, ScrollChangedEventArgs e)
@@ -306,6 +431,18 @@ public partial class FilePaneControl : UserControl
     {
         if (FindScrollViewer(NavigationTree) is not ScrollViewer scrollViewer)
         {
+            return;
+        }
+
+        // Shift + roda: rolagem horizontal (quando há o que rolar).
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) && scrollViewer.ScrollableWidth > 0 && e.Delta != 0)
+        {
+            scrollViewer.ScrollToHorizontalOffset(
+                Math.Clamp(
+                    scrollViewer.HorizontalOffset - (e.Delta / 120.0 * 3 * TreeViewHierarchy.HeaderRowHeight),
+                    0,
+                    scrollViewer.ScrollableWidth));
+            e.Handled = true;
             return;
         }
 
@@ -357,6 +494,7 @@ public partial class FilePaneControl : UserControl
             oldViewModel.RenamingStarted -= OnRenamingStarted;
             oldViewModel.RenamingEnded -= OnRenamingEnded;
             oldViewModel.ItemRenamed -= OnItemRenamed;
+            oldViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
         if (e.NewValue is FilePaneViewModel newViewModel)
@@ -367,6 +505,7 @@ public partial class FilePaneControl : UserControl
             newViewModel.RenamingStarted += OnRenamingStarted;
             newViewModel.RenamingEnded += OnRenamingEnded;
             newViewModel.ItemRenamed += OnItemRenamed;
+            newViewModel.PropertyChanged += OnViewModelPropertyChanged;
         }
     }
 
@@ -3663,8 +3802,41 @@ public partial class FilePaneControl : UserControl
 
     private void NotifyPaneActivated() => PaneActivated?.Invoke(this, EventArgs.Empty);
 
+    private DispatcherTimer? _nameWidthTimer;
+
+    /// <summary>
+    /// Pede que a largura da linha mais larga da lista seja refeita: sem pressa e juntando os pedidos (as pastas abertas mudam a
+    /// toda hora e a lista rola gerando linhas; medir de novo a cada vez seria desperdício).
+    /// </summary>
+    private void RequestNameWidthUpdate()
+    {
+        _nameWidthTimer ??= new DispatcherTimer(DispatcherPriority.Background, Dispatcher)
+        {
+            Interval = TimeSpan.FromMilliseconds(120)
+        };
+        if (_nameWidthTimer.IsEnabled)
+        {
+            return;
+        }
+
+        _nameWidthTimer.Tick += OnNameWidthTimerTick;
+        _nameWidthTimer.Start();
+    }
+
+    private void OnNameWidthTimerTick(object? sender, EventArgs e)
+    {
+        if (_nameWidthTimer is not null)
+        {
+            _nameWidthTimer.Stop();
+            _nameWidthTimer.Tick -= OnNameWidthTimerTick;
+        }
+
+        ViewModel?.RefreshWidestNameRow();
+    }
+
     private void RequestHierarchyUpdate()
     {
+        RequestNameWidthUpdate();
         Dispatcher.BeginInvoke(
             () => RunSuppressingReveal(() => TreeViewHierarchy.UpdateTree(NavigationTree)),
             DispatcherPriority.Loaded);

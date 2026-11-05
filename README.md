@@ -6,9 +6,18 @@ Esta releitura foi feita com ajuda de inteligência artificial, usando o [Cursor
 
 Reúne dois painéis lado a lado, navegação em árvore unificada (pastas e ficheiros no mesmo nível), ícones do sistema, barra de caminho, menu central de operações, cliente e servidor de rede (FTP, SFTP, SCP, TFTP) e opções de visibilidade por painel.
 
-Versão atual: **0.86**. Ela é declarada num lugar só, o `<Version>` de `src\DoraExplorer.App\DoraExplorer.App.csproj`, e aparece em **Ajuda → Sobre**, no executável (propriedades do arquivo) e no log de cada execução.
+Versão atual: **0.9**. Ela é declarada num lugar só, o `<Version>` de `src\DoraExplorer.App\DoraExplorer.App.csproj`, e aparece em **Ajuda → Sobre**, no executável (propriedades do arquivo) e no log de cada execução.
 
 > English: a short summary is in the [English](#english) section at the end of this file.
+
+## Novidades da versão 0.9
+
+- **Localizar e Duplicados levam ao arquivo:** o duplo clique num resultado abre a pasta, **seleciona o arquivo** e o mostra mais ou menos no meio da lista, também em pastas com milhares de arquivos e sem a tela piscar.
+- **Duplicados mais rápido e mais claro:** mais leituras ao mesmo tempo conforme o tipo de disco (SSD ou HD), pastas do sistema fora da busca (com opção para incluí-las) e leitura enxuta; a lista começa pelos **maiores** e se ordena por *Nome* ou *Tamanho*; o andamento mostra bytes e uma barra, para não parecer travado.
+- **Visão em colunas com rolagem horizontal:** *Tipo*, *Modificado* e *Tamanho* têm largura fixa e mostram sempre o conteúdo inteiro; só o *Nome* se alarga (arrastando a borda no cabeçalho). A barra horizontal tem sempre o tamanho do **maior nome da lista** e rola também com **dois dedos no touchpad** e com Shift + roda; a linha de cada unidade, com a barra de espaço do disco, fica parada.
+- **Barras de rolagem** 50% mais grossas (12 px) e sem o quadrado branco no canto onde as duas se encontram.
+- **Linhas confortáveis:** a caixa do aplicativo padrão fica inteira dentro da linha.
+- **Renomear** deixa selecionado o item com o novo nome; **Propriedades** mostra também o **MD5** (além do SHA-256); o **Localizar** ganhou o botão **Abrir em Janela**.
 
 ## Requisitos
 
@@ -52,9 +61,9 @@ O **book de testes** (`tests\BOOKTEST.md`, gerado por `scripts\generate-booktest
 | **Dois painéis** | Painéis esquerdo e direito independentes com a mesma estrutura |
 | **Painel ativo** | O último painel com que interagiu define o destino de operações de pasta (nova pasta, localizar, ordenar) |
 | **Árvore unificada** | Unidades, pastas e ficheiros num único `TreeView` |
-| **Visão em colunas** | Cada linha mostra *Nome*, *Tipo* (contagem de pastas/arquivos ou aplicativo padrão), *Modificado* e *Tamanho* alinhados sob um cabeçalho. Em painéis estreitos o *Tipo* e depois o *Modificado* saem de cena para o nome nunca ficar cortado |
+| **Visão em colunas** | Cada linha mostra *Nome*, *Tipo* (contagem de pastas/arquivos ou aplicativo padrão), *Modificado* e *Tamanho* alinhados sob um cabeçalho. As colunas **não somem mais** em painéis estreitos: *Tipo*, *Modificado* e *Tamanho* têm largura **fixa e folgada** (mostram sempre o conteúdo inteiro, como o nome do aplicativo padrão, e não mudam com o painel nem com a rolagem), e o que não cabe vira a **barra de rolagem horizontal** (o cabeçalho rola junto). Ela tem sempre o tamanho do **maior nome da lista inteira** (todas as pastas abertas, não só as linhas que aparecem): descer a lista não muda nem move a barra. Rola com a barra, com **dois dedos para o lado no touchpad**, com a roda inclinada ou com **Shift + roda do mouse**. Só a coluna **Nome** se alarga além disso: arraste a borda direita dela no cabeçalho; um **duplo clique** na borda volta ao automático, e a largura fica guardada por painel. As barras de rolagem têm 12 px de espessura e o canto onde as duas se encontram não tem o quadrado branco. A linha de cada unidade (com a barra de espaço do disco) fica **parada**, com a largura original, enquanto a lista rola na horizontal |
 | **Ordenar pelo cabeçalho** | Clicar em *Nome*, *Tipo*, *Modificado* ou *Tamanho* ordena por essa coluna; clicar de novo inverte (▲/▼). A ordenação vale para os dois painéis, como em **Ordenar** |
-| **Densidade das linhas** | *Exibir ▸ Linhas compactas em colunas* (ligado por padrão) alterna entre a visão em colunas (cerca de 20 itens por painel) e as linhas confortáveis de duas linhas |
+| **Densidade das linhas** | *Exibir ▸ Linhas compactas em colunas* (ligado por padrão) alterna entre a visão em colunas (cerca de 20 itens por painel) e as linhas confortáveis de duas linhas (a caixa do aplicativo padrão fica inteira dentro da linha, que mede 54 px). Nos dois modos a lista tem a barra de rolagem horizontal quando o conteúdo (nome longo, colunas largas) passa da largura do painel; nas linhas confortáveis a data e a hora ainda vão sumindo quando o painel estreita |
 | **Voltar, avançar e subir** | Botões ← → ↑ ao lado do caminho de cada painel, com histórico próprio por painel; funcionam também em arquivos compactados e caminhos remotos. A seta para cima fica desativada na raiz da unidade ou do servidor |
 | **Metadados de ficheiros** | Data, hora e tamanho alinhados à extrema direita de cada arquivo |
 | **Linhas de hierarquia** | Guias finas e discretas entre pastas, na cor de destaque, com cantos arredondados |
@@ -298,7 +307,8 @@ This reimagining was made with the help of artificial intelligence, using [Curso
 
 It brings two side-by-side panes, a unified tree view (folders and files at the same level), system icons, a path bar, a central operations menu, a network client and server (FTP, SFTP, SCP, TFTP) and visibility options for each pane. It is a WPF application on .NET 8 (MVVM). The interface is in Brazilian Portuguese.
 
-- **Current version:** 0.86.
+- **Current version:** 0.9.
+- **What's new in 0.9:** double-clicking a result in **Find** or **Duplicates** now opens the folder, selects the file and shows it in the middle of the list (even in folders with thousands of files, without flicker); Duplicates is faster and sorts by Name or Size (largest first) with byte-based progress; the columns view has fixed-width Type/Modified/Size columns, a resizable Name column and a horizontal scroll bar sized to the longest name (also driven by a two-finger touchpad swipe) while each drive row stays in place; scroll bars are 50% thicker and the white square where they meet is gone; the default-application box fits inside the comfortable row; rename selects the item with its new name; Properties also shows the MD5 hash; Find has an **Open in Window** button.
 - **Requirements:** Windows 10 or later. To build, the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (the runtime alone is not enough).
 - **Run:** `Start.bat` at the project root. It closes a previous instance, builds in Release mode and starts the app.
 - **Tests:** `dotnet test DoraExplorer.sln -c Release`.

@@ -17,8 +17,8 @@ public static class TreeScrollHelper
     private const double ViewportPadding = 6;
     private const double TreePaddingTop = 4;
 
-    /// <summary>Altura do rodapé de metadados do modo confortável (linha de 32 px passa a 48 px). Só vale sem medida real.</summary>
-    public const double MetadataFooterHeight = 16;
+    /// <summary>Altura do rodapé de metadados do modo confortável (linha de 32 px passa a 54 px). Só vale sem medida real.</summary>
+    public const double MetadataFooterHeight = 22;
 
     public static void EnsureItemVisible(TreeViewItem item, ScrollViewer scrollViewer, bool animate = false)
     {
@@ -56,6 +56,19 @@ public static class TreeScrollHelper
 
         return TryCenterUsingContentSpace(item, scrollViewer, animate);
     }
+
+    /// <summary>Pixels de rolagem horizontal por "dente" (120) da roda inclinada ou do touchpad de dois dedos.</summary>
+    public const double HorizontalWheelPixelsPerNotch = 64;
+
+    /// <summary>O valor do giro (com sinal) no WM_MOUSEHWHEEL: a palavra alta do wParam. Positivo é para a direita.</summary>
+    public static int HorizontalWheelDelta(long wParam) => (short)((wParam >> 16) & 0xFFFF);
+
+    /// <summary>
+    /// A posição da rolagem horizontal depois de um giro (120 por dente; o touchpad de precisão manda valores pequenos e
+    /// seguidos, que somam certo), sempre dentro da faixa rolável.
+    /// </summary>
+    public static double HorizontalWheelOffset(double current, int delta, double scrollableWidth) =>
+        Math.Clamp(current + (delta / 120.0 * HorizontalWheelPixelsPerNotch), 0, Math.Max(0, scrollableWidth));
 
     /// <summary>
     /// Centralização para o Localizar: estima o offset pela árvore de ViewModels (funciona com

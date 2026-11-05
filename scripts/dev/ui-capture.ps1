@@ -223,7 +223,7 @@ function Menu-Invoke($root, $top, $like, $mid = $null) {
 $uiFailures = 0
 $uiRoot = $null
 $userState = $null
-if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu', 'marqueedrag', 'rename', 'newfeatures', 'locate') {
+if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu', 'marqueedrag', 'rename', 'newfeatures', 'locate', 'columns') {
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -TypeDefinition @'
 using System; using System.Runtime.InteropServices;
@@ -242,7 +242,7 @@ public static class Kb {
     $uiRoot = Join-Path (Split-Path -Parent $TestFolder) ('DoraUi' + (Get-Date -Format 'HHmmss'))
     $cleanup.Add($uiRoot)
     New-Item -ItemType Directory -Path $uiRoot -Force | Out-Null
-    $fileCount = switch ($Scenario) { 'delfocus' { 5 } 'multisel' { 6 } 'favmenu' { 2 } 'props' { 2 } default { 0 } }
+    $fileCount = switch ($Scenario) { 'delfocus' { 5 } 'multisel' { 6 } 'favmenu' { 2 } 'props' { 2 } 'columns' { 3 } default { 0 } }
     if ($fileCount -gt 0) { 1..$fileCount | ForEach-Object { Set-Content -LiteralPath (Join-Path $uiRoot "arq$_.txt") -Value ('x' * ($_ * 100)) -Encoding Ascii } }
     if ($Scenario -eq 'dragdrop') {
         New-Item -ItemType Directory -Path (Join-Path $uiRoot 'src') -Force | Out-Null
@@ -269,6 +269,16 @@ public static class Kb {
     if ($Scenario -eq 'rename') {
         1..2 | ForEach-Object { Set-Content -LiteralPath (Join-Path $uiRoot "relatorio.final$_.docx") -Value 'x' -Encoding Ascii }
         New-Item -ItemType Directory -Path (Join-Path $uiRoot 'pasta.v2') -Force | Out-Null
+    }
+    if ($Scenario -eq 'columns') {
+        $largo = Join-Path $uiRoot 'largo'
+        New-Item -ItemType Directory -Path $largo -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $largo (('nome-muito-comprido-' * 6) + '.txt')) -Value 'x' -Encoding Ascii
+        # 150 arquivos de nome curto e UM de nome comprido que fica por ultimo (para descer a lista ate ele)
+        $grande = Join-Path $uiRoot 'grande'
+        New-Item -ItemType Directory -Path $grande -Force | Out-Null
+        1..150 | ForEach-Object { Set-Content -LiteralPath (Join-Path $grande ('a{0:D3}.txt' -f $_)) -Value 'x' -Encoding Ascii }
+        Set-Content -LiteralPath (Join-Path $grande (('zz-o-maior-nome-fica-la-embaixo-' * 3) + '.txt')) -Value 'x' -Encoding Ascii
     }
     if ($Scenario -eq 'locate') {
         # Duas arvores fundas e iguais com 2500 arquivos cada (acima do limite em que a pasta e preenchida em lotes), e um arquivo
@@ -1607,6 +1617,221 @@ public static class FrameSig {
             }
             Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
         }
+        'columns' {
+            # Modo em colunas: so o Nome se alarga (arrastando a borda direita dele); Tipo, Modificado e Tamanho tem largura fixa
+            # e folgada; a lista rola na horizontal so quando precisa, com o cabecalho junto; a linha da unidade (com a barra de
+            # espaco do disco) fica parada; nas linhas confortaveis a caixa do aplicativo padrao fica dentro da linha.
+            $root.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern).Move(0, 0); Start-Sleep -Milliseconds 800
+            $c = (TopItems $root 0)[0]; Expand $c
+            $dirRow = Child $c (Split-Path $uiRoot -Leaf)
+            Check 'a pasta de teste aparece em C:' ($null -ne $dirRow)
+            if (-not $dirRow) { break }
+            [void](Choose-Item $dirRow)
+            Expand $dirRow
+            function Hdr($like) { $root.FindAll($TS::Descendants, (Cond $CT::Button)) | Where-Object { $_.Current.Name -like $like } | Select-Object -First 1 }
+            function Tree-El { $root.FindAll($TS::Descendants, (Cond $CT::Tree)) | Select-Object -First 1 }
+            function H-Scroll { try { (Tree-El).GetCurrentPattern([Windows.Automation.ScrollPattern]::Pattern).Current.HorizontallyScrollable } catch { $false } }
+            function Scroll-To($percent) { [void](Tree-El).GetCurrentPattern([Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent($percent, -1); Start-Sleep -Milliseconds 700 }
+            function Drag-Mouse([double]$x0, [double]$y, [double]$dx) {
+                [void][Kb]::SetCursorPos([int]$x0, [int]$y); Start-Sleep -Milliseconds 200
+                [Kb]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 120
+                for ($i = 1; $i -le 14; $i++) { [void][Kb]::SetCursorPos([int]($x0 + $dx * $i / 14), [int]$y); Start-Sleep -Milliseconds 30 }
+                [Kb]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 500
+            }
+            function Width-Of($like) { $r = (Hdr $like).Current.BoundingRectangle; [Math]::Round($r.Width) }
+            function Mid-Y($el) { $r = $el.Current.BoundingRectangle; $r.Top + $r.Height / 2 }
+            function Dir-Row { $top = (TopItems $root 0)[0]; Child $top (Split-Path $uiRoot -Leaf) }
+            function File-Row($name) { $d = Dir-Row; if ($d) { $d.FindAll($TS::Descendants, (Cond $CT::TreeItem)) | Where-Object { $_.Current.Name -like "$name*" } | Select-Object -First 1 } }
+            function Size-Text-Right($name, $pattern) {
+                $row = File-Row $name
+                if (-not $row) { return $null }
+                $t = $row.FindAll($TS::Descendants, (Cond $CT::Text)) | Where-Object { $_.Current.Name -match $pattern } | Select-Object -First 1
+                if ($t) { $t.Current.BoundingRectangle.Right } else { $null }
+            }
+            # a barra de espaco do disco da unidade C: (a primeira barra de progresso da arvore da esquerda)
+            function Disk-Bar { $root.FindAll($TS::Descendants, (Cond $CT::ProgressBar)) | Select-Object -First 1 }
+            function Bar-Box { $b = (Disk-Bar); if ($b) { $r = $b.Current.BoundingRectangle; [pscustomobject]@{ Left = [Math]::Round($r.Left); Right = [Math]::Round($r.Right); Top = [Math]::Round($r.Top) } } }
+            [void](Ensure-Foreground $h)
+            if (-not ('FrameSig' -as [type])) {
+                Add-Type -ReferencedAssemblies 'System.Drawing.dll' -TypeDefinition @"
+using System; using System.Drawing; using System.Drawing.Imaging; using System.Runtime.InteropServices;
+public static class FrameSig {
+  public static ulong Hash(Bitmap bmp) {
+    var d = bmp.LockBits(new Rectangle(0, 0, bmp.Width, bmp.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+    ulong h = 1469598103934665603UL;
+    try {
+      var row = new byte[bmp.Width * 4];
+      for (int y = 0; y < bmp.Height; y += 2) {
+        Marshal.Copy(IntPtr.Add(d.Scan0, y * d.Stride), row, 0, row.Length);
+        for (int i = 0; i < row.Length; i += 8) { h = (h ^ row[i]) * 1099511628211UL; h = (h ^ row[i + 1]) * 1099511628211UL; h = (h ^ row[i + 2]) * 1099511628211UL; }
+      }
+    } finally { bmp.UnlockBits(d); }
+    return h;
+  }
+}
+"@
+            }
+            # Quantos desenhos diferentes a area da lista tem durante $ms parada (sem ninguem mexer): uma tela estavel tem 1.
+            function Distinct-Frames($ms) {
+                $tr = (Tree-El).Current.BoundingRectangle
+                $w = [int]($tr.Width - 30); $ht = [int]($tr.Height - 30)
+                $clock = [Diagnostics.Stopwatch]::StartNew(); $states = 0; $last = [uint64]0; $frames = 0
+                while ($clock.Elapsed.TotalMilliseconds -lt $ms) {
+                    $bm = New-Object System.Drawing.Bitmap $w, $ht
+                    $g = [System.Drawing.Graphics]::FromImage($bm)
+                    $g.CopyFromScreen([int]$tr.Left + 4, [int]$tr.Top + 4, 0, 0, (New-Object System.Drawing.Size $w, $ht)); $g.Dispose()
+                    $hash = [FrameSig]::Hash($bm); $bm.Dispose(); $frames++
+                    if ($hash -ne $last) { $states++; $last = $hash }
+                }
+                [pscustomobject]@{ States = $states; Frames = $frames }
+            }
+
+            # O app guarda a densidade das linhas nas configuracoes do usuario: se estiver em confortavel, liga o modo em colunas.
+            if (-not (Hdr 'Tipo*')) {
+                [void](Menu-Invoke $root 'Exibir' 'Linhas compactas*')
+                [void](Ensure-Foreground $h)
+                Start-Sleep -Milliseconds 800
+            }
+
+            # ---- larguras fixas e o Nome automatico
+            $tipo = Hdr 'Tipo*'
+            Check 'o cabecalho Tipo existe no modo em colunas' ($null -ne $tipo)
+            if (-not $tipo) { break }
+            $wTipo = Width-Of 'Tipo*'; $wMod = Width-Of 'Modificado*'; $wTam = Width-Of 'Tamanho*'; $wNome = Width-Of 'Nome*'
+            "larguras: Nome $wNome | Tipo $wTipo | Modificado $wMod | Tamanho $wTam"
+            Check 'Tipo, Modificado e Tamanho tem as larguras fixas folgadas (160, 120 e 80)' (([Math]::Abs($wTipo - 160) -le 3) -and ([Math]::Abs($wMod - 120) -le 3) -and ([Math]::Abs($wTam - 80) -le 3)) "Tipo $wTipo, Modificado $wMod, Tamanho $wTam"
+            $stab = Distinct-Frames 2500
+            Check 'a tela fica parada depois de abrir: nada aparece e some nem pisca (1 desenho em 2,5 s)' ($stab.States -eq 1) "desenhos diferentes: $($stab.States) em $($stab.Frames) quadros"
+            $bar0 = Bar-Box
+            Check 'a barra de espaco do disco existe' ($null -ne $bar0)
+            $hdrRight0 = (Hdr 'Tamanho*').Current.BoundingRectangle.Right
+            $rowRight0 = Size-Text-Right 'arq1.txt' '^102\W*B$'
+            Check 'o tamanho da linha esta alinhado com o cabecalho Tamanho' ($null -ne $rowRight0 -and [Math]::Abs($rowRight0 - $hdrRight0) -le 12) "cabecalho $hdrRight0, linha $rowRight0"
+
+            # ---- so o Nome se alarga: arrasta a borda direita dele
+            $nome = Hdr 'Nome*'; $nr = $nome.Current.BoundingRectangle
+            Drag-Mouse -x0 ($nr.Right - 1) -y (Mid-Y $nome) -dx 200
+            $wNome1 = Width-Of 'Nome*'
+            Check 'arrastar a borda direita do Nome 200 px para a direita alarga a coluna (cerca de +200)' (($wNome1 - $wNome) -ge 190 -and ($wNome1 - $wNome) -le 210) "antes $wNome, depois $wNome1"
+            $salvo = [double](Setting-Value 'LeftPaneDisplay' 'NameColumnWidth')
+            Check 'a largura nova do Nome (a da coluna no cabecalho) foi gravada nas opcoes do painel' ([Math]::Abs($salvo - $wNome1) -le 8) "gravado: $salvo, coluna: $wNome1"
+            Check 'Tipo, Modificado e Tamanho continuam com a mesma largura' (([Math]::Abs((Width-Of 'Tipo*') - $wTipo) -le 2) -and ([Math]::Abs((Width-Of 'Modificado*') - $wMod) -le 2) -and ([Math]::Abs((Width-Of 'Tamanho*') - $wTam) -le 2)) "Tipo $(Width-Of 'Tipo*'), Modificado $(Width-Of 'Modificado*'), Tamanho $(Width-Of 'Tamanho*')"
+            Check 'com o Nome alargado alem do painel a lista rola na horizontal' (H-Scroll)
+            Snap-Screen $h 'columns-1-nome-alargado'
+            Scroll-To 100
+            $bar1 = Bar-Box
+            Check 'rolado ate o fim, a barra de espaco do disco continua no mesmo lugar e com a mesma largura' ($null -ne $bar1 -and [Math]::Abs($bar1.Left - $bar0.Left) -le 2 -and [Math]::Abs($bar1.Right - $bar0.Right) -le 2) "antes $($bar0.Left)-$($bar0.Right), depois $($bar1.Left)-$($bar1.Right)"
+            $hdrRight1 = (Hdr 'Tamanho*').Current.BoundingRectangle.Right
+            $rowRight1 = Size-Text-Right 'arq1.txt' '^102\W*B$'
+            Check 'rolado ate o fim, o cabecalho Tamanho continua alinhado com a coluna da linha' ($null -ne $rowRight1 -and [Math]::Abs($rowRight1 - $hdrRight1) -le 12) "cabecalho $hdrRight1, linha $rowRight1"
+            Start-Sleep -Milliseconds 1500
+            Snap-Screen $h 'columns-2-rolado-a-direita'
+            Scroll-To 0
+
+            # ---- duplo clique na borda volta ao automatico
+            $nome = Hdr 'Nome*'; $nr = $nome.Current.BoundingRectangle
+            [Kb]::Click([int]($nr.Right - 1), [int](Mid-Y $nome)); Start-Sleep -Milliseconds 120
+            [Kb]::Click([int]($nr.Right - 1), [int](Mid-Y $nome)); Start-Sleep -Milliseconds 800
+            Check 'duplo clique na borda volta o Nome para a largura automatica' ([Math]::Abs((Width-Of 'Nome*') - $wNome) -le 3) "largura: $(Width-Of 'Nome*'), esperado $wNome"
+            Check 'e a opcao do painel volta a 0 (automatica)' ([double](Setting-Value 'LeftPaneDisplay' 'NameColumnWidth') -eq 0) "gravado: $(Setting-Value 'LeftPaneDisplay' 'NameColumnWidth')"
+
+            # ---- a barra horizontal tem sempre o tamanho do maior nome da lista inteira (nao anda conforme a lista desce)
+            $gr = (Dir-Row).FindAll($TS::Descendants, (Cond $CT::TreeItem)) | Where-Object { $_.Current.Name -like 'grande*' } | Select-Object -First 1
+            Check 'a pasta grande aparece' ($null -ne $gr)
+            if ($gr) {
+                Expand $gr; Start-Sleep -Milliseconds 800
+                function View-Size { (Tree-El).GetCurrentPattern([Windows.Automation.ScrollPattern]::Pattern).Current.HorizontalViewSize }
+                function V-Scroll($percent) { [void](Tree-El).GetCurrentPattern([Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent(-1, $percent); Start-Sleep -Milliseconds 700 }
+                V-Scroll 0
+                $vTopo = View-Size; $nomeTopo = Width-Of 'Nome*'
+                Check 'com o maior nome na lista a barra horizontal existe' ((H-Scroll) -and $vTopo -lt 99) "tamanho da barra: $vTopo%"
+                $meio = @()
+                foreach ($pct in 25, 50, 75, 100) { V-Scroll $pct; $meio += (View-Size) }
+                $vFim = $meio[-1]
+                Check 'descendo a lista o tamanho da barra horizontal nao muda (sempre o do maior nome)' (([Math]::Abs($vFim - $vTopo) -le 0.5) -and (($meio | Where-Object { [Math]::Abs($_ - $vTopo) -gt 0.5 }).Count -eq 0)) "no topo $vTopo%, depois $($meio -join '% / ')%"
+                Check 'e a coluna Nome do cabecalho tambem nao muda' ([Math]::Abs((Width-Of 'Nome*') - $nomeTopo) -le 2) "topo $nomeTopo, fim $(Width-Of 'Nome*')"
+                $pctH0 = (Tree-El).GetCurrentPattern([Windows.Automation.ScrollPattern]::Pattern).Current.HorizontalScrollPercent
+
+                # ---- touchpad de dois dedos para o lado (WM_MOUSEHWHEEL)
+                $tr = (Tree-El).Current.BoundingRectangle
+                [void][Kb]::SetCursorPos([int]($tr.Left + $tr.Width / 2), [int]($tr.Top + $tr.Height / 2)); Start-Sleep -Milliseconds 300
+                [Kb]::mouse_event(0x1000, 0, 0, 360, [UIntPtr]::Zero); Start-Sleep -Milliseconds 700
+                $pctH1 = (Tree-El).GetCurrentPattern([Windows.Automation.ScrollPattern]::Pattern).Current.HorizontalScrollPercent
+                Check 'dois dedos para a direita no touchpad rolam a lista para a direita' ($pctH1 -gt $pctH0 + 1) "antes $pctH0%, depois $pctH1%"
+                [Kb]::mouse_event(0x1000, 0, 0, [BitConverter]::ToUInt32([BitConverter]::GetBytes([int]-360), 0), [UIntPtr]::Zero); Start-Sleep -Milliseconds 700
+                $pctH2 = (Tree-El).GetCurrentPattern([Windows.Automation.ScrollPattern]::Pattern).Current.HorizontalScrollPercent
+                Check 'e para a esquerda rolam de volta' ($pctH2 -lt $pctH1 - 1) "depois de ir: $pctH1%, depois de voltar: $pctH2%"
+
+                # ---- subindo a lista com a barra horizontal grande nao pisca nem volta
+                V-Scroll 100
+                $tr = (Tree-El).Current.BoundingRectangle
+                [void][Kb]::SetCursorPos([int]($tr.Left + $tr.Width / 2), [int]($tr.Top + $tr.Height / 2)); Start-Sleep -Milliseconds 200
+                # sobe com a roda (como o touchpad faz, em passos seguidos) e acompanha a posicao: ela so pode diminuir
+                $spv = (Tree-El).GetCurrentPattern([Windows.Automation.ScrollPattern]::Pattern)
+                $amostras = New-Object System.Collections.Generic.List[double]
+                $clock = [Diagnostics.Stopwatch]::StartNew(); $enviados = 0
+                while ($clock.Elapsed.TotalMilliseconds -lt 3500) {
+                    if ($enviados -lt 12 -and $clock.Elapsed.TotalMilliseconds -ge ($enviados * 40)) { [Kb]::mouse_event(0x0800, 0, 0, 120, [UIntPtr]::Zero); $enviados++ }
+                    $amostras.Add($spv.Current.VerticalScrollPercent); Start-Sleep -Milliseconds 15
+                }
+                $voltou = 0.0; for ($i = 1; $i -lt $amostras.Count; $i++) { $d = $amostras[$i] - $amostras[$i - 1]; if ($d -gt $voltou) { $voltou = $d } }
+                Check 'subindo a lista com a roda a posicao so diminui (nao pisca nem volta)' ($voltou -le 0.2) "maior volta entre duas leituras: $([Math]::Round($voltou, 2))%, de $([Math]::Round($amostras[0],1))% a $([Math]::Round($amostras[$amostras.Count-1],1))%"
+                $parado = Distinct-Frames 1500
+                Check 'terminada a subida a tela fica estavel (1 desenho)' ($parado.States -eq 1) "desenhos diferentes: $($parado.States)"
+
+                # ---- o canto onde as duas barras se encontram nao e branco; as barras sao mais grossas
+                V-Scroll 0
+                # As barras nao aparecem na arvore de automacao: confere pelos pixels (a alca da barra, o canto e a cor de fundo).
+                $trr = (Tree-El).Current.BoundingRectangle
+                $dir = [int]$trr.Right; $base = [int]$trr.Bottom
+                function Cap($left, $top, $w, $h) { $b = New-Object System.Drawing.Bitmap $w, $h; $g = [System.Drawing.Graphics]::FromImage($b); $g.CopyFromScreen($left, $top, 0, 0, (New-Object System.Drawing.Size $w, $h)); $g.Dispose(); $b }
+                function Far($a, $b) { ([Math]::Abs($a.R - $b.R) + [Math]::Abs($a.G - $b.G) + [Math]::Abs($a.B - $b.B)) -gt 40 }
+                # alca da barra vertical: faixa horizontal de 16 px junto da borda direita, uma linha abaixo do topo (a alca fica la com a lista no topo)
+                $faixa = Cap ($dir - 16) ([int]($trr.Top + 40)) 16 1
+                $fundoV = $faixa.GetPixel(15, 0); $alcaV = 0; for ($k = 0; $k -lt 16; $k++) { if (Far $faixa.GetPixel($k, 0) $fundoV) { $alcaV++ } }; $faixa.Dispose()
+                # alca da barra horizontal: faixa vertical de 16 px junto da borda de baixo, no meio da alca (a lista esta no comeco)
+                $faixa = Cap ([int]($trr.Left + 120)) ($base - 16) 1 16
+                $fundoH = $faixa.GetPixel(0, 15); $alcaH = 0; for ($k = 0; $k -lt 16; $k++) { if (Far $faixa.GetPixel(0, $k) $fundoH) { $alcaH++ } }; $faixa.Dispose()
+                Check 'a alca da barra vertical tem cerca de 6 px (era 4): a barra ficou 50% mais grossa' ($alcaV -ge 5 -and $alcaV -le 7) "alca vertical: $alcaV px"
+                Check 'a alca da barra horizontal tem cerca de 6 px (era 4)' ($alcaH -ge 5 -and $alcaH -le 7) "alca horizontal: $alcaH px"
+                $cb = Cap ($dir - 7) ($base - 7) 1 1; $px = $cb.GetPixel(0, 0); $cb.Dispose()
+                Check 'o canto entre as duas barras nao e branco' (($px.R -lt 200) -or ($px.G -lt 200) -or ($px.B -lt 200)) "cor do canto ($($dir - 7),$($base - 7)): $($px.R),$($px.G),$($px.B)"
+                Snap-Screen $h 'columns-4-barras-e-canto'
+                $gr2 = (Dir-Row).FindAll($TS::Descendants, (Cond $CT::TreeItem)) | Where-Object { $_.Current.Name -like 'grande*' } | Select-Object -First 1
+                if ($gr2) { try { $gr2.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Collapse() } catch { } }
+                Start-Sleep -Milliseconds 900
+            }
+
+            # ---- linhas confortaveis: caixa do aplicativo padrao dentro da linha e rolagem por nome longo
+            [void](Choose-Item (Child $c 'Windows'))
+            [void](Menu-Invoke $root 'Exibir' 'Linhas compactas*')
+            [void](Ensure-Foreground $h)
+            [void](Choose-Item (Child $c (Split-Path $uiRoot -Leaf)))
+            Start-Sleep -Milliseconds 1500
+            $d = Dir-Row
+            if ($d -and ('' + $d.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Current.ExpandCollapseState) -ne 'Expanded') { Expand $d }
+            $row = File-Row 'arq1.txt'
+            Check 'a linha arq1.txt aparece (linhas confortaveis)' ($null -ne $row)
+            if ($row) {
+                $rr = $row.Current.BoundingRectangle
+                $btn = $row.FindAll($TS::Descendants, (Cond $CT::Button)) | Select-Object -First 1
+                if ($btn) {
+                    $br = $btn.Current.BoundingRectangle
+                    Check 'a caixa do aplicativo padrao fica dentro da linha, sem encostar na borda de baixo' (($br.Top -ge $rr.Top + 2) -and ($br.Bottom -le $rr.Bottom - 2)) "linha $($rr.Top)-$($rr.Bottom), caixa $($br.Top)-$($br.Bottom)"
+                } else { 'sem caixa de aplicativo padrao nesta linha (a opcao Exibir aplicativo padrao esta desligada?)' }
+                Check 'a linha confortavel tem cerca de 54 px' ([Math]::Abs($rr.Height - 54) -le 3) "altura $($rr.Height)"
+            }
+            Check 'sem nome largo aberto, nao ha o que rolar na horizontal (linhas confortaveis)' (-not (H-Scroll))
+            $barC0 = Bar-Box
+            $largoRow = (Dir-Row).FindAll($TS::Descendants, (Cond $CT::TreeItem)) | Where-Object { $_.Current.Name -like 'largo*' } | Select-Object -First 1
+            if ($largoRow) { Expand $largoRow; Start-Sleep -Milliseconds 800 }
+            Check 'um nome mais largo que o painel faz a lista rolar na horizontal (linhas confortaveis)' (H-Scroll)
+            Scroll-To 100
+            $barC1 = Bar-Box
+            Check 'rolado ate o fim, a barra de espaco do disco continua no mesmo lugar (linhas confortaveis)' ($null -ne $barC1 -and $null -ne $barC0 -and [Math]::Abs($barC1.Left - $barC0.Left) -le 2 -and [Math]::Abs($barC1.Right - $barC0.Right) -le 2) "antes $($barC0.Left)-$($barC0.Right), depois $($barC1.Left)-$($barC1.Right)"
+            Snap-Screen $h 'columns-3-confortavel'
+            Check 'app continua respondendo' (-not $proc.HasExited -and $proc.Responding)
+        }
         'windows' {
             $c = (TopItems $root)[0]; Expand $c
             $w = Child $c 'Windows'; if ($w) { try { Expand $w } catch { "expandir Windows: $($_.Exception.Message)" } }
@@ -1615,11 +1840,11 @@ public static class FrameSig {
     }
 } catch { "erro: $($_.Exception.Message) (linha $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim()))" }
 [void]$proc.CloseMainWindow(); [void]$proc.WaitForExit(10000); 'app fechado: ' + $proc.HasExited
-if (($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu', 'marqueedrag', 'rename', 'newfeatures', 'locate') -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; 'o app nao fechou sozinho (ficou uma janela aberta?): encerrado a forca'; Start-Sleep -Seconds 1 }
+if (($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu', 'marqueedrag', 'rename', 'newfeatures', 'locate', 'columns') -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; 'o app nao fechou sozinho (ficou uma janela aberta?): encerrado a forca'; Start-Sleep -Seconds 1 }
 foreach ($path in $cleanup) { Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue }
 if ($Scenario -eq 'blink' -and $blinkRoot) { Clear-BlinkIndexRows $blinkRoot }
 if ($userState) { Restore-UserState }
-if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu', 'marqueedrag', 'rename', 'newfeatures', 'locate') {
+if ($Scenario -in 'delfocus', 'multisel', 'dragdrop', 'about', 'favmenu', 'props', 'menu', 'marqueedrag', 'rename', 'newfeatures', 'locate', 'columns') {
     [void][Kb]::SetCursorPos($cursor0.X, $cursor0.Y)
     'pasta de teste removida: ' + (-not (Test-Path -LiteralPath $uiRoot))
     "verificacoes com falha: $uiFailures"

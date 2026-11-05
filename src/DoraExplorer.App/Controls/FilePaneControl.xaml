@@ -241,6 +241,9 @@
 
 
 
+                <!-- MinWidth: todas as linhas ficam com a largura da mais larga da lista (e o Nome alargado pelo usuário, no modo em
+                     colunas). É a largura natural das linhas que dá ao ScrollViewer o quanto há para rolar, e ele só conhece as
+                     linhas desenhadas: assim a barra horizontal não muda de tamanho nem anda quando a lista rola. -->
                 <Grid Grid.Row="0" Grid.Column="1"
 
                       HorizontalAlignment="Stretch"
@@ -250,6 +253,13 @@
                       Margin="0,0,8,0"
 
                       Visibility="{Binding IsSimpleNavigationRoot, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
+
+                    <Grid.MinWidth>
+                        <MultiBinding Converter="{StaticResource NameCellMinWidthConverter}">
+                            <Binding Path="DataContext.NameRowWidth" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                            <Binding Path="TreeDepth" />
+                        </MultiBinding>
+                    </Grid.MinWidth>
 
 
 
@@ -663,7 +673,7 @@
 
                             VerticalAlignment="Top"
 
-                            Margin="0,2,0,0"
+                            Margin="0,2,0,4"
 
                             >
                     <StackPanel.Visibility>
@@ -674,11 +684,14 @@
                         </MultiBinding>
                     </StackPanel.Visibility>
 
+                    <!-- Margin 0: o estilo tem margem vertical negativa (certa para a linha em colunas) e, aqui, a caixa passava da borda da linha. -->
                     <Button Style="{StaticResource TreeItemDefaultAppButtonStyle}"
 
                             Focusable="False"
 
                             IsTabStop="False"
+
+                            Margin="0"
 
                             VerticalAlignment="Center"
 
@@ -880,7 +893,15 @@
                     BorderBrush="{DynamicResource BorderBrushColor}"
                     BorderThickness="0,0,0,1"
                     Visibility="{Binding CompactRows, Converter={StaticResource BoolToVisibilityConverter}}">
-                <Grid x:Name="ColumnHeaderGrid">
+                <!-- ColumnHeaderViewport é a faixa que coincide com a área rolável da lista; ColumnHeaderGrid tem a largura do
+                     conteúdo da lista e anda para a esquerda junto com a lista (Canvas.Left, em UpdateColumnHeaderScroll). Tem de ser
+                     um Canvas: uma grade mais larga que o Grid que a contém ganha um recorte de layout do tamanho dele (deslocada
+                     com RenderTransform só aparecia o começo: Modificado e Tamanho sumiam), e um ScrollViewer aqui entrou num laço de
+                     layout com a lista. O Canvas dá à grade o tamanho que ela pede e o ClipToBounds recorta o que passa da faixa. -->
+                <Canvas x:Name="ColumnHeaderViewport"
+                        ClipToBounds="True"
+                        Height="{Binding ActualHeight, ElementName=ColumnHeaderGrid}">
+                <Grid x:Name="ColumnHeaderGrid" Canvas.Left="0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" MinWidth="0" />
                         <ColumnDefinition Width="Auto" />
@@ -932,7 +953,16 @@
 
                     <Border Grid.Column="4"
                             Width="{Binding TrailingColumnWidth}" />
+
+                    <!-- Só o Nome se alarga: arraste a borda direita dele (o que passar da largura do painel vira rolagem
+                         horizontal); duplo clique volta ao automático. Tipo, Modificado e Tamanho têm largura fixa. -->
+                    <Thumb Grid.Column="0" HorizontalAlignment="Right" Margin="0,0,-4,0"
+                           Style="{StaticResource ColumnGripStyle}"
+                           ToolTip="Arraste para alargar a coluna Nome (duplo clique volta ao automático)"
+                           DragStarted="NameGrip_DragStarted" DragDelta="NameGrip_DragDelta"
+                           DragCompleted="NameGrip_DragCompleted" MouseDoubleClick="NameGrip_MouseDoubleClick" />
                 </Grid>
+                </Canvas>
             </Border>
 
             <Grid Grid.Row="2" x:Name="TreeHost" ClipToBounds="True" AllowDrop="True">

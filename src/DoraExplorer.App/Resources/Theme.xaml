@@ -14,6 +14,7 @@
     <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
     <converters:BoolAndToVisibilityConverter x:Key="BoolAndToVisibilityConverter" />
     <converters:AdaptiveModifiedDateConverter x:Key="AdaptiveModifiedDateConverter" />
+    <converters:NameCellMinWidthConverter x:Key="NameCellMinWidthConverter" />
 
     <FontFamily x:Key="FluentIconFontFamily">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
 
@@ -619,8 +620,9 @@
         <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Padding" Value="20,4,4,4" />
-        <!-- Visão em colunas: nomes longos são cortados com reticências; rolagem horizontal deslocaria as colunas. -->
-        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <!-- Rolagem horizontal só quando precisa (nome longo ou colunas alargadas): as linhas ficam todas com a largura do
+             conteúdo e o cabeçalho das colunas anda junto (FilePaneControl.UpdateColumnHeaderScroll). -->
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto" />
         <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
         <!-- Virtualização de UI: só os itens visíveis são materializados, mantendo o scroll fluido
              em pastas com milhares de itens. ScrollUnit=Pixel alinha o offset em pixels com o
@@ -785,6 +787,37 @@
         </Setter>
     </Style>
 
+    <!-- Borda de arrasto da coluna Nome no cabeçalho: invisível até o mouse passar, então mostra uma linha na cor de destaque. -->
+    <Style x:Key="ColumnGripStyle" TargetType="Thumb">
+        <Setter Property="Width" Value="8" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="Cursor" Value="SizeWE" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Panel.ZIndex" Value="2" />
+        <Setter Property="ToolTip" Value="Arraste para ajustar a largura (duplo clique volta ao automático)" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border Background="Transparent">
+                        <Rectangle x:Name="Line"
+                                   Width="2"
+                                   HorizontalAlignment="Center"
+                                   Fill="{DynamicResource AccentBrush}"
+                                   Opacity="0" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Line" Property="Opacity" Value="0.8" />
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="Line" Property="Opacity" Value="1" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="TreeItemMetaTextStyle" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Segoe UI" />
         <Setter Property="FontSize" Value="10.5" />
@@ -830,7 +863,8 @@
         <Setter Property="HorizontalContentAlignment" Value="Left" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="MinWidth" Value="72" />
-        <Setter Property="MaxWidth" Value="120" />
+        <!-- Cabe um nome de aplicativo comprido ("Visual Studio Code"); a coluna Tipo (PaneColumnWidths.Type) é maior que isto. -->
+        <Setter Property="MaxWidth" Value="150" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
         <Setter Property="Template">
             <Setter.Value>
@@ -873,7 +907,10 @@
             <Setter.Value>
                 <ControlTemplate TargetType="TreeViewItem">
                     <StackPanel ClipToBounds="False">
-                        <Grid ClipToBounds="False">
+                        <!-- A linha de uma unidade (e as demais raízes) fica parada, com a largura da área visível, quando a lista
+                             rola na horizontal: a barra de espaço do disco não anda nem se comprime (StickyToViewport). -->
+                        <Grid ClipToBounds="False"
+                              controls:StickyToViewport.IsSticky="{Binding IsNavigationRoot}">
                             <controls:TreeHierarchyGuides x:Name="HierarchyGuides"
                                                           Panel.ZIndex="2"
                                                           Opacity="1"
