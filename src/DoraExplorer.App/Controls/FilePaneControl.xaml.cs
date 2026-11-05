@@ -353,6 +353,15 @@ public partial class FilePaneControl : UserControl
             ColumnHeaderGrid.Width = newWidth;
         }
 
+        // Nome ajustado pelo usuário: coluna de largura fixa (as outras acompanham a borda dela); automático: estrela (o que sobrar).
+        var manual = ViewModel is { } vm ? vm.NameManualWidth : 0;
+        var nameColumn = ColumnHeaderGrid.ColumnDefinitions[0];
+        var wanted = manual > 0 ? new GridLength(manual) : new GridLength(1, GridUnitType.Star);
+        if (nameColumn.Width != wanted)
+        {
+            nameColumn.Width = wanted;
+        }
+
         Canvas.SetLeft(ColumnHeaderGrid, -scroll.HorizontalOffset);
     }
 
@@ -396,7 +405,8 @@ public partial class FilePaneControl : UserControl
 
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(FilePaneViewModel.CompactRows) or nameof(FilePaneViewModel.NameRowWidth))
+        if (e.PropertyName is nameof(FilePaneViewModel.CompactRows) or nameof(FilePaneViewModel.NameRowWidth)
+            or nameof(FilePaneViewModel.NameManualWidth))
         {
             UpdateColumnHeaderScroll();
         }

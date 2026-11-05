@@ -16,8 +16,38 @@ public static class NameWidthScanner
     public const int CandidatesPerFolder = 4;
 
     /// <summary>
+    /// Há alguma linha das colunas (pasta, arquivo, arquivo compactado) visível? Só as raízes (unidades, Favoritos, Lixeira, Rede)
+    /// e os protocolos da Rede não contam: sem nenhuma pasta aberta o cabeçalho das colunas fica vazio.
+    /// </summary>
+    public static bool HasColumnRows(IEnumerable<NavigationTreeNodeViewModel> roots) => roots.Any(AnyColumnRowBelow);
+
+    private static bool AnyColumnRowBelow(NavigationTreeNodeViewModel node)
+    {
+        if (!node.IsExpanded)
+        {
+            return false;
+        }
+
+        foreach (var child in node.Children)
+        {
+            if (child.IsPlaceholder)
+            {
+                continue;
+            }
+
+            if (child.ParticipatesInColumns || AnyColumnRowBelow(child))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// A largura (recuo, ícone e texto do nome) da linha mais larga entre as pastas abertas. <paramref name="measureText"/>
-    /// mede o texto do nome em pixels. Não conta as linhas de topo (unidades, Favoritos...), que ocupam só a área visível.
+    /// mede o texto do nome em pixels. Não conta as raízes nem os protocolos da Rede (<see cref="NavigationTreeNodeViewModel.ParticipatesInColumns"/>):
+    /// a largura do Nome não tem influência sobre eles.
     /// </summary>
     public static double WidestRowWidth(IEnumerable<NavigationTreeNodeViewModel> roots, Func<string, double> measureText)
     {
@@ -48,7 +78,10 @@ public static class NameWidthScanner
                 continue;
             }
 
-            Offer(best, bestLength, child);
+            if (child.ParticipatesInColumns)
+            {
+                Offer(best, bestLength, child);
+            }
 
             if (child.IsExpanded && child.Children.Count > 0)
             {

@@ -71,23 +71,6 @@ public sealed class PaneColumnsTests : IDisposable
     }
 
     [Fact]
-    public void The_name_width_stays_between_zero_and_the_maximum()
-    {
-        PaneColumnWidths.ClampName(300).Should().Be(300);
-        PaneColumnWidths.ClampName(1_000_000).Should().Be(PaneColumnWidths.MaxName);
-    }
-
-    [Fact]
-    public void Dragging_the_right_edge_of_the_name_to_the_right_widens_it()
-    {
-        PaneColumnWidths.AfterNameDrag(190, 100).Should().Be(290);
-        PaneColumnWidths.AfterNameDrag(190, 0).Should().Be(190);
-        PaneColumnWidths.AfterNameDrag(190, -50).Should().Be(140);
-        PaneColumnWidths.AfterNameDrag(190, -500).Should().Be(0, "arrastar tudo para a esquerda volta ao automático");
-        PaneColumnWidths.AfterNameDrag(190, 1_000_000).Should().Be(PaneColumnWidths.MaxName);
-    }
-
-    [Fact]
     public void The_fixed_columns_add_up_to_what_sits_to_the_right_of_the_name()
     {
         PaneColumnWidths.FixedColumnsWidth(36).Should()
@@ -106,16 +89,6 @@ public sealed class PaneColumnsTests : IDisposable
     }
 
     [Theory]
-    [InlineData(0, 181, 181)]     // automática: parte da largura que a coluna tem na tela
-    [InlineData(300, 181, 300)]   // já alargada além do que aparece: continua dela
-    [InlineData(100, 181, 181)]   // guardada menor que o que aparece (painel largo): a coluna acompanha o mouse desde o início
-    [InlineData(0, 0, 0)]
-    public void The_drag_starts_from_the_width_the_column_has_on_screen(double stored, double visible, double expected)
-    {
-        PaneColumnWidths.NameDragStart(stored, visible).Should().Be(expected);
-    }
-
-    [Theory]
     [InlineData(400, 0, 347)]
     [InlineData(400, 2, 309)]
     [InlineData(400, 5, 252)]
@@ -129,6 +102,64 @@ public sealed class PaneColumnsTests : IDisposable
     }
 
     [Fact]
+    public void The_name_width_stays_between_the_minimum_and_the_maximum_once_it_is_set()
+    {
+        PaneColumnWidths.ClampName(300).Should().Be(300);
+        PaneColumnWidths.ClampName(1_000_000).Should().Be(PaneColumnWidths.MaxName);
+        PaneColumnWidths.ClampName(30).Should().Be(PaneColumnWidths.MinName, "uma largura guardada pequena demais vira o mínimo, não o automático");
+    }
+
+    [Fact]
+    public void Dragging_the_right_edge_of_the_name_widens_it_to_the_right_and_narrows_it_to_the_left()
+    {
+        PaneColumnWidths.AfterNameDrag(190, 100).Should().Be(290);
+        PaneColumnWidths.AfterNameDrag(190, 0).Should().Be(190);
+        PaneColumnWidths.AfterNameDrag(190, -50).Should().Be(140, "dá para diminuir: abaixo da largura do maior nome os nomes terminam em reticências");
+        PaneColumnWidths.AfterNameDrag(190, 1_000_000).Should().Be(PaneColumnWidths.MaxName);
+    }
+
+    [Fact]
+    public void Dragging_all_the_way_to_the_left_stops_at_the_minimum_and_does_not_jump_back_to_automatic()
+    {
+        PaneColumnWidths.AfterNameDrag(190, -500).Should().Be(PaneColumnWidths.MinName);
+        PaneColumnWidths.AfterNameDrag(double.NaN, 10).Should().Be(PaneColumnWidths.MinName);
+        PaneColumnWidths.AfterNameDrag(190, double.NaN).Should().Be(PaneColumnWidths.MinName);
+    }
+
+    [Theory]
+    [InlineData(0, 181, 181)]       // automática: parte da largura que a coluna tem na tela
+    [InlineData(300, 181, 300)]     // já ajustada: parte da ajustada
+    [InlineData(150, 400, 150)]     // ajustada menor que a automática: continua dela
+    [InlineData(0, 20, 100)]        // coluna menor que o mínimo: o mínimo
+    [InlineData(0, double.NaN, 100)]
+    public void The_drag_starts_from_the_width_the_column_has_now(double stored, double visible, double expected)
+    {
+        PaneColumnWidths.NameDragStart(stored, visible).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(300, 0, 300 + 412 + 32 - 53)]     // linha do nível 0: o que a coluna tem menos o que fica à esquerda do nome
+    [InlineData(300, 2, 300 + 412 + 32 - 91)]
+    [InlineData(100, 5, 0 + 412 + 32)]            // coluna menor que o recuo: o nome fica sem largura, as colunas continuam inteiras
+    public void The_row_content_has_a_fixed_width_when_the_name_is_set_by_the_user(double manual, int depth, double expected)
+    {
+        PaneColumnWidths.NameRowContentWidth(manual, PaneColumnWidths.FixedColumnsWidth(36), depth).Should().Be(expected);
+    }
+
+    [Fact]
+    public void The_columns_start_at_the_same_place_in_every_row_whatever_its_level()
+    {
+        // a coluna Tipo começa depois de: recuo e ícone (overhead) + o nome; a grade da linha começa depois do recuo, da seta e da borda
+        foreach (var depth in new[] { 1, 3, 6 })
+        {
+            var content = PaneColumnWidths.NameRowContentWidth(400, PaneColumnWidths.FixedColumnsWidth(36), depth);
+            var typeColumnStartsAt = (PaneColumnWidths.NameOverhead(depth) - 32) + (content - PaneColumnWidths.FixedColumnsWidth(36));
+
+            typeColumnStartsAt.Should().Be(400, "todas as linhas têm a coluna Tipo no mesmo lugar: onde termina a coluna Nome do cabeçalho");
+        }
+    }
+
+    [Fact]
     public void Every_row_ends_up_with_the_same_natural_width_whatever_its_level()
     {
         // a largura natural da linha é o recuo + a célula do nome: com o mínimo acima, é a mesma em qualquer nível
@@ -136,18 +167,6 @@ public sealed class PaneColumnsTests : IDisposable
         {
             (PaneColumnWidths.NameOverhead(depth) + PaneColumnWidths.NameCellMinWidth(500, depth)).Should().Be(500);
         }
-    }
-
-    [Fact]
-    public void The_converter_gives_each_row_its_minimum_width()
-    {
-        var converter = new DoraExplorer.App.Converters.NameCellMinWidthConverter();
-        var culture = System.Globalization.CultureInfo.InvariantCulture;
-
-        converter.Convert([400.0, 2], typeof(double), null!, culture).Should().Be(309.0);
-        converter.Convert([0.0, 2], typeof(double), null!, culture).Should().Be(0.0);
-        converter.Convert([System.Windows.DependencyProperty.UnsetValue, 2], typeof(double), null!, culture).Should().Be(0.0);
-        converter.Convert([400.0], typeof(double), null!, culture).Should().Be(0.0);
     }
 
     // ---- o painel
@@ -385,7 +404,7 @@ public sealed class PaneColumnsTests : IDisposable
     }
 
     [Fact]
-    public void A_name_widened_by_the_user_wins_over_the_widest_name_but_never_goes_below_it()
+    public void A_name_set_by_the_user_wins_over_the_widest_name_wider_or_narrower_and_goes_back_with_a_double_click()
     {
         var folder = _h.Folder("largura");
         PaneTestHarness.File(folder, "um-nome-bem-mais-comprido-do-que-os-outros.txt");
@@ -394,12 +413,63 @@ public sealed class PaneColumnsTests : IDisposable
         pane.NavigateToPath(folder);
         pane.RefreshWidestNameRow();
         var widest = pane.NameRowWidth;
+        widest.Should().BeGreaterThan(PaneColumnWidths.MinName + 100, "abre automático: do tamanho do maior nome");
+        pane.NameManualWidth.Should().Be(0);
 
         pane.ResizeNameColumn(widest, 150);
         pane.NameRowWidth.Should().Be(widest + 150);
+        pane.NameManualWidth.Should().Be(widest + 150);
 
         pane.ResizeNameColumn(widest, -100);
-        pane.NameRowWidth.Should().Be(widest, "só aumenta: abaixo do maior nome a coluna volta a ser a do maior nome");
+        pane.NameRowWidth.Should().Be(widest - 100, "dá para diminuir abaixo do maior nome");
+        pane.NameManualWidth.Should().Be(widest - 100);
+
+        pane.ResetNameColumnWidth();
+        pane.NameRowWidth.Should().Be(widest, "o duplo clique volta ao automático");
+        pane.NameManualWidth.Should().Be(0);
+    }
+
+    [Fact]
+    public void A_narrow_name_does_not_change_when_the_folders_open_or_close()
+    {
+        var folder = _h.Folder("largura");
+        PaneTestHarness.File(folder, "um-nome-bem-mais-comprido-do-que-os-outros.txt");
+        var pane = Pane();
+        pane.NameTextMeasure = SevenPerLetter;
+        pane.NavigateToPath(folder);
+        pane.ResizeNameColumn(300, -120);
+
+        pane.RefreshWidestNameRow();
+
+        pane.NameRowWidth.Should().Be(180, "com a largura do usuário a varredura dos nomes não manda mais");
+    }
+
+    [Fact]
+    public void The_manual_name_width_only_counts_in_columns_mode()
+    {
+        var pane = Pane();
+        pane.ResizeNameColumn(300, -100);
+        pane.NameManualWidth.Should().Be(200);
+
+        _h.ViewSettings.SetCompactRows(false);
+        pane.NameManualWidth.Should().Be(0, "nas linhas confortáveis não há colunas");
+        pane.FixedColumnsWidth.Should().Be(PaneColumnWidths.FixedColumnsWidth(0));
+
+        _h.ViewSettings.SetCompactRows(true);
+        pane.NameManualWidth.Should().Be(200, "voltando ao modo em colunas a largura do usuário volta");
+        pane.FixedColumnsWidth.Should().Be(PaneColumnWidths.FixedColumnsWidth(36));
+    }
+
+    [Fact]
+    public void Narrowing_the_name_tells_the_rows_and_the_header()
+    {
+        var pane = Pane();
+        var changed = new List<string?>();
+        pane.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        pane.ResizeNameColumn(300, -100);
+
+        changed.Should().Contain([nameof(FilePaneViewModel.NameManualWidth), nameof(FilePaneViewModel.NameRowWidth), nameof(FilePaneViewModel.NameColumnWidth)]);
     }
 
     [Fact]
@@ -568,6 +638,239 @@ public sealed class PaneColumnsTests : IDisposable
         }
     }
 
+    // ---- as raízes e os protocolos da Rede ficam fora das colunas
+
+    [Theory]
+    [InlineData(NavigationNodeKind.Directory, true)]
+    [InlineData(NavigationNodeKind.File, true)]
+    [InlineData(NavigationNodeKind.Archive, true)]
+    [InlineData(NavigationNodeKind.Drive, false)]
+    [InlineData(NavigationNodeKind.Favorites, false)]
+    [InlineData(NavigationNodeKind.RecycleBin, false)]
+    [InlineData(NavigationNodeKind.NetworkGroup, false)]
+    [InlineData(NavigationNodeKind.Ftp, false)]
+    [InlineData(NavigationNodeKind.Sftp, false)]
+    [InlineData(NavigationNodeKind.Scp, false)]
+    [InlineData(NavigationNodeKind.Tftp, false)]
+    public void Only_folders_files_and_archives_take_part_in_the_columns(NavigationNodeKind kind, bool expected)
+    {
+        new NavigationTreeNodeViewModel("x", kind, @"C:\x").ParticipatesInColumns.Should().Be(expected);
+    }
+
+    [Fact]
+    public void The_widest_name_ignores_the_names_of_the_roots_and_of_the_network_protocols()
+    {
+        var longName = "um-nome-gigantesco-de-uma-raiz-ou-de-um-protocolo-de-rede";
+        var network = new NavigationTreeNodeViewModel("Rede", NavigationNodeKind.NetworkGroup) { IsExpanded = true };
+        network.Children.Add(new NavigationTreeNodeViewModel(longName, NavigationNodeKind.Ftp));
+        network.Children.Add(new NavigationTreeNodeViewModel(longName, NavigationNodeKind.Sftp));
+        var drive = Folder(longName, 0, true, FileNode("a.txt", 1));
+
+        NameWidthScanner.WidestRowWidth([network, drive], SevenPerLetter)
+            .Should().Be(PaneColumnWidths.NameOverhead(1) + ("a.txt".Length * 7), "só a linha do arquivo conta: nem a unidade nem os protocolos");
+    }
+
+    [Fact]
+    public void An_open_root_with_only_protocols_has_no_row_with_columns()
+    {
+        var network = new NavigationTreeNodeViewModel("Rede", NavigationNodeKind.NetworkGroup) { IsExpanded = true };
+        network.Children.Add(new NavigationTreeNodeViewModel("FTP", NavigationNodeKind.Ftp));
+        network.Children.Add(new NavigationTreeNodeViewModel("SFTP", NavigationNodeKind.Sftp));
+
+        NameWidthScanner.HasColumnRows([network]).Should().BeFalse();
+        NameWidthScanner.WidestRowWidth([network], SevenPerLetter).Should().Be(0);
+    }
+
+    [Fact]
+    public void The_drive_row_converters_leave_roots_and_protocols_alone()
+    {
+        var minWidth = new DoraExplorer.App.Converters.NameCellMinWidthConverter();
+        var content = new DoraExplorer.App.Converters.NameRowContentConverter();
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        var fixedColumns = PaneColumnWidths.FixedColumnsWidth(36);
+
+        // linha das colunas (pasta ou arquivo): recebe a largura mínima e, com o Nome ajustado, a grade de largura fixa
+        minWidth.Convert([400.0, 2, true], typeof(double), null!, culture).Should().Be(309.0);
+        content.Convert([300.0, fixedColumns, 2, true], typeof(double), "Width", culture)
+            .Should().Be(PaneColumnWidths.NameRowContentWidth(300, fixedColumns, 2));
+        content.Convert([300.0, fixedColumns, 2, true], typeof(System.Windows.HorizontalAlignment), "Alignment", culture)
+            .Should().Be(System.Windows.HorizontalAlignment.Left);
+
+        // raiz ou protocolo (não entra nas colunas): nada muda, nem com o Nome automático nem com ele ajustado
+        minWidth.Convert([400.0, 0, false], typeof(double), null!, culture).Should().Be(0.0, "a largura do Nome não alarga a linha da unidade");
+        double.IsNaN((double)content.Convert([300.0, fixedColumns, 1, false], typeof(double), "Width", culture)).Should().BeTrue();
+        content.Convert([300.0, fixedColumns, 1, false], typeof(System.Windows.HorizontalAlignment), "Alignment", culture)
+            .Should().Be(System.Windows.HorizontalAlignment.Stretch);
+
+        // Nome automático: como sempre
+        double.IsNaN((double)content.Convert([0.0, fixedColumns, 2, true], typeof(double), "Width", culture)).Should().BeTrue();
+        content.Convert([0.0, fixedColumns, 2, true], typeof(System.Windows.HorizontalAlignment), "Alignment", culture)
+            .Should().Be(System.Windows.HorizontalAlignment.Stretch);
+
+        // valores que ainda não chegaram
+        minWidth.Convert([System.Windows.DependencyProperty.UnsetValue], typeof(double), null!, culture).Should().Be(0.0);
+        double.IsNaN((double)content.Convert([System.Windows.DependencyProperty.UnsetValue], typeof(double), "Width", culture)).Should().BeTrue();
+    }
+
+    [Fact]
+    public void The_name_cell_and_the_row_grid_only_use_the_columns_when_the_row_takes_part_in_them()
+    {
+        var pane = Load(@"src\DoraExplorer.App\Controls\FilePaneControl.xaml");
+
+        var minWidth = pane.Descendants(Wpf + "Grid.MinWidth").Should().ContainSingle().Subject.Element(Wpf + "MultiBinding")!;
+        ((string?)minWidth.Attribute("Converter")).Should().Contain("NameCellMinWidthConverter");
+        minWidth.Elements(Wpf + "Binding").Select(b => (string?)b.Attribute("Path"))
+            .Should().Equal("DataContext.NameRowWidth", "TreeDepth", "ParticipatesInColumns");
+
+        foreach (var (property, parameter) in new[] { ("Grid.Width", "Width"), ("Grid.HorizontalAlignment", "Alignment") })
+        {
+            var binding = pane.Descendants(Wpf + property).Should().ContainSingle(property).Subject.Element(Wpf + "MultiBinding")!;
+            ((string?)binding.Attribute("Converter")).Should().Contain("NameRowContentConverter");
+            ((string?)binding.Attribute("ConverterParameter")).Should().Be(parameter);
+            binding.Elements(Wpf + "Binding").Select(b => (string?)b.Attribute("Path"))
+                .Should().Equal("DataContext.NameManualWidth", "DataContext.FixedColumnsWidth", "TreeDepth", "ParticipatesInColumns");
+        }
+    }
+
+    [Fact]
+    public void The_columns_of_a_row_are_not_drawn_for_roots_and_protocols()
+    {
+        var pane = Load(@"src\DoraExplorer.App\Controls\FilePaneControl.xaml");
+
+        var stack = pane.Descendants(Wpf + "StackPanel.Visibility")
+            .Single(v => v.Descendants(Wpf + "Binding").Any(b => ((string?)b.Attribute("Path")) == "DataContext.CompactRows"));
+        stack.Descendants(Wpf + "Binding").Select(b => (string?)b.Attribute("Path"))
+            .Should().Equal("DataContext.CompactRows", "ParticipatesInColumns");
+    }
+
+    // ---- o cabeçalho fica vazio enquanto nenhuma pasta está aberta
+
+    [Fact]
+    public void With_every_root_closed_the_header_has_no_titles_and_it_comes_back_when_a_folder_opens()
+    {
+        var folder = _h.Folder("cabecalho");
+        PaneTestHarness.File(folder, "a.txt");
+        var pane = Pane();
+        pane.NavigateToPath(folder);
+        pane.ShowColumnHeader.Should().BeTrue("há linhas de pastas e arquivos abertas");
+
+        var drive = pane.NavigationRoots.First(r => r.Kind == NavigationNodeKind.Drive && r.IsExpanded);
+        pane.OnNavigationNodeCollapsed(drive, userInitiated: true);
+
+        pane.ShowColumnHeader.Should().BeFalse("só as raízes aparecem");
+
+        drive.IsExpanded = true;
+        pane.OnNavigationNodeExpanded(drive);
+
+        pane.ShowColumnHeader.Should().BeTrue();
+    }
+
+    [Fact]
+    public void The_header_tells_the_screen_when_it_empties_and_when_it_fills()
+    {
+        var folder = _h.Folder("cabecalho");
+        PaneTestHarness.File(folder, "a.txt");
+        var pane = Pane();
+        pane.NavigateToPath(folder);
+        var changed = 0;
+        pane.PropertyChanged += (_, e) => changed += e.PropertyName == nameof(FilePaneViewModel.ShowColumnHeader) ? 1 : 0;
+        var drive = pane.NavigationRoots.First(r => r.Kind == NavigationNodeKind.Drive && r.IsExpanded);
+
+        pane.OnNavigationNodeCollapsed(drive, userInitiated: true);
+        pane.RefreshColumnHeader();
+        pane.RefreshColumnHeader();
+
+        changed.Should().Be(1, "só avisa quando muda");
+    }
+
+    [Fact]
+    public void The_header_is_always_there_but_hidden_while_there_are_no_column_rows()
+    {
+        var pane = Load(@"src\DoraExplorer.App\Controls\FilePaneControl.xaml");
+        var bar = Named(pane.Root!, "ColumnHeaderBar")!;
+        var grid = Named(pane.Root!, "ColumnHeaderGrid")!;
+
+        bar.Attribute("Visibility").Should().BeNull("a barra existe nos dois modos (a altura não pula ao abrir uma pasta)");
+        var trigger = grid.Descendants(Wpf + "DataTrigger").Should().ContainSingle().Subject;
+        ((string?)trigger.Attribute("Binding")).Should().Be("{Binding ShowColumnHeader}");
+        ((string?)trigger.Attribute("Value")).Should().Be("False");
+        ((string?)trigger.Element(Wpf + "Setter")!.Attribute("Value")).Should().Be("Hidden", "Hidden mantém a altura: o cabeçalho fica vazio");
+    }
+
+    // ---- o cabeçalho no modo padrão (linhas confortáveis): travado e com a ordenação
+
+    [Fact]
+    public void In_comfortable_rows_the_header_shows_name_modified_and_size_without_the_type_and_without_the_resize_grip()
+    {
+        var pane = Load(@"src\DoraExplorer.App\Controls\FilePaneControl.xaml");
+        var header = Named(pane.Root!, "ColumnHeaderGrid")!;
+        string? Visibility(string tag) => (string?)header.Elements(Wpf + "Button").Single(b => (string?)b.Attribute("Tag") == tag).Attribute("Visibility");
+
+        Visibility("Extension").Should().Contain("CompactRows", "o Tipo (aplicativo padrão e contagens) só existe em colunas");
+        Visibility("Date").Should().Contain("ShowFileModifiedDate", "Modificado some quando o painel é estreito demais, como a data da linha");
+        Visibility("Name").Should().BeNull("o Nome aparece nos dois modos");
+        Visibility("Size").Should().BeNull("o Tamanho aparece nos dois modos");
+
+        var grip = header.Elements(Wpf + "Thumb").Single();
+        ((string?)grip.Attribute("Visibility")).Should().Contain("CompactRows", "no modo padrão as colunas são travadas: sem a borda de arrasto");
+    }
+
+    [Fact]
+    public void Every_header_title_sorts_the_list_in_both_modes()
+    {
+        var pane = Load(@"src\DoraExplorer.App\Controls\FilePaneControl.xaml");
+        var header = Named(pane.Root!, "ColumnHeaderGrid")!;
+
+        header.Elements(Wpf + "Button").Select(b => (string?)b.Attribute("Tag")).Should().BeEquivalentTo("Name", "Extension", "Date", "Size");
+        header.Elements(Wpf + "Button").Select(b => (string?)b.Attribute("Click")).Should().OnlyContain(c => c == "ColumnHeader_Click");
+    }
+
+    [Fact]
+    public void The_comfortable_footer_has_the_same_fixed_columns_as_the_header_so_the_titles_line_up()
+    {
+        var pane = Load(@"src\DoraExplorer.App\Controls\FilePaneControl.xaml");
+        var footer = pane.Descendants(Wpf + "StackPanel")
+            .Single(p => (string?)p.Attribute("Grid.Row") == "4" && p.Elements(Wpf + "Button").Any());
+
+        var dateCells = footer.Elements(Wpf + "Grid").Where(g => ((string?)g.Attribute("Width"))?.Contains("DateColumnWidth") == true).ToList();
+        var sizeCells = footer.Elements(Wpf + "TextBlock").Where(t => ((string?)t.Attribute("Width"))?.Contains("SizeColumnWidth") == true).ToList();
+
+        dateCells.Should().ContainSingle("a data e a hora numa coluna do tamanho da coluna Modificado");
+        sizeCells.Should().ContainSingle("o tamanho numa coluna do tamanho da coluna Tamanho");
+    }
+
+    [Fact]
+    public void Sorting_by_size_from_largest_to_smallest_works_in_comfortable_rows()
+    {
+        var left = _h.Folder("ordem-esquerda");
+        var right = _h.Folder("ordem-direita");
+        foreach (var folder in new[] { left, right })
+        {
+            PaneTestHarness.File(folder, "pequeno.txt", "x");
+            PaneTestHarness.File(folder, "grande.txt", new string('x', 500));
+            PaneTestHarness.File(folder, "medio.txt", new string('x', 100));
+        }
+
+        var main = _h.CreateMain();
+        main.LeftPane.RestorePath(left);
+        main.RightPane.RestorePath(right);
+        main.LeftPane.CompleteInitialPathRestore();
+        main.RightPane.CompleteInitialPathRestore();
+        _h.ViewSettings.SetCompactRows(false);
+        main.LeftPane.CompactRows.Should().BeFalse();
+
+        // clicar em Tamanho: do maior para o menor; clicar de novo inverte
+        main.ApplyGlobalSortOptions(DoraExplorer.App.Services.SortHeaderLogic.Toggle(main.GlobalSortOptions, TreeSortField.Size));
+        PaneTestHarness.Eventually(() => PaneTestHarness.Find(main.LeftPane, left)!.Children.Select(c => c.Name).SequenceEqual(["grande.txt", "medio.txt", "pequeno.txt"]))
+            .Should().BeTrue("o maior primeiro");
+        main.GlobalSortOptions.Ascending.Should().BeFalse();
+
+        main.ApplyGlobalSortOptions(DoraExplorer.App.Services.SortHeaderLogic.Toggle(main.GlobalSortOptions, TreeSortField.Size));
+        PaneTestHarness.Eventually(() => PaneTestHarness.Find(main.LeftPane, left)!.Children.Select(c => c.Name).SequenceEqual(["pequeno.txt", "medio.txt", "grande.txt"]))
+            .Should().BeTrue("o segundo clique inverte: do menor para o maior");
+        main.LeftPane.SizeHeaderText.Should().Contain("▲");
+    }
+
     // ---- as colunas não somem mais no modo em colunas
 
     [Theory]
@@ -650,20 +953,6 @@ public sealed class PaneColumnsTests : IDisposable
         widths["Extension"].Should().Be("{Binding TypeColumnWidth}");
         widths["Date"].Should().Be("{Binding DateColumnWidth}");
         widths["Size"].Should().Be("{Binding SizeColumnWidth}");
-    }
-
-    [Fact]
-    public void The_name_cell_of_each_row_takes_its_minimum_width_from_the_widest_row()
-    {
-        var pane = Load(@"src\DoraExplorer.App\Controls\FilePaneControl.xaml");
-
-        // na célula do nome das linhas normais (as raízes simples não têm colunas): é a largura natural das linhas que dá ao
-        // ScrollViewer o quanto há para rolar
-        var minWidth = pane.Descendants(Wpf + "Grid.MinWidth").Should().ContainSingle().Subject;
-        var binding = minWidth.Element(Wpf + "MultiBinding")!;
-        ((string?)binding.Attribute("Converter")).Should().Contain("NameCellMinWidthConverter");
-        binding.Elements(Wpf + "Binding").Select(b => (string?)b.Attribute("Path"))
-            .Should().Equal("DataContext.NameRowWidth", "TreeDepth");
     }
 
     [Fact]

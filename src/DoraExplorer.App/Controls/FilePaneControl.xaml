@@ -57,6 +57,26 @@
 
                 <Grid Panel.ZIndex="1">
 
+                <!-- Nome ajustado pelo usuário (modo em colunas): a grade de conteúdo da linha ganha largura fixa e vai para a esquerda,
+                     então Tipo, Modificado e Tamanho acompanham a borda do Nome (maior ou menor que a automática) e o nome que não cabe
+                     termina em reticências. Sem ajuste (e nas linhas de topo) nada muda: a grade continua esticada. -->
+                <Grid.Width>
+                    <MultiBinding Converter="{StaticResource NameRowContentConverter}" ConverterParameter="Width">
+                        <Binding Path="DataContext.NameManualWidth" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                        <Binding Path="DataContext.FixedColumnsWidth" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                        <Binding Path="TreeDepth" />
+                        <Binding Path="ParticipatesInColumns" />
+                    </MultiBinding>
+                </Grid.Width>
+                <Grid.HorizontalAlignment>
+                    <MultiBinding Converter="{StaticResource NameRowContentConverter}" ConverterParameter="Alignment">
+                        <Binding Path="DataContext.NameManualWidth" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                        <Binding Path="DataContext.FixedColumnsWidth" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                        <Binding Path="TreeDepth" />
+                        <Binding Path="ParticipatesInColumns" />
+                    </MultiBinding>
+                </Grid.HorizontalAlignment>
+
                 <Grid.Style>
 
                     <Style TargetType="Grid">
@@ -258,6 +278,7 @@
                         <MultiBinding Converter="{StaticResource NameCellMinWidthConverter}">
                             <Binding Path="DataContext.NameRowWidth" RelativeSource="{RelativeSource AncestorType=UserControl}" />
                             <Binding Path="TreeDepth" />
+                            <Binding Path="ParticipatesInColumns" />
                         </MultiBinding>
                     </Grid.MinWidth>
 
@@ -483,8 +504,14 @@
                                 <StackPanel Grid.Row="0"
                             Grid.Column="2"
                             Orientation="Horizontal"
-                            VerticalAlignment="Center"
-                            Visibility="{Binding DataContext.CompactRows, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}">
+                            VerticalAlignment="Center">
+                    <StackPanel.Visibility>
+                        <!-- As raízes (unidades, Favoritos, Lixeira, Rede) e os protocolos da Rede não têm as colunas. -->
+                        <MultiBinding Converter="{StaticResource BoolAndToVisibilityConverter}">
+                            <Binding Path="DataContext.CompactRows" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                            <Binding Path="ParticipatesInColumns" />
+                        </MultiBinding>
+                    </StackPanel.Visibility>
 
                     <!-- Tipo: contagens (pastas) ou aplicativo padrão (arquivos) -->
                     <Grid Width="{Binding DataContext.TypeColumnWidth, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -735,41 +762,36 @@
 
                     </Button>
 
-                    <TextBlock Margin="8,0,0,0"
+                    <!-- Modificado e Tamanho com a largura fixa das colunas (as mesmas do modo em colunas): o cabeçalho trava
+                         Nome, Modificado e Tamanho por cima delas. -->
+                    <Grid Width="{Binding DataContext.DateColumnWidth, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                          Margin="8,0,0,0"
+                          ClipToBounds="True"
+                          Visibility="{Binding DataContext.ShowFileModifiedDate, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource TreeItemFooterMetaStyle}">
+                                <TextBlock.Text>
+                                    <MultiBinding Converter="{StaticResource AdaptiveModifiedDateConverter}">
+                                        <Binding Path="LastModified" />
+                                        <Binding Path="DataContext.UseShortModifiedDate"
+                                                 RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
+                            <TextBlock Margin="8,0,0,0"
+                                       Text="{Binding ModifiedTimeText}"
+                                       Style="{StaticResource TreeItemFooterMetaStyle}"
+                                       Visibility="{Binding DataContext.ShowFileModifiedTime, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        </StackPanel>
+                    </Grid>
 
-                               Style="{StaticResource TreeItemFooterMetaStyle}"
-
-                               Visibility="{Binding DataContext.ShowFileModifiedDate, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}">
-
-                        <TextBlock.Text>
-
-                            <MultiBinding Converter="{StaticResource AdaptiveModifiedDateConverter}">
-
-                                <Binding Path="LastModified" />
-
-                                <Binding Path="DataContext.UseShortModifiedDate"
-
-                                         RelativeSource="{RelativeSource AncestorType=UserControl}" />
-
-                            </MultiBinding>
-
-                        </TextBlock.Text>
-
-                    </TextBlock>
-
-                    <TextBlock Margin="8,0,0,0"
-
-                               Text="{Binding ModifiedTimeText}"
-
-                               Style="{StaticResource TreeItemFooterMetaStyle}"
-
-                               Visibility="{Binding DataContext.ShowFileModifiedTime, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}" />
-
-                    <TextBlock Margin="8,0,0,0"
-
+                    <TextBlock Width="{Binding DataContext.SizeColumnWidth, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                               Margin="8,0,0,0"
                                Text="{Binding FileSizeText}"
-
-                               Style="{StaticResource TreeItemFooterMetaStyle}" />
+                               Style="{StaticResource TreeItemFooterColumnStyle}"
+                               VerticalAlignment="Center" />
 
                 </StackPanel>
 
@@ -891,8 +913,7 @@
                     Grid.Row="1"
                     Background="{DynamicResource GridViewHeaderBackgroundBrush}"
                     BorderBrush="{DynamicResource BorderBrushColor}"
-                    BorderThickness="0,0,0,1"
-                    Visibility="{Binding CompactRows, Converter={StaticResource BoolToVisibilityConverter}}">
+                    BorderThickness="0,0,0,1">
                 <!-- ColumnHeaderViewport é a faixa que coincide com a área rolável da lista; ColumnHeaderGrid tem a largura do
                      conteúdo da lista e anda para a esquerda junto com a lista (Canvas.Left, em UpdateColumnHeaderScroll). Tem de ser
                      um Canvas: uma grade mais larga que o Grid que a contém ganha um recorte de layout do tamanho dele (deslocada
@@ -902,6 +923,16 @@
                         ClipToBounds="True"
                         Height="{Binding ActualHeight, ElementName=ColumnHeaderGrid}">
                 <Grid x:Name="ColumnHeaderGrid" Canvas.Left="0">
+                    <!-- Sem nenhuma linha das colunas visível (tudo fechado: só as raízes) o cabeçalho fica vazio (Hidden mantém a altura). -->
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ShowColumnHeader}" Value="False">
+                                    <Setter Property="Visibility" Value="Hidden" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" MinWidth="0" />
                         <ColumnDefinition Width="Auto" />
@@ -922,6 +953,7 @@
                     <Button Grid.Column="1"
                             Style="{StaticResource ColumnHeaderButtonStyle}"
                             Tag="Extension"
+                            Visibility="{Binding CompactRows, Converter={StaticResource BoolToVisibilityConverter}}"
                             Content="{Binding TypeHeaderText}"
                             Width="{Binding TypeColumnWidth}"
                             HorizontalContentAlignment="Left"
@@ -932,6 +964,7 @@
                     <Button Grid.Column="2"
                             Style="{StaticResource ColumnHeaderButtonStyle}"
                             Tag="Date"
+                            Visibility="{Binding ShowFileModifiedDate, Converter={StaticResource BoolToVisibilityConverter}}"
                             Content="{Binding DateHeaderText}"
                             Width="{Binding DateColumnWidth}"
                             Margin="8,0,0,0"
@@ -957,6 +990,7 @@
                     <!-- Só o Nome se alarga: arraste a borda direita dele (o que passar da largura do painel vira rolagem
                          horizontal); duplo clique volta ao automático. Tipo, Modificado e Tamanho têm largura fixa. -->
                     <Thumb Grid.Column="0" HorizontalAlignment="Right" Margin="0,0,-4,0"
+                           Visibility="{Binding CompactRows, Converter={StaticResource BoolToVisibilityConverter}}"
                            Style="{StaticResource ColumnGripStyle}"
                            ToolTip="Arraste para alargar a coluna Nome (duplo clique volta ao automático)"
                            DragStarted="NameGrip_DragStarted" DragDelta="NameGrip_DragDelta"

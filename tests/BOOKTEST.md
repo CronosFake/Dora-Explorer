@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-05 01:05
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-05 09:21
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -24,8 +24,8 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 |------|-------|
 | Areas | 34 |
 | Classes de teste | 78 |
-| Metodos de teste | 796 |
-| Casos (cada InlineData conta um) | 1159 |
+| Metodos de teste | 813 |
+| Casos (cada InlineData conta um) | 1189 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -281,10 +281,10 @@ Em pasta grande ainda preenchida em lotes o arquivo existe como no e fica como u
 
 ### Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada
 
-Tipo, Modificado e Tamanho com largura fixa e folgada (nao mudam nem quando o Nome e alargado); a largura da linha mais larga da lista INTEIRA (so as pastas abertas, o nivel vem da descida, so os 4 nomes mais compridos de cada pasta sao medidos, raiz fechada e pasta fechada nao contam, marcador de lugar e nome vazio sao ignorados) e a largura minima que cada linha da ao nome para todas terem a mesma largura natural (a barra horizontal nao muda de tamanho nem anda quando a lista rola); so o Nome se alarga (a conta do arrasto, parte da largura que a coluna tem na tela, so cresce, volta ao automatico), guardada por painel, gravada so no fim do arrasto e lida ao abrir, painel antigo ou com as larguras da versao anterior le o padrao; em colunas nenhuma coluna some quando o painel estreita (nas linhas confortaveis a data continua sumindo); a linha da unidade fica parada na rolagem horizontal SEMPRE, com ou sem rolagem (a conta pura; ligar e desligar fazia a tela piscar); o touchpad de dois dedos e a roda inclinada (o valor com sinal do giro, a soma de passos pequenos, os limites); as barras de rolagem de 12 px e o canto sem o quadrado branco; as bordas de arrasto so no Nome, o cabecalho que anda num Canvas recortado, a barra horizontal da lista e a caixa do aplicativo padrao dentro da linha confortavel (lidos do XAML).
+Tipo, Modificado e Tamanho com largura fixa e folgada (nao mudam nem quando o Nome e alargado); a largura da linha mais larga da lista INTEIRA (so as pastas abertas, o nivel vem da descida, so os 4 nomes mais compridos de cada pasta sao medidos, raiz fechada e pasta fechada nao contam, marcador de lugar e nome vazio sao ignorados) e a largura minima que cada linha da ao nome para todas terem a mesma largura natural (a barra horizontal nao muda de tamanho nem anda quando a lista rola); so o Nome se ajusta, maior ou menor que o automatico (a conta do arrasto, minimo de 100 px, parte da largura guardada ou da que a coluna tem na tela, volta ao automatico so com o duplo clique; a grade de cada linha comum fica com largura fixa e a esquerda para as colunas acompanharem a borda, as linhas de topo ficam de fora), guardada por painel, gravada so no fim do arrasto e lida ao abrir, painel antigo ou com as larguras da versao anterior le o padrao; em colunas nenhuma coluna some quando o painel estreita (nas linhas confortaveis a data continua sumindo); a linha da unidade fica parada na rolagem horizontal SEMPRE, com ou sem rolagem (a conta pura; ligar e desligar fazia a tela piscar); o touchpad de dois dedos e a roda inclinada (o valor com sinal do giro, a soma de passos pequenos, os limites); as barras de rolagem de 12 px e o canto sem o quadrado branco; quem entra nas colunas (so pasta, arquivo e arquivo compactado: as raizes e os protocolos da Rede nao mostram as colunas, nao contam para o maior nome e nao recebem largura minima nem grade fixa), o cabecalho vazio enquanto so ha raizes abertas (e de volta ao abrir uma pasta), o cabecalho do modo padrao com Nome, Modificado e Tamanho travados e alinhados com o rodape da linha, a ordenacao do maior para o menor nos dois modos, as bordas de arrasto so no Nome, o cabecalho que anda num Canvas recortado, a barra horizontal da lista e a caixa do aplicativo padrao dentro da linha confortavel (lidos do XAML).
 
-- Codigo: PaneColumnWidths, PaneDisplayOptions, StickyToViewport, NameWidthScanner, NameTextMeasurer, NameCellMinWidthConverter, TreeScrollHelper, FilePaneViewModel
-- Testes (70 casos): PaneColumnsTests [PaneColumnsTests.cs]
+- Codigo: PaneColumnWidths, PaneDisplayOptions, StickyToViewport, NameWidthScanner, NameTextMeasurer, NameCellMinWidthConverter, NameRowContentConverter, NavigationTreeNodeViewModel, TreeScrollHelper, FilePaneViewModel
+- Testes (100 casos): PaneColumnsTests [PaneColumnsTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~PaneColumnsTests"`
 
 ### Registro de servicos (injecao de dependencia)
@@ -351,12 +351,13 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | MainWindowViewModel | Janela principal (copiar e colar entre os paineis) |
 | MemoryTrimmer | Cache de pastas e carga sem piscar |
 | NameCellMinWidthConverter | Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
+| NameRowContentConverter | Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
 | NameTextMeasurer | Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
 | NameWidthScanner | Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
 | NativeFileCopy | Copiar, mover e compactar (progresso, cancelamento, tempo limite) |
 | NavigationHistory | Navegacao e caminhos |
 | NavigationNodeKind | Pasta Rede na arvore |
-| NavigationTreeNodeViewModel | Painel de arquivos (um lado da janela); Arrastar e soltar: onde cai e o destaque da pasta de destino |
+| NavigationTreeNodeViewModel | Painel de arquivos (um lado da janela); Arrastar e soltar: onde cai e o destaque da pasta de destino; Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
 | NavigationTreeService | Pasta Rede na arvore; Arquivos compactados (abrir como pasta); Menu superior: Exibir (unidades bloqueadas) e Preferencia; Localizar e Duplicados: duplo clique leva ao arquivo |
 | NetworkClientHealthService | Clientes de rede (sessoes, copia entre servidores, saude dos perfis) |
 | NetworkFileService | Clientes de rede (sessoes, copia entre servidores, saude dos perfis) |
@@ -1085,52 +1086,69 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - A_closed_folder_does_not_count_what_is_inside_it
 - A_closed_top_level_row_does_not_count_its_children
 - A_deeper_row_counts_its_larger_indent
-- A_name_widened_by_the_user_wins_over_the_widest_name_but_never_goes_below_it
+- A_name_set_by_the_user_wins_over_the_widest_name_wider_or_narrower_and_goes_back_with_a_double_click
 - A_name_width_that_makes_no_sense_means_automatic (4 casos)
+- A_narrow_name_does_not_change_when_the_folders_open_or_close
 - A_new_pane_has_the_fixed_widths_and_an_automatic_name
 - A_settings_file_with_the_old_per_column_widths_loads_with_an_automatic_name
 - A_swipe_to_the_right_scrolls_right_and_to_the_left_scrolls_left_inside_the_scrollable_range
 - An_element_that_starts_inside_the_viewport_gets_only_the_width_that_is_left
 - An_element_with_no_visible_area_is_left_alone
+- An_open_root_with_only_protocols_has_no_row_with_columns
 - Comfortable_rows_still_drop_the_date_when_the_pane_gets_narrow_and_the_columns_come_back_in_columns_mode
 - Double_clicking_the_edge_goes_back_to_automatic_and_saves
+- Dragging_all_the_way_to_the_left_stops_at_the_minimum_and_does_not_jump_back_to_automatic
 - Dragging_changes_the_name_width_on_screen_but_only_saves_at_the_end_of_the_drag
-- Dragging_the_right_edge_of_the_name_to_the_right_widens_it
+- Dragging_the_right_edge_of_the_name_widens_it_to_the_right_and_narrows_it_to_the_left
 - Each_pane_keeps_its_own_name_width
 - Each_row_gives_its_name_the_width_that_completes_the_widest_row (7 casos)
+- Every_header_title_sorts_the_list_in_both_modes
 - Every_row_ends_up_with_the_same_natural_width_whatever_its_level
 - In_a_huge_folder_only_the_longest_names_are_measured
 - In_columns_mode_no_column_is_hidden_when_the_pane_gets_narrow (3 casos)
+- In_comfortable_rows_the_header_shows_name_modified_and_size_without_the_type_and_without_the_resize_grip
+- Narrowing_the_name_tells_the_rows_and_the_header
+- Only_folders_files_and_archives_take_part_in_the_columns (11 casos)
 - Only_the_name_column_has_a_grip_in_the_header
 - Placeholders_and_empty_names_are_ignored
 - Refreshing_tells_the_list_only_when_the_widest_row_changed
 - Small_touchpad_steps_add_up_like_one_notch
-- The_converter_gives_each_row_its_minimum_width
+- Sorting_by_size_from_largest_to_smallest_works_in_comfortable_rows
+- The_columns_of_a_row_are_not_drawn_for_roots_and_protocols
+- The_columns_start_at_the_same_place_in_every_row_whatever_its_level
+- The_comfortable_footer_has_the_same_fixed_columns_as_the_header_so_the_titles_line_up
 - The_corner_where_the_two_scroll_bars_meet_is_not_the_white_system_color
 - The_default_application_box_can_grow_as_wide_as_the_type_column_allows
 - The_default_application_box_fits_inside_the_comfortable_row
-- The_drag_starts_from_the_width_the_column_has_on_screen (4 casos)
+- The_drag_starts_from_the_width_the_column_has_now (5 casos)
+- The_drive_row_converters_leave_roots_and_protocols_alone
 - The_fixed_column_headers_take_their_widths_from_the_pane
 - The_fixed_columns_add_up_to_what_sits_to_the_right_of_the_name
 - The_fixed_columns_are_wide_enough_for_their_content
+- The_header_is_always_there_but_hidden_while_there_are_no_column_rows
 - The_header_moves_with_the_horizontal_scroll_of_the_list
+- The_header_tells_the_screen_when_it_empties_and_when_it_fills
 - The_horizontal_wheel_delta_is_the_signed_high_word_of_wParam (3 casos)
 - The_list_has_a_horizontal_scroll_bar_when_needed
-- The_name_cell_of_each_row_takes_its_minimum_width_from_the_widest_row
+- The_manual_name_width_only_counts_in_columns_mode
+- The_name_cell_and_the_row_grid_only_use_the_columns_when_the_row_takes_part_in_them
 - The_name_width_saved_in_the_pane_options_is_used_when_the_pane_opens
-- The_name_width_stays_between_zero_and_the_maximum
+- The_name_width_stays_between_the_minimum_and_the_maximum_once_it_is_set
 - The_name_width_survives_saving_and_loading_the_settings
 - The_other_columns_never_change_when_the_name_is_widened
 - The_pane_row_width_is_the_widest_row_of_the_open_folders
+- The_row_content_has_a_fixed_width_when_the_name_is_set_by_the_user (3 casos)
 - The_row_of_a_root_such_as_a_drive_is_pinned_while_the_list_scrolls_sideways
 - The_row_width_is_zero_in_comfortable_rows_and_comes_back_in_columns_mode
 - The_scroll_bars_are_half_again_as_thick_as_before
 - The_sticky_element_always_takes_the_visible_width_even_without_scroll
 - The_sticky_width_is_the_same_before_and_after_it_was_already_moved
 - The_top_level_rows_are_not_counted_because_they_only_take_the_visible_area
+- The_widest_name_ignores_the_names_of_the_roots_and_of_the_network_protocols
 - The_widest_row_is_the_longest_name_in_the_open_folders_with_its_indent_and_icon
 - What_sits_left_of_the_name_is_the_indent_of_the_deepest_row_plus_the_icon (5 casos)
 - Widening_the_name_tells_the_list_that_the_row_width_changed
+- With_every_root_closed_the_header_has_no_titles_and_it_comes_back_when_a_folder_opens
 - With_horizontal_scroll_the_element_moves_right_by_the_offset_and_keeps_the_visible_width
 
 ### PathNavigationTests (NavigationTests.cs)

@@ -402,28 +402,40 @@ public partial class FilePaneViewModel : ObservableObject
 
     public double TypeColumnWidth => PaneColumnWidths.Type;
 
-    /// <summary>Largura que o usuário deu ao Nome (guardada por painel); 0 = automática (o que sobrar no painel).</summary>
+    /// <summary>Largura que o usuário deu ao Nome (guardada por painel); 0 = automática (a do maior nome ou o que sobrar no painel).</summary>
     public double NameColumnWidth => PaneColumnWidths.ClampName(_displayOptions.NameColumnWidth);
+
+    /// <summary>A largura que o usuário deu ao Nome valendo agora (só no modo em colunas); 0 = automática.</summary>
+    public double NameManualWidth => CompactRows ? NameColumnWidth : 0;
+
+    /// <summary>As colunas à direita do Nome somadas (a grade de cada linha usa para fechar a conta quando o Nome é manual).</summary>
+    public double FixedColumnsWidth => PaneColumnWidths.FixedColumnsWidth(TrailingColumnWidth);
 
     /// <summary>
     /// Durante o arrasto da borda direita do Nome: a largura de <paramref name="startWidth"/> mais o quanto o mouse andou para
-    /// a direita. Só muda na tela; a gravação vem em <see cref="CommitColumnWidths"/>, no fim do arrasto. O Nome nunca fica
-    /// menor que o espaço do painel (a lista ignora o mínimo que cabe no painel), então arrastar para a esquerda só volta até aí.
+    /// a direita (negativo diminui, até o mínimo de <see cref="PaneColumnWidths.MinName"/>). Só muda na tela; a gravação vem em
+    /// <see cref="CommitColumnWidths"/>, no fim do arrasto. Depois do primeiro arrasto a largura é a do usuário, maior ou
+    /// menor que a automática.
     /// </summary>
     public void ResizeNameColumn(double startWidth, double horizontalChange)
     {
         _displayOptions.NameColumnWidth = PaneColumnWidths.AfterNameDrag(startWidth, horizontalChange);
-        OnPropertyChanged(nameof(NameColumnWidth));
-        OnPropertyChanged(nameof(NameRowWidth));
+        NotifyNameColumnChanged();
     }
 
     /// <summary>Volta o Nome para a largura automática (duplo clique na borda) e grava.</summary>
     public void ResetNameColumnWidth()
     {
         _displayOptions.NameColumnWidth = 0;
-        OnPropertyChanged(nameof(NameColumnWidth));
-        OnPropertyChanged(nameof(NameRowWidth));
+        NotifyNameColumnChanged();
         CommitColumnWidths();
+    }
+
+    private void NotifyNameColumnChanged()
+    {
+        OnPropertyChanged(nameof(NameColumnWidth));
+        OnPropertyChanged(nameof(NameManualWidth));
+        OnPropertyChanged(nameof(NameRowWidth));
     }
 
     /// <summary>Mede o texto do nome de uma linha em pixels (os testes trocam por uma conta simples).</summary>
@@ -433,15 +445,38 @@ public partial class FilePaneViewModel : ObservableObject
 
     /// <summary>
     /// Largura que TODAS as linhas da lista têm (modo em colunas; 0 nas confortáveis): a da linha mais larga entre as pastas
-    /// abertas, ou a que o usuário deu ao Nome se for maior. Cada linha dá à célula do nome a largura mínima que completa isto
-    /// (<c>NameCellMinWidthConverter</c>). É pela largura natural das linhas que o ScrollViewer sabe quanto há para rolar, e ele só
-    /// conhece as linhas desenhadas: sem isto a barra horizontal mudava de tamanho e andava conforme a lista descia.
+    /// abertas (automática) ou, depois que o usuário ajustou o Nome, a que ele deu, maior ou menor. Cada linha dá à célula do nome
+    /// a largura mínima que completa isto (<c>NameCellMinWidthConverter</c>). É pela largura natural das linhas que o ScrollViewer
+    /// sabe quanto há para rolar, e ele só conhece as linhas desenhadas: sem isto a barra horizontal mudava de tamanho e andava
+    /// conforme a lista descia.
     /// </summary>
-    public double NameRowWidth => CompactRows ? Math.Max(NameColumnWidth, _widestNameRow) : 0;
+    public double NameRowWidth => !CompactRows ? 0 : NameColumnWidth > 0 ? NameColumnWidth : _widestNameRow;
+
+    private bool _showColumnHeader;
+
+    /// <summary>
+    /// O cabeçalho das colunas (Nome, Tipo, Modificado, Tamanho) só mostra os títulos quando há alguma linha das colunas visível
+    /// (uma pasta aberta com conteúdo): com tudo fechado, só as raízes aparecem e o cabeçalho fica vazio.
+    /// </summary>
+    public bool ShowColumnHeader => _showColumnHeader;
+
+    /// <summary>Refaz <see cref="ShowColumnHeader"/> (a cada pasta aberta ou fechada, na hora: é uma busca curta).</summary>
+    public void RefreshColumnHeader()
+    {
+        var any = NameWidthScanner.HasColumnRows(NavigationRoots);
+        if (any == _showColumnHeader)
+        {
+            return;
+        }
+
+        _showColumnHeader = any;
+        OnPropertyChanged(nameof(ShowColumnHeader));
+    }
 
     /// <summary>Refaz a largura da linha mais larga (chamado quando as pastas abertas mudam, sem pressa).</summary>
     public void RefreshWidestNameRow()
     {
+        RefreshColumnHeader();
         var widest = CompactRows ? NameWidthScanner.WidestRowWidth(NavigationRoots, NameTextMeasure) : 0;
         if (Math.Abs(widest - _widestNameRow) < 0.5)
         {
@@ -507,6 +542,8 @@ public partial class FilePaneViewModel : ObservableObject
         OnPropertyChanged(nameof(CompactRows));
         OnPropertyChanged(nameof(ShowComfortableRows));
         OnPropertyChanged(nameof(TrailingColumnWidth));
+        OnPropertyChanged(nameof(FixedColumnsWidth));
+        OnPropertyChanged(nameof(NameManualWidth));
         OnPropertyChanged(nameof(NameRowWidth));
         ApplyResponsiveLayout();
     }
@@ -570,6 +607,18 @@ public partial class FilePaneViewModel : ObservableObject
     }
 
     public void OnNavigationNodeExpanded(NavigationTreeNodeViewModel node)
+    {
+        try
+        {
+            ExpandedCore(node);
+        }
+        finally
+        {
+            RefreshColumnHeader();
+        }
+    }
+
+    private void ExpandedCore(NavigationTreeNodeViewModel node)
     {
         if (node.Kind is NavigationNodeKind.Ftp or NavigationNodeKind.Sftp or NavigationNodeKind.Scp
             or NavigationNodeKind.Tftp)
@@ -706,6 +755,18 @@ public partial class FilePaneViewModel : ObservableObject
     /// containers com a virtualização, e isso não deve forçar recarga na próxima abertura.
     /// </param>
     public void OnNavigationNodeCollapsed(NavigationTreeNodeViewModel node, bool userInitiated = false)
+    {
+        try
+        {
+            CollapsedCore(node, userInitiated);
+        }
+        finally
+        {
+            RefreshColumnHeader();
+        }
+    }
+
+    private void CollapsedCore(NavigationTreeNodeViewModel node, bool userInitiated)
     {
         node.IsExpanded = false;
         if (userInitiated)

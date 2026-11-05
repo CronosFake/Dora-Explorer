@@ -327,6 +327,14 @@ public static class Kb {
             [IO.File]::WriteAllText($settingsFile, ($settingsText -replace '"StartAsAdministrator"\s*:\s*true', '"StartAsAdministrator": false'), (New-Object Text.UTF8Encoding($false)))
             'Iniciar sempre como administrador estava ligado: desligado so durante o roteiro (o settings.json volta igual no fim)'
         }
+        # O Nome que o usuario ajustou a mao fica nas configuracoes dele: o roteiro columns parte do automatico (o settings.json volta igual no fim).
+        if ($Scenario -eq 'columns') {
+            $settingsText = [IO.File]::ReadAllText($settingsFile)
+            if ($settingsText -match '"NameColumnWidth"\s*:\s*[0-9.]*[1-9][0-9.]*') {
+                [IO.File]::WriteAllText($settingsFile, ($settingsText -replace '"NameColumnWidth"\s*:\s*[0-9.eE+-]+', '"NameColumnWidth": 0'), (New-Object Text.UTF8Encoding($false)))
+                'A largura do Nome ajustada pelo usuario foi zerada so durante o roteiro (o settings.json volta igual no fim)'
+            }
+        }
     }
     function Restore-UserState {
         Get-ChildItem -LiteralPath $userState -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $appData $_.Name) -Force }
@@ -1622,10 +1630,27 @@ public static class FrameSig {
             # e folgada; a lista rola na horizontal so quando precisa, com o cabecalho junto; a linha da unidade (com a barra de
             # espaco do disco) fica parada; nas linhas confortaveis a caixa do aplicativo padrao fica dentro da linha.
             $root.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern).Move(0, 0); Start-Sleep -Milliseconds 800
-            $c = (TopItems $root 0)[0]; Expand $c
+            $c = (TopItems $root 0)[0]
+            function Titulos-Visiveis { @($root.FindAll($TS::Descendants, (Cond $CT::Button)) | Where-Object { $_.Current.Name -match '^(Nome|Tipo|Modificado|Tamanho)' }).Count }
+            function Rolagem-H { try { (@($root.FindAll($TS::Descendants, (Cond $CT::Tree)))[0]).GetCurrentPattern([Windows.Automation.ScrollPattern]::Pattern).Current.HorizontallyScrollable } catch { $false } }
+            if (('' + $c.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Current.ExpandCollapseState) -eq 'Collapsed') {
+                Check 'com todas as raizes fechadas o cabecalho das colunas fica vazio (nenhum titulo, nos dois paineis)' ((Titulos-Visiveis) -eq 0) "titulos visiveis: $(Titulos-Visiveis)"
+                Snap-Screen $h 'columns-0-tudo-fechado'
+                $rede = (TopItems $root 0) | Where-Object { $_.Current.Name -eq 'Rede' } | Select-Object -First 1
+                if ($rede) {
+                    Expand $rede; Start-Sleep -Milliseconds 700
+                    Check 'com so a Rede aberta (so os protocolos) o cabecalho continua vazio' ((Titulos-Visiveis) -eq 0) "titulos visiveis: $(Titulos-Visiveis)"
+                    Check 'e os protocolos nao alargam a lista (sem rolagem horizontal)' (-not (Rolagem-H))
+                    Snap-Screen $h 'columns-0b-so-a-rede'
+                    try { $rede.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Collapse() } catch { }
+                    Start-Sleep -Milliseconds 700
+                }
+            }
+            Expand $c
             $dirRow = Child $c (Split-Path $uiRoot -Leaf)
             Check 'a pasta de teste aparece em C:' ($null -ne $dirRow)
             if (-not $dirRow) { break }
+            Check 'com uma raiz aberta (as pastas de C:) o cabecalho mostra os titulos' ((Titulos-Visiveis) -gt 0)
             [void](Choose-Item $dirRow)
             Expand $dirRow
             function Hdr($like) { $root.FindAll($TS::Descendants, (Cond $CT::Button)) | Where-Object { $_.Current.Name -like $like } | Select-Object -First 1 }
@@ -1735,6 +1760,30 @@ public static class FrameSig {
             Check 'duplo clique na borda volta o Nome para a largura automatica' ([Math]::Abs((Width-Of 'Nome*') - $wNome) -le 3) "largura: $(Width-Of 'Nome*'), esperado $wNome"
             Check 'e a opcao do painel volta a 0 (automatica)' ([double](Setting-Value 'LeftPaneDisplay' 'NameColumnWidth') -eq 0) "gravado: $(Setting-Value 'LeftPaneDisplay' 'NameColumnWidth')"
 
+            # ---- diminuir o Nome a mao: abre automatico (do maior nome) e da para arrastar a borda para a esquerda
+            $nome = Hdr 'Nome*'; $nr = $nome.Current.BoundingRectangle
+            $tipoAntes = (Hdr 'Tipo*').Current.BoundingRectangle.Left
+            Drag-Mouse -x0 ($nr.Right - 1) -y (Mid-Y $nome) -dx (-70)
+            $wNome2 = Width-Of 'Nome*'
+            Check 'arrastar a borda do Nome 70 px para a esquerda diminui a coluna (cerca de -70)' (($wNome - $wNome2) -ge 60 -and ($wNome - $wNome2) -le 80) "automatica $wNome, agora $wNome2"
+            $barN = Bar-Box
+            Check 'com o Nome diminuido a barra de espaco do disco (a raiz) nao muda de largura nem de lugar' ($null -ne $barN -and $null -ne $bar0 -and [Math]::Abs($barN.Left - $bar0.Left) -le 2 -and [Math]::Abs($barN.Right - $bar0.Right) -le 2) "antes $($bar0.Left)-$($bar0.Right), agora $($barN.Left)-$($barN.Right)"
+            $tipoDepois = (Hdr 'Tipo*').Current.BoundingRectangle.Left
+            Check 'Tipo, Modificado e Tamanho acompanham a borda do Nome (andam para a esquerda o mesmo tanto)' (($tipoAntes - $tipoDepois) -ge 60 -and ($tipoAntes - $tipoDepois) -le 80) "Tipo andou $($tipoAntes - $tipoDepois) px"
+            Check 'e continuam com a mesma largura' (([Math]::Abs((Width-Of 'Tipo*') - $wTipo) -le 2) -and ([Math]::Abs((Width-Of 'Modificado*') - $wMod) -le 2) -and ([Math]::Abs((Width-Of 'Tamanho*') - $wTam) -le 2)) "Tipo $(Width-Of 'Tipo*'), Modificado $(Width-Of 'Modificado*'), Tamanho $(Width-Of 'Tamanho*')"
+            $salvo2 = [double](Setting-Value 'LeftPaneDisplay' 'NameColumnWidth')
+            Check 'a largura menor foi gravada nas opcoes do painel' ([Math]::Abs($salvo2 - $wNome2) -le 8) "gravado: $salvo2, coluna: $wNome2"
+            $hdrRight2 = (Hdr 'Tamanho*').Current.BoundingRectangle.Right
+            $rowRight2 = Size-Text-Right 'arq1.txt' '^102\W*B$'
+            Check 'o tamanho da linha continua alinhado com o cabecalho Tamanho' ($null -ne $rowRight2 -and [Math]::Abs($rowRight2 - $hdrRight2) -le 12) "cabecalho $hdrRight2, linha $rowRight2"
+            $stab2 = Distinct-Frames 2000
+            Check 'com o Nome diminuido a tela fica parada (1 desenho)' ($stab2.States -eq 1) "desenhos diferentes: $($stab2.States)"
+            Snap-Screen $h 'columns-1b-nome-diminuido'
+            $nome = Hdr 'Nome*'; $nr = $nome.Current.BoundingRectangle
+            [Kb]::Click([int]($nr.Right - 1), [int](Mid-Y $nome)); Start-Sleep -Milliseconds 120
+            [Kb]::Click([int]($nr.Right - 1), [int](Mid-Y $nome)); Start-Sleep -Milliseconds 800
+            Check 'duplo clique na borda volta o Nome diminuido para o automatico (do maior nome)' ([Math]::Abs((Width-Of 'Nome*') - $wNome) -le 3) "largura: $(Width-Of 'Nome*'), esperado $wNome"
+
             # ---- a barra horizontal tem sempre o tamanho do maior nome da lista inteira (nao anda conforme a lista desce)
             $gr = (Dir-Row).FindAll($TS::Descendants, (Cond $CT::TreeItem)) | Where-Object { $_.Current.Name -like 'grande*' } | Select-Object -First 1
             Check 'a pasta grande aparece' ($null -ne $gr)
@@ -1820,6 +1869,26 @@ public static class FrameSig {
                     Check 'a caixa do aplicativo padrao fica dentro da linha, sem encostar na borda de baixo' (($br.Top -ge $rr.Top + 2) -and ($br.Bottom -le $rr.Bottom - 2)) "linha $($rr.Top)-$($rr.Bottom), caixa $($br.Top)-$($br.Bottom)"
                 } else { 'sem caixa de aplicativo padrao nesta linha (a opcao Exibir aplicativo padrao esta desligada?)' }
                 Check 'a linha confortavel tem cerca de 54 px' ([Math]::Abs($rr.Height - 54) -le 3) "altura $($rr.Height)"
+                # ---- cabecalho no modo padrao: Nome, Modificado e Tamanho, travados, e a ordenacao funciona
+                Check 'no modo padrao o cabecalho mostra Nome, Modificado e Tamanho' (($null -ne (Hdr 'Nome*')) -and ($null -ne (Hdr 'Modificado*')) -and ($null -ne (Hdr 'Tamanho*')))
+                Check 'e nao mostra o Tipo (o aplicativo padrao e as contagens ficam na linha)' ($null -eq (Hdr 'Tipo*'))
+                $hdrR = (Hdr 'Tamanho*').Current.BoundingRectangle.Right
+                $szR = Size-Text-Right 'arq1.txt' '^102\W*B$'
+                Check 'o Tamanho do cabecalho fica alinhado com o tamanho da linha (modo padrao)' ($null -ne $szR -and [Math]::Abs($szR - $hdrR) -le 12) "cabecalho $hdrR, linha $szR"
+                Snap-Screen $h 'columns-2b-cabecalho-modo-padrao'
+                function Ordem-Arquivos { @(@('arq1.txt', 'arq2.txt', 'arq3.txt') | ForEach-Object { $r = File-Row $_; [pscustomobject]@{ Nome = $_; Topo = $r.Current.BoundingRectangle.Top } } | Sort-Object Topo | ForEach-Object { $_.Nome }) -join ',' }
+                $ordem0 = Ordem-Arquivos
+                [void](Invoke-Button $root 'Tamanho*')
+                Start-Sleep -Milliseconds 900
+                $ordem1 = Ordem-Arquivos
+                Check 'clicar em Tamanho ordena do maior para o menor no modo padrao' ($ordem1 -eq 'arq3.txt,arq2.txt,arq1.txt') "ordem: $ordem1"
+                [void](Invoke-Button $root 'Tamanho*')
+                Start-Sleep -Milliseconds 900
+                $ordem2 = Ordem-Arquivos
+                Check 'clicar de novo inverte: do menor para o maior' ($ordem2 -eq 'arq1.txt,arq2.txt,arq3.txt') "ordem: $ordem2"
+                [void](Invoke-Button $root 'Nome*')
+                Start-Sleep -Milliseconds 900
+                Check 'clicar em Nome volta a ordenar por nome (A a Z)' ((Ordem-Arquivos) -eq 'arq1.txt,arq2.txt,arq3.txt') "ordem: $(Ordem-Arquivos)"
             }
             Check 'sem nome largo aberto, nao ha o que rolar na horizontal (linhas confortaveis)' (-not (H-Scroll))
             $barC0 = Bar-Box

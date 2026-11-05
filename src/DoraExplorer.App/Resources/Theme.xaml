@@ -15,6 +15,7 @@
     <converters:BoolAndToVisibilityConverter x:Key="BoolAndToVisibilityConverter" />
     <converters:AdaptiveModifiedDateConverter x:Key="AdaptiveModifiedDateConverter" />
     <converters:NameCellMinWidthConverter x:Key="NameCellMinWidthConverter" />
+    <converters:NameRowContentConverter x:Key="NameRowContentConverter" />
 
     <FontFamily x:Key="FluentIconFontFamily">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
 

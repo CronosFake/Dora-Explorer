@@ -309,6 +309,14 @@ public partial class NavigationTreeNodeViewModel : ObservableObject
 
     public bool IsSimpleNavigationRoot => false;
 
+    /// <summary>
+    /// A linha entra nas colunas Nome, Tipo, Modificado e Tamanho: pastas, arquivos e arquivos compactados. As raízes (unidades e
+    /// unidades externas, Favoritos, Lixeira, Rede) e os protocolos dentro da Rede (FTP, SFTP, SCP, TFTP) ficam de fora: a largura
+    /// da coluna Nome não os afeta, eles não mostram as colunas e não contam para a largura da linha mais larga.
+    /// </summary>
+    public bool ParticipatesInColumns =>
+        Kind is NavigationNodeKind.Directory or NavigationNodeKind.File or NavigationNodeKind.Archive;
+
 
 
     public bool IsFolder =>
