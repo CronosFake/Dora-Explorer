@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-06 23:33
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-06 23:40
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -22,10 +22,10 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 
 | Item | Valor |
 |------|-------|
-| Areas | 37 |
-| Classes de teste | 88 |
-| Metodos de teste | 902 |
-| Casos (cada InlineData conta um) | 1365 |
+| Areas | 38 |
+| Classes de teste | 90 |
+| Metodos de teste | 913 |
+| Casos (cada InlineData conta um) | 1384 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -311,6 +311,14 @@ Tipo, Modificado e Tamanho com largura fixa e folgada (nao mudam nem quando o No
 - Testes (100 casos): PaneColumnsTests [PaneColumnsTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~PaneColumnsTests"`
 
+### Roda do mouse: passo da rolagem vertical nos dois modos de linha
+
+O clique da roda anda 2 linhas em qualquer modo: o passo em pixels e o numero de linhas por clique, o sinal da roda e a fracao de clique das rodas de alta resolucao; a altura da linha do topo somando as linhas de cima para baixo (pasta 32 px, arquivo com rodape 54 px no confortavel, sem rodape quando nao ha tamanho nem data, pasta fechada e marcador de lugar nao contam, depois do fim vale a ultima linha e lista vazia vale o padrao), o compacto igual ao de sempre (64 px) e a leitura que para ao achar a linha (nao percorre uma pasta enorme inteira).
+
+- Codigo: WheelScroll, SmoothScrollAnimator, TreeScrollHelper
+- Testes (19 casos): WheelScrollTests [WheelScrollTests.cs], WheelRowHeightTests [WheelScrollTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~WheelScrollTests|FullyQualifiedName~WheelRowHeightTests"`
+
 ### Registro de servicos (injecao de dependencia)
 
 Todo servico registrado tem as dependencias registradas; um servico novo esquecido estouraria so ao abrir o app.
@@ -433,6 +441,7 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | SmbLibraryAccess | SMB (servidor e cliente) |
 | SmbRemoteSession | SMB (servidor e cliente) |
 | SmbWildcard | SMB (servidor e cliente) |
+| SmoothScrollAnimator | Roda do mouse: passo da rolagem vertical nos dois modos de linha |
 | SortHeaderLogic | Tema, cores e interface |
 | SshFileServer | Servidor SFTP e SCP |
 | SshHostKeyStore | Servidor SFTP e SCP |
@@ -449,7 +458,8 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | TransferOutcome | Janela principal (copiar e colar entre os paineis) |
 | TransferProgressFormatter | Copiar, mover e compactar (progresso, cancelamento, tempo limite) |
 | TransferScanner | Copiar, mover e compactar (progresso, cancelamento, tempo limite) |
-| TreeScrollHelper | Localizar e Duplicados: duplo clique leva ao arquivo; Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
+| TreeScrollHelper | Localizar e Duplicados: duplo clique leva ao arquivo; Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada; Roda do mouse: passo da rolagem vertical nos dois modos de linha |
+| WheelScroll | Roda do mouse: passo da rolagem vertical nos dois modos de linha |
 | XdrReader | NFS (servidor e cliente) |
 | XdrWriter | NFS (servidor e cliente) |
 
@@ -481,6 +491,7 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 | Renomear na tela: F2 e clique devagar abrem a caixa com o foco e o nome sem a extensao selecionado, selecionar o texto com o mouse | O trecho selecionado e a regra do clique devagar sao testados, mas o foco, o mouse e o temporizador so existem com a janela aberta. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario rename (app fechado; AGENTS.md, armadilha 27): F2 e clique devagar (le a selecao pelo UI Automation), arrasto do mouse dentro da caixa (o arquivo nao pode sair do lugar), Enter renomeia no disco e deixa o item com o novo nome selecionado e com o foco (a pasta que o contem nao), e Esc cancela. |
 | Menu da Lixeira na tela, Localizar (Abrir em Janela e coluna ajustada com o mouse) e a janela Itens duplicados aberta pelo botao do grupo Pasta | As regras sao testadas sem janela, mas o menu, o botao, as janelas e o arrasto da borda do cabecalho so existem com o app aberto. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario newfeatures (app fechado; AGENTS.md, armadilhas 28 a 30): botao direito na Lixeira (so le o menu e recusa a pergunta de esvaziar), Localizar e Abrir em Janela, largura da coluna Nome antes e depois de arrastar a borda, Duplicados nos tipos Padrao e Profundo; cada verificacao sai [OK] ou [FALHOU]. |
 | Esvaziar a Lixeira de verdade (SHEmptyRecycleBin) | Apaga para sempre a Lixeira do usuario; os testes trocam a chamada do Windows por uma de mentira e os roteiros de tela recusam a pergunta. | Numa maquina de teste, jogar arquivos de teste na Lixeira, botao direito na Lixeira > Esvaziar Lixeira > Sim e conferir que a Lixeira ficou vazia nos dois paineis. |
+| Sensacao da roda do mouse nos dois modos de linha (Exibir > Linhas compactas em colunas) | O passo em pixels e a altura da linha sao testados, mas a suavidade e a percepcao de velocidade so existem com o app aberto. | Numa pasta com muitos arquivos, girar a roda um clique por vez no modo compacto e no confortavel: cada clique deve passar 2 linhas nos dois (no confortavel, sobre uma lista so de pastas, tambem 2 linhas; numa lista mista o passo acompanha a linha do topo). |
 | SMB e NFS na tela e os icones de todos os protocolos: janela e pinguim nos botoes do menu central, e os seis icones (pasta com setas, pasta com cadeado, terminal, setas em anel, janela e pinguim) nos nos da arvore, nos temas claro e escuro, itens SMB e NFS no menu de exibicao do painel, dialogos de cliente e servidor, navegar e copiar numa pasta de verdade | O desenho (geometria), os itens do XAML e o protocolo sao testados, mas como o icone aparece em 15 px, a troca de tema e os dialogos so existem com o app aberto. | Abrir o app: REDE SERVER mostra SMB e NFS com a janela e o pinguim legiveis nos dois temas; o menu de exibicao do painel liga e desliga SMB e NFS na arvore; em Rede, duplo clique em SMB ou NFS abre o cliente; iniciar o servidor SMB (porta 4445) e o NFS (somente leitura) e abrir cada um pelo outro painel; confira o log sem [ERR] nem [WRN]. |
 | SMB e NFS contra implementacoes de terceiros (Samba, libnfs, nfs-ganesha) e com o Windows e o Linux de verdade | Os testes automaticos ligam o cliente ao servidor do proprio app; um engano de leitura da especificacao poderia estar nos dois lados. | Foi conferido no Linux (cloud): smbclient e nfs-ls/nfs-cat/nfs-cp contra o servidor do app, e o cliente do app contra o smbd (Samba 4.19) e o nfs-ganesha 4, com hash identico nos envios e nas copias. Falta conferir no Windows: Explorer em \\IP\pasta (porta 445) contra o servidor SMB, e o Cliente para NFS do Windows ou um mount -t nfs contra o servidor NFS. |
 | Janelas de dialogo (progresso, conexao de rede, ordenar, excluir) | Janelas WPF; sem teste automatico. | Abrir cada uma no app. |
@@ -1650,6 +1661,23 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Description_shows_bytes_files_speed_and_remaining_time
 - Durations_are_shown_as_clock_time (3 casos)
 - Title_names_the_action_the_count_and_the_destination_folder
+
+### WheelRowHeightTests (WheelScrollTests.cs)
+
+- An_expanded_folder_adds_its_children_rows_and_a_placeholder_is_skipped
+- A_file_without_size_or_date_has_no_footer_so_its_row_is_the_plain_height
+- Both_modes_move_two_rows_per_notch_over_a_list_of_files
+- In_comfortable_rows_the_height_follows_whether_the_row_at_the_top_is_a_folder_or_a_file
+- In_compact_rows_every_position_uses_the_plain_row_height_even_over_files_with_metadata
+
+### WheelScrollTests (WheelScrollTests.cs)
+
+- A_notch_moves_two_rows_and_the_sign_follows_the_wheel (7 casos)
+- Every_row_height_moves_the_same_number_of_rows_per_notch (3 casos)
+- Only_the_rows_up_to_the_offset_are_read_so_a_huge_folder_does_not_cost_a_full_pass
+- Past_the_end_of_the_list_the_last_row_height_is_used_and_an_empty_list_uses_the_fallback
+- The_compact_step_is_the_same_64_pixels_as_before
+- The_row_at_the_top_is_found_by_adding_up_the_heights_of_the_rows_above_it
 
 ### XamlResourceTests (NavigationTests.cs)
 

@@ -6,6 +6,8 @@ using System.Windows.Input;
 
 using System.Windows.Media;
 
+using DoraExplorer.App.Infrastructure;
+
 using DoraExplorer.App.Services;
 
 
@@ -42,12 +44,6 @@ public static class SmoothScrollAnimator
 
 
 
-    /// <summary>Linhas percorridas por cada "notch" da roda (2/3 do padrão de 3 linhas do Windows).</summary>
-
-    private const int LinesPerNotch = 2;
-
-
-
     private const double FollowHalfLifeMs = 110;
 
 
@@ -56,7 +52,10 @@ public static class SmoothScrollAnimator
 
 
 
-    public static void HandleMouseWheel(ScrollViewer scrollViewer, MouseWheelEventArgs e)
+    /// <param name="scrollViewer">Rolagem da lista.</param>
+    /// <param name="e">Giro da roda.</param>
+    /// <param name="rowHeight">Altura da linha que está no topo: o passo é de <see cref="WheelScroll.RowsPerNotch"/> linhas dela.</param>
+    public static void HandleMouseWheel(ScrollViewer scrollViewer, MouseWheelEventArgs e, double rowHeight)
 
     {
 
@@ -82,7 +81,7 @@ public static class SmoothScrollAnimator
 
         // Delta WPF positivo = roda para cima => diminuir offset. Escala linear (roda de alta resolução).
 
-        var deltaPixels = -(e.Delta / 120.0) * LinesPerNotch * TreeViewHierarchy.HeaderRowHeight;
+        var deltaPixels = WheelScroll.StepPixels(e.Delta, rowHeight);
 
         state.Target = Math.Clamp(state.Target + deltaPixels, 0, scrollViewer.ScrollableHeight);
 

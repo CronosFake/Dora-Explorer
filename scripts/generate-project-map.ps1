@@ -155,7 +155,7 @@ $features = @(
     @{ F = 'Carregar listagem de uma pasta'; R = @('NavigationTreeService.LoadDirectoryChildren', 'NavigationTreeService.StartChunkedFill', 'NavigationTreeService.ScheduleBackgroundRefresh') },
     @{ F = 'Reabrir pasta sem piscar (revalidar e aplicar so a diferenca)'; R = @('NavigationTreeService.TryRevalidateLoadedDirectory', 'NavigationTreeService.ApplyBackgroundResults', 'NavigationTreeService.RebuildChildrenFromEntries', 'RangeObservableCollection.SyncTo') },
     @{ F = 'Pastas enormes e memoria'; R = @('RangeObservableCollection.ReplaceAll', 'MemoryTrimmer', 'TreeContainers', 'DirectoryIndexService') },
-    @{ F = 'Animacao de abrir/fechar e rolagem'; R = @('TreeExpansionRevealAnimator', 'SmoothScrollAnimator', 'TreeScrollHelper') },
+    @{ F = 'Animacao de abrir/fechar e rolagem'; R = @('TreeExpansionRevealAnimator', 'SmoothScrollAnimator', 'TreeScrollHelper', 'WheelScroll') },
     @{ F = 'Caminho atual, breadcrumb, voltar/avancar/subir'; R = @('FilePaneViewModel.NavigateToPath', 'FilePaneViewModel.RestorePath', 'BreadcrumbSegmentViewModel', 'NavigationHistory', 'PathNavigation') },
     @{ F = 'Selecao e atalhos de teclado'; R = @('FilePaneControl.NavigationTree_PreviewKeyDown', 'FilePaneViewModel.SetSingleItemSelection', 'SelectionStatusFormatter') },
     @{ F = 'Menu Exibir (arvore) e opcoes por painel'; R = @('NavigationTreeService.CreateVisibleRoots', 'PaneDisplayOptions', 'PaneDisplayMenuViewModel', 'PaneDisplaySettingsService') },

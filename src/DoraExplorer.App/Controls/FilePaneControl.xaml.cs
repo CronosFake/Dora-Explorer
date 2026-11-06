@@ -456,7 +456,12 @@ public partial class FilePaneControl : UserControl
             return;
         }
 
-        SmoothScrollAnimator.HandleMouseWheel(scrollViewer, e);
+        // Dois cliques de linha por giro em qualquer modo: a altura da linha do topo muda no modo confortável (arquivo com
+        // rodapé mede 54 px, pasta 32), então o passo em pixels acompanha. Sem medir a árvore desenhada: a constante basta.
+        var rowHeight = ViewModel is { ShowComfortableRows: true } pane
+            ? TreeScrollHelper.WheelRowHeight(pane.NavigationRoots, scrollViewer.VerticalOffset, new TreeRowMetrics(ComfortableRows: true))
+            : TreeViewHierarchy.HeaderRowHeight;
+        SmoothScrollAnimator.HandleMouseWheel(scrollViewer, e, rowHeight);
     }
 
     private void OnPaneSizeChanged(object sender, SizeChangedEventArgs e) =>

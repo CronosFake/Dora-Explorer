@@ -2,7 +2,7 @@
 
 > Auto-gerado por scripts/generate-project-map.ps1 (o Start.bat roda a cada execucao). Nao edite a mao.
 > Regras, comandos e armadilhas: AGENTS.md. Visao do produto e limitacoes conhecidas: README.md.
-> Ultima atualizacao: 2026-11-06 23:33
+> Ultima atualizacao: 2026-11-06 23:40
 
 ## Como usar este mapa
 
@@ -27,9 +27,9 @@ src/DoraExplorer.App/
   App.xaml.cs, MainWindow.xaml(.cs)   # inicializacao, DI, janela principal com dois paineis
   Assets/           0 arquivos      0 linhas  # Icones
   Contracts/       12 arquivos    339 linhas  # Interfaces dos servicos (DI e testes)
-  Controls/        15 arquivos   8518 linhas  # Controles WPF: paineis, toolbar, arvore, animacoes
+  Controls/        15 arquivos   8565 linhas  # Controles WPF: paineis, toolbar, arvore, animacoes
   Converters/       7 arquivos    187 linhas  # IValueConverter do WPF
-  Infrastructure/  24 arquivos   1862 linhas  # DI, caminhos seguros, timeouts, instancia unica, colecao em bloco, enxugador de memoria
+  Infrastructure/  25 arquivos   1905 linhas  # DI, caminhos seguros, timeouts, instancia unica, colecao em bloco, enxugador de memoria
   Models/          29 arquivos    851 linhas  # DTOs, enums e opcoes
   Resources/        6 arquivos   1540 linhas  # Temas e estilos XAML
   Services/        71 arquivos  23953 linhas  # Arquivos, rede, indice, tema, icones, logs, arquivos compactados
@@ -51,7 +51,7 @@ Itens com (?) apontam para algo que nao existe mais no codigo: atualize a lista 
 | Carregar listagem de uma pasta | NavigationTreeService.LoadDirectoryChildren, NavigationTreeService.StartChunkedFill, NavigationTreeService.ScheduleBackgroundRefresh |
 | Reabrir pasta sem piscar (revalidar e aplicar so a diferenca) | NavigationTreeService.TryRevalidateLoadedDirectory, NavigationTreeService.ApplyBackgroundResults, NavigationTreeService.RebuildChildrenFromEntries, RangeObservableCollection.SyncTo |
 | Pastas enormes e memoria | RangeObservableCollection.ReplaceAll, MemoryTrimmer, TreeContainers, DirectoryIndexService |
-| Animacao de abrir/fechar e rolagem | TreeExpansionRevealAnimator, SmoothScrollAnimator, TreeScrollHelper |
+| Animacao de abrir/fechar e rolagem | TreeExpansionRevealAnimator, SmoothScrollAnimator, TreeScrollHelper, WheelScroll |
 | Caminho atual, breadcrumb, voltar/avancar/subir | FilePaneViewModel.NavigateToPath, FilePaneViewModel.RestorePath, BreadcrumbSegmentViewModel, NavigationHistory, PathNavigation |
 | Selecao e atalhos de teclado | FilePaneControl.NavigationTree_PreviewKeyDown, FilePaneViewModel.SetSingleItemSelection, SelectionStatusFormatter |
 | Menu Exibir (arvore) e opcoes por painel | NavigationTreeService.CreateVisibleRoots, PaneDisplayOptions, PaneDisplayMenuViewModel, PaneDisplaySettingsService |
@@ -102,7 +102,7 @@ CommunityToolkit.Mvvm 8.4.2, FluentFTP 51.1.0, Microsoft.Data.Sqlite 10.0.14, Mi
 
 Metodos com numero de linha: project-metodos.md.
 
-- `src/DoraExplorer.App/Controls/FilePaneControl.xaml.cs` - 4178 linhas
+- `src/DoraExplorer.App/Controls/FilePaneControl.xaml.cs` - 4183 linhas
 - `src/DoraExplorer.App/ViewModels/FilePaneViewModel.cs` - 3849 linhas
 - `src/DoraExplorer.App/Services/NavigationTreeService.cs` - 1721 linhas
 - `src/DoraExplorer.App/Services/FtpServer.cs` - 1588 linhas
@@ -146,10 +146,10 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `Controls/CenterToolbarControl.xaml` (458)
 - `Controls/CenterToolbarControl.xaml.cs` (269) - **CenterToolbarControl**
 - `Controls/FilePaneControl.xaml` (1161)
-- `Controls/FilePaneControl.xaml.cs` (4178) - **FilePaneControl**
+- `Controls/FilePaneControl.xaml.cs` (4183) - **FilePaneControl**
 - `Controls/SearchPopupSizing.cs` (9) - **SearchPopupSizing**
   - Metodos: Clamp
-- `Controls/SmoothScrollAnimator.cs` (355) - **SmoothScrollAnimator**
+- `Controls/SmoothScrollAnimator.cs` (354) - **SmoothScrollAnimator**
   - Metodos: HandleMouseWheel, ScrollTo, SyncTarget
 - `Controls/StickyToViewport.cs` (188) - **StickyLayout, StickyToViewport**
   - Metodos: GetIsSticky, SetIsSticky, Resolve
@@ -160,8 +160,8 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `Controls/TreeExpansionRevealAnimator.cs` (396) - **TreeExpansionRevealAnimator**
   - Metodos: IsCollapsing, CancelCollapse, CollapseChildren, HideForReveal, ShowAfterReveal, RevealChildren, Reset
 - `Controls/TreeHierarchyGuides.cs` (246) - **TreeHierarchyGuides**
-- `Controls/TreeScrollHelper.cs` (499) - **TreeRowMetrics, TreeScrollHelper**
-  - Metodos: EnsureItemVisible, CenterItemInViewport, TryCenterItemInViewport, HorizontalWheelDelta, HorizontalWheelOffset, TryCenterSearchItem, TryBringChildIntoView, TryJumpUsingRealizedSibling, TryEstimateTargetOffset, JumpScrollNearTarget, GetEstimatedRowHeight, EnsureItemVisibleForKeyboard
+- `Controls/TreeScrollHelper.cs` (542) - **TreeRowMetrics, TreeScrollHelper**
+  - Metodos: EnsureItemVisible, CenterItemInViewport, TryCenterItemInViewport, HorizontalWheelDelta, HorizontalWheelOffset, TryCenterSearchItem, TryBringChildIntoView, TryJumpUsingRealizedSibling, TryEstimateTargetOffset, WheelRowHeight, JumpScrollNearTarget, GetEstimatedRowHeight (+1)
 - `Controls/TreeViewHierarchy.cs` (230) - **TreeViewHierarchy**
   - Metodos: SpineX, ExpanderLeftX, IconLeftX, GetItemContentMargin, SetItemContentMargin, GetDepth, SetDepth, GetIsLastSibling, SetIsLastSibling, GetIsFirstSibling, SetIsFirstSibling, GetAncestorContinuations (+4)
 - `Converters/AdaptiveModifiedDateConverter.cs` (22) - **AdaptiveModifiedDateConverter**
@@ -218,6 +218,8 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: HasSeekPenalty
 - `Infrastructure/SystemMouse.cs` (26) - **SystemMouse**
 - `Infrastructure/TransferAccessDeniedException.cs` (17) - **TransferAccessDeniedException**
+- `Infrastructure/WheelScroll.cs` (43) - **WheelScroll**
+  - Metodos: StepPixels, RowHeightAtOffset
 - `MainWindow.xaml` (139)
 - `MainWindow.xaml.cs` (79) - **MainWindow**
 - `Models/AccentColorOption.cs` (65) - **AccentColorOption, AccentColorPalette**
@@ -504,3 +506,4 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `TftpClientTests.cs` (194) - TftpClientTests
 - `ThumbnailTests.cs` (197) - FileThumbnailServiceTests, ThumbnailHoverRulesTests
 - `TransferTests.cs` (531) - SyncProgress, NativeFileCopyTests, FileOperationProgressTests, InactivityTimeoutTests, TransferProgressFormatterTests, CompressionProgressTests
+- `WheelScrollTests.cs` (198) - WheelScrollTests, WheelRowHeightTests

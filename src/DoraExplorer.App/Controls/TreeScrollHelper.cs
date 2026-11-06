@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using DoraExplorer.App.Infrastructure;
 using DoraExplorer.App.ViewModels;
 
 namespace DoraExplorer.App.Controls;
@@ -249,6 +250,48 @@ public static class TreeScrollHelper
     {
         offsetTop = 0;
         return WalkVisibleNodes(roots, target, metrics, ref offsetTop);
+    }
+
+    /// <summary>
+    /// Altura da linha que está no topo da lista quando ela está rolada até <paramref name="offset"/>, para a roda do mouse
+    /// andar o mesmo número de linhas por clique em qualquer modo. No compacto toda linha mede
+    /// <see cref="TreeViewHierarchy.HeaderRowHeight"/> (o passo de sempre); no confortável, as pastas medem isso e os
+    /// arquivos, com o rodapé de data e tamanho, medem mais (<see cref="GetEstimatedRowHeight"/>).
+    /// </summary>
+    public static double WheelRowHeight(
+        IEnumerable<NavigationTreeNodeViewModel> roots,
+        double offset,
+        TreeRowMetrics metrics) =>
+        metrics.ComfortableRows
+            ? WheelScroll.RowHeightAtOffset(
+                EnumerateRowHeights(roots, metrics),
+                offset,
+                TreePaddingTop,
+                TreeViewHierarchy.HeaderRowHeight)
+            : TreeViewHierarchy.HeaderRowHeight;
+
+    /// <summary>Altura estimada de cada linha visível, de cima para baixo (pastas fechadas não entram com os filhos).</summary>
+    private static IEnumerable<double> EnumerateRowHeights(
+        IEnumerable<NavigationTreeNodeViewModel> nodes,
+        TreeRowMetrics metrics)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.IsPlaceholder)
+            {
+                continue;
+            }
+
+            yield return GetEstimatedRowHeight(node, metrics);
+
+            if (node.IsExpanded && node.Children.Count > 0)
+            {
+                foreach (var height in EnumerateRowHeights(node.Children, metrics))
+                {
+                    yield return height;
+                }
+            }
+        }
     }
 
     public static void JumpScrollNearTarget(
