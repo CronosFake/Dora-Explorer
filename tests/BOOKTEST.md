@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-06 23:16
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-06 23:33
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -24,8 +24,8 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 |------|-------|
 | Areas | 37 |
 | Classes de teste | 88 |
-| Metodos de teste | 897 |
-| Casos (cada InlineData conta um) | 1360 |
+| Metodos de teste | 902 |
+| Casos (cada InlineData conta um) | 1365 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -89,10 +89,10 @@ Caminhos remotos, download e envio com progresso e limpeza, copia entre servidor
 
 ### Pasta Rede na arvore
 
-A pasta "Rede" agrupa FTP, SFTP, SCP, TFTP, SMB e NFS; protocolos ocultos somem, o SMB e o NFS tem icone proprio e os perfis salvos entram no protocolo certo (SMB e NFS abrem como pastas).
+A pasta "Rede" agrupa FTP, SFTP, SCP, TFTP, SMB e NFS; protocolos ocultos somem, cada protocolo tem o seu icone na arvore e os perfis salvos entram no protocolo certo (SMB e NFS abrem como pastas).
 
 - Codigo: NavigationTreeService, NavigationNodeKind, PaneDisplayOptions
-- Testes (7 casos): NetworkGroupTests [NetworkGroupTests.cs]
+- Testes (8 casos): NetworkGroupTests [NetworkGroupTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~NetworkGroupTests"`
 
 ### SMB (servidor e cliente)
@@ -113,10 +113,10 @@ ONC RPC e XDR com limites, NFS versao 3 sobre TCP (portmap, MOUNT e NFS na mesma
 
 ### Protocolos de rede: tipos, configuracao, menu Exibir e icones (SMB e NFS)
 
-Todo protocolo tem o seu no da arvore e volta ao protocolo; quais navegam por pastas; portas padrao (o servidor SMB comeca na 4445); configuracoes do servidor e do cliente separadas, padroes seguros (NFS somente leitura), arquivo de configuracoes antigo sem os campos novos, perfis que mantem o protocolo; itens do menu de exibicao do painel e botoes do menu central lidos do XAML; os desenhos da janela e do pinguim (dentro da grade, uma cor, areas vazadas, sem as cores do logotipo da Microsoft).
+Todo protocolo tem o seu no da arvore e volta ao protocolo; quais navegam por pastas; portas padrao (o servidor SMB comeca na 4445); configuracoes do servidor e do cliente separadas, padroes seguros (NFS somente leitura), arquivo de configuracoes antigo sem os campos novos, perfis que mantem o protocolo; itens do menu de exibicao do painel e botoes do menu central lidos do XAML; os desenhos de cada protocolo na arvore (dentro da grade, distintos, legiveis nos temas claro e escuro, borda clara nas formas escuras, a pasta do SFTP e a do FTP iguais com o cadeado a mais) e da janela e do pinguim de uma cor so nos botoes (areas vazadas, sem as cores do logotipo da Microsoft).
 
 - Codigo: NetworkKinds, NetworkSettingsStore, PaneDisplayMenuViewModel, NetworkProtocolIcons
-- Testes (34 casos): NetworkKindsTests [NetworkKindsTests.cs], NetworkSharesSettingsTests [NetworkKindsTests.cs], NetworkSharesXamlTests [NetworkKindsTests.cs], NetworkProtocolIconsTests [NetworkProtocolIconsTests.cs]
+- Testes (38 casos): NetworkKindsTests [NetworkKindsTests.cs], NetworkSharesSettingsTests [NetworkKindsTests.cs], NetworkSharesXamlTests [NetworkKindsTests.cs], NetworkProtocolIconsTests [NetworkProtocolIconsTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~NetworkKindsTests|FullyQualifiedName~NetworkSharesSettingsTests|FullyQualifiedName~NetworkSharesXamlTests|FullyQualifiedName~NetworkProtocolIconsTests"`
 
 ### Arquivos compactados (abrir como pasta)
@@ -481,7 +481,7 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 | Renomear na tela: F2 e clique devagar abrem a caixa com o foco e o nome sem a extensao selecionado, selecionar o texto com o mouse | O trecho selecionado e a regra do clique devagar sao testados, mas o foco, o mouse e o temporizador so existem com a janela aberta. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario rename (app fechado; AGENTS.md, armadilha 27): F2 e clique devagar (le a selecao pelo UI Automation), arrasto do mouse dentro da caixa (o arquivo nao pode sair do lugar), Enter renomeia no disco e deixa o item com o novo nome selecionado e com o foco (a pasta que o contem nao), e Esc cancela. |
 | Menu da Lixeira na tela, Localizar (Abrir em Janela e coluna ajustada com o mouse) e a janela Itens duplicados aberta pelo botao do grupo Pasta | As regras sao testadas sem janela, mas o menu, o botao, as janelas e o arrasto da borda do cabecalho so existem com o app aberto. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario newfeatures (app fechado; AGENTS.md, armadilhas 28 a 30): botao direito na Lixeira (so le o menu e recusa a pergunta de esvaziar), Localizar e Abrir em Janela, largura da coluna Nome antes e depois de arrastar a borda, Duplicados nos tipos Padrao e Profundo; cada verificacao sai [OK] ou [FALHOU]. |
 | Esvaziar a Lixeira de verdade (SHEmptyRecycleBin) | Apaga para sempre a Lixeira do usuario; os testes trocam a chamada do Windows por uma de mentira e os roteiros de tela recusam a pergunta. | Numa maquina de teste, jogar arquivos de teste na Lixeira, botao direito na Lixeira > Esvaziar Lixeira > Sim e conferir que a Lixeira ficou vazia nos dois paineis. |
-| SMB e NFS na tela: icones (janela e pinguim) nos botoes do menu central e nos nos da arvore, nos temas claro e escuro, itens SMB e NFS no menu de exibicao do painel, dialogos de cliente e servidor, navegar e copiar numa pasta de verdade | O desenho (geometria), os itens do XAML e o protocolo sao testados, mas como o icone aparece em 15 px, a troca de tema e os dialogos so existem com o app aberto. | Abrir o app: REDE SERVER mostra SMB e NFS com a janela e o pinguim legiveis nos dois temas; o menu de exibicao do painel liga e desliga SMB e NFS na arvore; em Rede, duplo clique em SMB ou NFS abre o cliente; iniciar o servidor SMB (porta 4445) e o NFS (somente leitura) e abrir cada um pelo outro painel; confira o log sem [ERR] nem [WRN]. |
+| SMB e NFS na tela e os icones de todos os protocolos: janela e pinguim nos botoes do menu central, e os seis icones (pasta com setas, pasta com cadeado, terminal, setas em anel, janela e pinguim) nos nos da arvore, nos temas claro e escuro, itens SMB e NFS no menu de exibicao do painel, dialogos de cliente e servidor, navegar e copiar numa pasta de verdade | O desenho (geometria), os itens do XAML e o protocolo sao testados, mas como o icone aparece em 15 px, a troca de tema e os dialogos so existem com o app aberto. | Abrir o app: REDE SERVER mostra SMB e NFS com a janela e o pinguim legiveis nos dois temas; o menu de exibicao do painel liga e desliga SMB e NFS na arvore; em Rede, duplo clique em SMB ou NFS abre o cliente; iniciar o servidor SMB (porta 4445) e o NFS (somente leitura) e abrir cada um pelo outro painel; confira o log sem [ERR] nem [WRN]. |
 | SMB e NFS contra implementacoes de terceiros (Samba, libnfs, nfs-ganesha) e com o Windows e o Linux de verdade | Os testes automaticos ligam o cliente ao servidor do proprio app; um engano de leitura da especificacao poderia estar nos dois lados. | Foi conferido no Linux (cloud): smbclient e nfs-ls/nfs-cat/nfs-cp contra o servidor do app, e o cliente do app contra o smbd (Samba 4.19) e o nfs-ganesha 4, com hash identico nos envios e nas copias. Falta conferir no Windows: Explorer em \\IP\pasta (porta 445) contra o servidor SMB, e o Cliente para NFS do Windows ou um mount -t nfs contra o servidor NFS. |
 | Janelas de dialogo (progresso, conexao de rede, ordenar, excluir) | Janelas WPF; sem teste automatico. | Abrir cada uma no app. |
 | Restaurar e excluir de verdade da Lixeira | Mexe na lixeira real do usuario; so as travas sao testadas. | Com arquivos de teste, na tela. |
@@ -1089,12 +1089,13 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### NetworkGroupTests (NetworkGroupTests.cs)
 
+- Every_protocol_node_has_its_own_drawn_icon_instead_of_the_generic_network_icon
 - Protocols_hidden_in_the_pane_options_do_not_appear
 - Saved_profiles_appear_under_their_own_protocol_sorted_by_name
 - SMB_and_NFS_profiles_can_be_browsed_so_they_start_with_an_expand_arrow
 - The_group_and_its_protocols_are_already_loaded_so_they_never_wait_for_a_listing
 - The_network_group_holds_the_six_protocols_in_order
-- The_new_protocols_follow_the_pane_option_and_have_their_own_icons
+- The_new_protocols_follow_the_pane_option_and_keep_their_own_icons
 - With_every_protocol_hidden_there_is_no_network_group
 
 ### NetworkKindsTests (NetworkKindsTests.cs)
@@ -1120,10 +1121,14 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### NetworkProtocolIconsTests (NetworkProtocolIconsTests.cs)
 
-- Only_smb_and_nfs_have_their_own_tree_icon
+- Every_protocol_has_its_own_distinct_tree_icon
+- Every_tree_icon_has_a_light_part_for_the_dark_theme_and_a_dark_part_for_the_light_theme
+- The_dark_shapes_have_a_light_rim_so_they_do_not_vanish_on_the_dark_theme
+- The_ftp_family_icons_share_the_folder_and_the_secure_one_adds_a_lock
 - The_marks_are_frozen_and_stay_inside_the_16_by_16_grid
 - The_penguin_is_filled_even_odd_so_the_belly_eyes_and_beak_are_cut_out
-- The_tree_icons_are_frozen_16_by_16_images_and_are_not_the_logo_colors
+- The_smb_window_uses_blue_panes_and_not_the_logo_colors
+- The_tree_icons_are_frozen_16_by_16_images_inside_the_grid
 - The_window_is_four_separate_panes
 
 ### NetworkServerHardeningTests (SecurityTests.cs)

@@ -64,7 +64,7 @@ public sealed class NetworkGroupTests : IDisposable
     }
 
     [Fact]
-    public void The_new_protocols_follow_the_pane_option_and_have_their_own_icons()
+    public void The_new_protocols_follow_the_pane_option_and_keep_their_own_icons()
     {
         var onlySmb = NavigationTreeService.CreateNetworkGroup(Only(smb: true))!;
         onlySmb.Children.Select(c => c.Name).Should().Equal("SMB");
@@ -72,9 +72,21 @@ public sealed class NetworkGroupTests : IDisposable
         var onlyNfs = NavigationTreeService.CreateNetworkGroup(Only(nfs: true))!;
         onlyNfs.Children.Select(c => c.Name).Should().Equal("NFS");
 
-        // SMB e NFS têm o desenho próprio (janela e pinguim); os outros usam o ícone de rede do Windows.
         onlySmb.Children.Single().IconSource.Should().BeSameAs(NetworkProtocolIcons.SmbIcon);
         onlyNfs.Children.Single().IconSource.Should().BeSameAs(NetworkProtocolIcons.NfsIcon);
+    }
+
+    [Fact]
+    public void Every_protocol_node_has_its_own_drawn_icon_instead_of_the_generic_network_icon()
+    {
+        var group = NavigationTreeService.CreateNetworkGroup(new PaneDisplayOptions())!;
+
+        foreach (var node in group.Children)
+        {
+            node.IconSource.Should().BeSameAs(NetworkProtocolIcons.TreeIconFor(NetworkKinds.ToProtocol(node.Kind)));
+        }
+
+        group.Children.Select(node => node.IconSource).Distinct().Should().HaveCount(6);
     }
 
     [Fact]

@@ -4,11 +4,13 @@ using DoraExplorer.App.Models;
 namespace DoraExplorer.App.Infrastructure;
 
 /// <summary>
-/// Ícones do SMB (uma janela de quatro vidraças inclinada, a ideia do Windows) e do NFS (um pinguim, a ideia do Linux).
-/// São desenhos próprios, simples, feitos numa grade de 16x16: nada copiado dos logotipos oficiais (as vidraças são
-/// azuis, não as quatro cores da Microsoft, e o pinguim tem formas e proporções próprias). Cada um existe de dois
-/// jeitos: <c>*Mark</c>, uma cor só, para os botões do menu central (que seguem o tema claro e escuro), e
-/// <c>*Icon</c>, colorido, para a linha do protocolo na árvore. Tudo congelado: vale em qualquer thread.
+/// Ícones dos protocolos de rede na árvore: o SMB (uma janela de quatro vidraças inclinada, a ideia do Windows), o NFS (um
+/// pinguim, a ideia do Linux), o FTP (pasta com setas de ida e volta), o SFTP (a pasta com um cadeado), o SCP (um terminal)
+/// e o TFTP (duas setas em anel, o mesmo sentido do botão do menu central). São desenhos próprios, simples, feitos numa
+/// grade de 16x16: nada copiado dos logotipos oficiais (as vidraças são azuis, não as quatro cores da Microsoft, e o
+/// pinguim tem formas e proporções próprias). Os dois primeiros existem também em <c>*Mark</c>, de uma cor só, para os
+/// botões do menu central (que seguem o tema claro e escuro); os <c>*Icon</c> são coloridos e têm cores e bordas que se
+/// leem nos dois temas. Tudo congelado: vale em qualquer thread.
 /// </summary>
 public static class NetworkProtocolIcons
 {
@@ -37,6 +39,36 @@ public static class NetworkProtocolIcons
         "M3.2,14.4 C3.2,13.9 4.6,13.8 5.8,14.1 C6.6,14.3 6.6,15.5 5.4,15.6 C4.2,15.7 3.2,15.2 3.2,14.4 Z " +
         "M12.8,14.4 C12.8,13.9 11.4,13.8 10.2,14.1 C9.4,14.3 9.4,15.5 10.6,15.6 C11.8,15.7 12.8,15.2 12.8,14.4 Z";
 
+    // Pasta (FTP e SFTP): aba e fundo mais escuros atrás, frente mais clara.
+    private const string FolderBack = "M1,2.8 L6.1,2.8 L7.6,4.4 L15,4.4 L15,13.6 L1,13.6 Z";
+    private const string FolderFront = "M1,5.8 L15,5.8 L15,13.6 L1,13.6 Z";
+    private const string ArrowUp = "M5.6,6.4 L8,8.9 L6.35,8.9 L6.35,12.8 L4.85,12.8 L4.85,8.9 L3.2,8.9 Z";
+    private const string ArrowDown = "M10.4,12.8 L8,10.3 L9.65,10.3 L9.65,6.4 L11.15,6.4 L11.15,10.3 L12.8,10.3 Z";
+    private const string ArrowUpLeft = "M5.2,6.6 L7.6,9.4 L6.0,9.4 L6.0,12.8 L4.4,12.8 L4.4,9.4 L2.8,9.4 Z";
+
+    // Cadeado (SFTP): corpo, argola e buraco da fechadura.
+    private const string LockBody =
+        "M8.9,9 H13.9 Q14.5,9 14.5,9.6 V14.4 Q14.5,15 13.9,15 H8.9 Q8.3,15 8.3,14.4 V9.6 Q8.3,9 8.9,9 Z";
+
+    private const string LockShackle = "M9.8,9 V7.9 C9.8,6.3 13,6.3 13,7.9 V9";
+
+    private const string LockKeyhole =
+        "M10.6,11.4 a0.8,0.8 0 1,0 1.6,0 a0.8,0.8 0 1,0 -1.6,0 Z M11,11.9 H11.8 L12.1,13.7 H10.7 Z";
+
+    // Terminal (SCP): janela, barra de título, o ">" e o cursor.
+    private const string TerminalWindow =
+        "M1.5,2.5 H14.5 Q15,2.5 15,3 V13 Q15,13.5 14.5,13.5 H1.5 Q1,13.5 1,13 V3 Q1,2.5 1.5,2.5 Z";
+
+    private const string TerminalTitleBar = "M1.5,2.5 H14.5 Q15,2.5 15,3 V4.9 H1 V3 Q1,2.5 1.5,2.5 Z";
+    private const string TerminalPrompt = "M3.6,6.8 L6.4,8.8 L3.6,10.8";
+    private const string TerminalCursor = "M8,11.4 H11.8";
+
+    // Setas em anel (TFTP): a de cima e a de baixo, esta igual à primeira girada 180 graus.
+    private const string SyncTopArc = "M3.4,7.6 C3.6,5.1 5.7,3.3 8.1,3.3 C9.5,3.3 10.7,3.9 11.6,4.8";
+    private const string SyncTopHead = "M13.7,2.6 L13.4,6.5 L9.6,5.3 Z";
+    private const string SyncBottomArc = "M12.6,8.4 C12.4,10.9 10.3,12.7 7.9,12.7 C6.5,12.7 5.3,12.1 4.4,11.2";
+    private const string SyncBottomHead = "M2.3,13.4 L2.6,9.5 L6.4,10.7 Z";
+
     private static readonly Lazy<Geometry> SmbMarkGeometry = new(() =>
         Frozen(Geometry.Parse(string.Join(' ', WindowTopLeft, WindowTopRight, WindowBottomLeft, WindowBottomRight))));
 
@@ -46,18 +78,49 @@ public static class NetworkProtocolIcons
 
     private static readonly Lazy<ImageSource> SmbDrawing = new(() =>
         Drawing(
-            (Brush("#57B8FF"), WindowTopLeft),
-            (Brush("#2F9CFF"), WindowTopRight),
-            (Brush("#2F9CFF"), WindowBottomLeft),
-            (Brush("#1573E6"), WindowBottomRight)));
+            Shape.Filled("#57B8FF", WindowTopLeft),
+            Shape.Filled("#2F9CFF", WindowTopRight),
+            Shape.Filled("#2F9CFF", WindowBottomLeft),
+            Shape.Filled("#1573E6", WindowBottomRight)));
 
+    // O corpo tem uma borda clara: sem ela o pinguim escuro some no tema escuro.
     private static readonly Lazy<ImageSource> NfsDrawing = new(() =>
         Drawing(
-            (Brush("#2B2F36"), PenguinBody),
-            (Brush("#F4F4F2"), PenguinBelly),
-            (Brush("#F4F4F2"), PenguinEyes),
-            (Brush("#F2A33A"), PenguinBeak),
-            (Brush("#F2A33A"), PenguinFeet)));
+            Shape.Filled("#3A4152", PenguinBody, rimColor: "#9AA3B2", rimWidth: 0.55),
+            Shape.Filled("#F4F4F2", PenguinBelly),
+            Shape.Filled("#F4F4F2", PenguinEyes),
+            Shape.Filled("#F2A33A", PenguinBeak),
+            Shape.Filled("#F2A33A", PenguinFeet)));
+
+    private static readonly Lazy<ImageSource> FtpDrawing = new(() =>
+        Drawing(
+            Shape.Filled("#D9962B", FolderBack),
+            Shape.Filled("#F5C04F", FolderFront),
+            Shape.Filled("#0F8F7C", ArrowUp),
+            Shape.Filled("#2563EB", ArrowDown)));
+
+    private static readonly Lazy<ImageSource> SftpDrawing = new(() =>
+        Drawing(
+            Shape.Filled("#D9962B", FolderBack),
+            Shape.Filled("#F5C04F", FolderFront),
+            Shape.Filled("#0F8F7C", ArrowUpLeft),
+            Shape.Stroked("#1B6B34", 1.2, LockShackle),
+            Shape.Filled("#2FA84F", LockBody, rimColor: "#1B6B34", rimWidth: 0.5),
+            Shape.Filled("#F4F4F2", LockKeyhole)));
+
+    private static readonly Lazy<ImageSource> ScpDrawing = new(() =>
+        Drawing(
+            Shape.Filled("#4A5266", TerminalWindow, rimColor: "#9AA3B2", rimWidth: 0.5),
+            Shape.Filled("#6B7589", TerminalTitleBar),
+            Shape.Stroked("#5BE08A", 1.3, TerminalPrompt),
+            Shape.Stroked("#E6E9EF", 1.3, TerminalCursor)));
+
+    private static readonly Lazy<ImageSource> TftpDrawing = new(() =>
+        Drawing(
+            Shape.Stroked("#F0892A", 1.7, SyncTopArc),
+            Shape.Filled("#F0892A", SyncTopHead),
+            Shape.Stroked("#2563EB", 1.7, SyncBottomArc),
+            Shape.Filled("#2563EB", SyncBottomHead)));
 
     /// <summary>Janela do SMB numa cor só (botão do menu central).</summary>
     public static Geometry SmbMark => SmbMarkGeometry.Value;
@@ -71,10 +134,26 @@ public static class NetworkProtocolIcons
     /// <summary>Pinguim do NFS colorido (árvore).</summary>
     public static ImageSource NfsIcon => NfsDrawing.Value;
 
-    /// <summary>Ícone próprio do protocolo na árvore; nulo para os que usam o ícone de rede do Windows.</summary>
+    /// <summary>Pasta com setas de ida e volta (FTP).</summary>
+    public static ImageSource FtpIcon => FtpDrawing.Value;
+
+    /// <summary>Pasta com cadeado (SFTP).</summary>
+    public static ImageSource SftpIcon => SftpDrawing.Value;
+
+    /// <summary>Terminal (SCP).</summary>
+    public static ImageSource ScpIcon => ScpDrawing.Value;
+
+    /// <summary>Duas setas em anel (TFTP).</summary>
+    public static ImageSource TftpIcon => TftpDrawing.Value;
+
+    /// <summary>Ícone do protocolo na árvore; nulo só para um protocolo que ainda não tenha desenho (cai no ícone de rede do Windows).</summary>
     public static ImageSource? TreeIconFor(NetworkProtocol protocol) =>
         protocol switch
         {
+            NetworkProtocol.Ftp => FtpIcon,
+            NetworkProtocol.Sftp => SftpIcon,
+            NetworkProtocol.Scp => ScpIcon,
+            NetworkProtocol.Tftp => TftpIcon,
             NetworkProtocol.Smb => SmbIcon,
             NetworkProtocol.Nfs => NfsIcon,
             _ => null
@@ -93,17 +172,39 @@ public static class NetworkProtocolIcons
         return brush;
     }
 
-    private static ImageSource Drawing(params (Brush Fill, string Data)[] shapes)
+    /// <summary>Uma forma do desenho: preenchida (com borda opcional) ou só um traço.</summary>
+    private readonly record struct Shape(string Data, Brush? Fill, Pen? Outline)
+    {
+        public static Shape Filled(string color, string data, string? rimColor = null, double rimWidth = 0) =>
+            new(data, Brush(color), rimColor is null ? null : RoundPen(rimColor, rimWidth));
+
+        public static Shape Stroked(string color, double width, string data) =>
+            new(data, null, RoundPen(color, width));
+    }
+
+    private static Pen RoundPen(string color, double width)
+    {
+        var pen = new Pen(Brush(color), width)
+        {
+            StartLineCap = PenLineCap.Round,
+            EndLineCap = PenLineCap.Round,
+            LineJoin = PenLineJoin.Round
+        };
+        pen.Freeze();
+        return pen;
+    }
+
+    private static ImageSource Drawing(params Shape[] shapes)
     {
         var group = new DrawingGroup();
 
         // Retângulo transparente: fixa o tamanho da imagem em 16x16 mesmo que o desenho não encoste nas bordas.
         group.Children.Add(new GeometryDrawing(Brushes.Transparent, null, new RectangleGeometry(new System.Windows.Rect(0, 0, 16, 16))));
-        foreach (var (fill, data) in shapes)
+        foreach (var shape in shapes)
         {
-            var geometry = Geometry.Parse(data);
+            var geometry = Geometry.Parse(shape.Data);
             geometry.Freeze();
-            group.Children.Add(new GeometryDrawing(fill, null, geometry));
+            group.Children.Add(new GeometryDrawing(shape.Fill, shape.Outline, geometry));
         }
 
         var image = new DrawingImage(group);

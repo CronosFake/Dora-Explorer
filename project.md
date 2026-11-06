@@ -2,7 +2,7 @@
 
 > Auto-gerado por scripts/generate-project-map.ps1 (o Start.bat roda a cada execucao). Nao edite a mao.
 > Regras, comandos e armadilhas: AGENTS.md. Visao do produto e limitacoes conhecidas: README.md.
-> Ultima atualizacao: 2026-11-06 23:16
+> Ultima atualizacao: 2026-11-06 23:33
 
 ## Como usar este mapa
 
@@ -29,7 +29,7 @@ src/DoraExplorer.App/
   Contracts/       12 arquivos    339 linhas  # Interfaces dos servicos (DI e testes)
   Controls/        15 arquivos   8518 linhas  # Controles WPF: paineis, toolbar, arvore, animacoes
   Converters/       7 arquivos    187 linhas  # IValueConverter do WPF
-  Infrastructure/  24 arquivos   1761 linhas  # DI, caminhos seguros, timeouts, instancia unica, colecao em bloco, enxugador de memoria
+  Infrastructure/  24 arquivos   1862 linhas  # DI, caminhos seguros, timeouts, instancia unica, colecao em bloco, enxugador de memoria
   Models/          29 arquivos    851 linhas  # DTOs, enums e opcoes
   Resources/        6 arquivos   1540 linhas  # Temas e estilos XAML
   Services/        71 arquivos  23953 linhas  # Arquivos, rede, indice, tema, icones, logs, arquivos compactados
@@ -74,7 +74,7 @@ Itens com (?) apontam para algo que nao existe mais no codigo: atualize a lista 
 | Servidores embutidos (FTP, TFTP) | NetworkServerService, ProtocolServerBase, FtpServer, TftpServer, FtpTlsCertificate, NetworkPortGuard, NetworkConnectionDialog |
 | SMB (cliente e servidor, SMBLibrary) | SmbRemoteSession, SmbFileServer, SmbDirectoryFileStore, SmbLibraryAccess, SmbWildcard, ShareNames |
 | NFS v3 (cliente e servidor proprios: ONC RPC, XDR, MOUNT, portmap) | NfsClient, NfsRemoteSession, NfsServer, NfsHandleTable, NfsProtocol, RpcClient, Rpc, XdrWriter, XdrReader, RpcIdentity, NetworkAddressPolicy |
-| Icones do SMB (janela) e do NFS (pinguim), no menu central e na arvore | NetworkProtocolIcons, CenterToolbarButton, NavigationTreeService.CreateNetworkGroup, Resources/CenterToolbarIcons.xaml |
+| Icones dos protocolos de rede na arvore (SMB janela, NFS pinguim, FTP, SFTP, SCP, TFTP) e do SMB e NFS no menu central | NetworkProtocolIcons, CenterToolbarButton, NavigationTreeService.CreateNetworkGroup, Resources/CenterToolbarIcons.xaml |
 | Tema claro/escuro e cor de destaque | ThemeManager, ExplorerThemeResources, WindowsAccentColorService, Resources/Theme.xaml, Resources/DarkTheme.xaml, Resources/LightTheme.xaml |
 | Configuracoes e senhas | AppSettingsService, ProtectedStringJsonConverter, RememberPathSettingsService (settings.json em %AppData%/DoraExplorer; senhas cifradas com DPAPI) |
 | Registro de servicos (DI) | ServiceRegistration.AddDoraExplorerServices |
@@ -188,8 +188,8 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: Measure
 - `Infrastructure/NameWidthScanner.cs` (132) - **NameWidthScanner**
   - Metodos: HasColumnRows, WidestRowWidth
-- `Infrastructure/NetworkProtocolIcons.cs` (113) - **NetworkProtocolIcons**
-  - Metodos: TreeIconFor
+- `Infrastructure/NetworkProtocolIcons.cs` (214) - **NetworkProtocolIcons**
+  - Metodos: TreeIconFor, Filled, Stroked
 - `Infrastructure/OperationTimeouts.cs` (93) - **OperationTimeouts**
   - Metodos: CreateLinked, RunAsync, RunWithInactivityAsync
 - `Infrastructure/OperationTracker.cs` (96) - **OperationTracker**
@@ -479,10 +479,10 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `MainWindowViewModelTests.cs` (519) - MainWindowViewModelTests
 - `NavigationTests.cs` (277) - SortHeaderLogicTests, NavigationHistoryTests, PathNavigationTests, RowDensitySettingTests, XamlResourceTests
 - `NetworkClientTests.cs` (306) - FtpClientSecurityTests, SshAuthenticationTests
-- `NetworkGroupTests.cs` (134) - AppStaticsGroup, NetworkGroupTests
+- `NetworkGroupTests.cs` (146) - AppStaticsGroup, NetworkGroupTests
 - `NetworkKindsTests.cs` (234) - NetworkKindsTests, NetworkSharesSettingsTests, NetworkSharesXamlTests
 - `NetworkPortGuardTests.cs` (316) - ExternalProcessesGroup, NetworkPortGuardTests
-- `NetworkProtocolIconsTests.cs` (89) - NetworkProtocolIconsTests
+- `NetworkProtocolIconsTests.cs` (165) - NetworkProtocolIconsTests
 - `NetworkServerTests.cs` (879) - FtpServerTests, TftpServerTests
 - `NfsTests.cs` (776) - NfsXdrTests, NfsExportResolutionTests, NfsServerTests
 - `PaneColumnsTests.cs` (1020) - PaneColumnsTests

@@ -178,7 +178,7 @@ $features = @(
     @{ F = 'Servidores embutidos (FTP, TFTP)'; R = @('NetworkServerService', 'ProtocolServerBase', 'FtpServer', 'TftpServer', 'FtpTlsCertificate', 'NetworkPortGuard', 'NetworkConnectionDialog') },
     @{ F = 'SMB (cliente e servidor, SMBLibrary)'; R = @('SmbRemoteSession', 'SmbFileServer', 'SmbDirectoryFileStore', 'SmbLibraryAccess', 'SmbWildcard', 'ShareNames') },
     @{ F = 'NFS v3 (cliente e servidor proprios: ONC RPC, XDR, MOUNT, portmap)'; R = @('NfsClient', 'NfsRemoteSession', 'NfsServer', 'NfsHandleTable', 'NfsProtocol', 'RpcClient', 'Rpc', 'XdrWriter', 'XdrReader', 'RpcIdentity', 'NetworkAddressPolicy') },
-    @{ F = 'Icones do SMB (janela) e do NFS (pinguim), no menu central e na arvore'; R = @('NetworkProtocolIcons', 'CenterToolbarButton', 'NavigationTreeService.CreateNetworkGroup', 'Resources/CenterToolbarIcons.xaml') },
+    @{ F = 'Icones dos protocolos de rede na arvore (SMB janela, NFS pinguim, FTP, SFTP, SCP, TFTP) e do SMB e NFS no menu central'; R = @('NetworkProtocolIcons', 'CenterToolbarButton', 'NavigationTreeService.CreateNetworkGroup', 'Resources/CenterToolbarIcons.xaml') },
     @{ F = 'Tema claro/escuro e cor de destaque'; R = @('ThemeManager', 'ExplorerThemeResources', 'WindowsAccentColorService', 'Resources/Theme.xaml', 'Resources/DarkTheme.xaml', 'Resources/LightTheme.xaml') },
     @{ F = 'Configuracoes e senhas'; R = @('AppSettingsService', 'ProtectedStringJsonConverter', 'RememberPathSettingsService'); N = 'settings.json em %AppData%/DoraExplorer; senhas cifradas com DPAPI' },
     @{ F = 'Registro de servicos (DI)'; R = @('ServiceRegistration.AddDoraExplorerServices') },
