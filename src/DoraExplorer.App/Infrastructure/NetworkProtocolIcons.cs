@@ -8,9 +8,10 @@ namespace DoraExplorer.App.Infrastructure;
 /// pinguim, a ideia do Linux), o FTP (pasta com setas de ida e volta), o SFTP (a pasta com um cadeado), o SCP (um terminal)
 /// e o TFTP (duas setas em anel, o mesmo sentido do botão do menu central). São desenhos próprios, simples, feitos numa
 /// grade de 16x16: nada copiado dos logotipos oficiais (as vidraças são azuis, não as quatro cores da Microsoft, e o
-/// pinguim tem formas e proporções próprias). Os dois primeiros existem também em <c>*Mark</c>, de uma cor só, para os
-/// botões do menu central (que seguem o tema claro e escuro); os <c>*Icon</c> são coloridos e têm cores e bordas que se
-/// leem nos dois temas. Tudo congelado: vale em qualquer thread.
+/// pinguim tem formas e proporções próprias). Cada protocolo existe de dois jeitos: <c>*Icon</c>, colorido, para a linha
+/// da árvore (cores e bordas que se leem nos dois temas), e <c>*Mark</c>, só o **contorno** (linhas, sem preenchimento),
+/// para os botões do menu central: o botão desenha o contorno com traço fino na cor do tema, como os outros ícones
+/// daquele menu. Tudo congelado: vale em qualquer thread.
 /// </summary>
 public static class NetworkProtocolIcons
 {
@@ -69,12 +70,50 @@ public static class NetworkProtocolIcons
     private const string SyncBottomArc = "M12.6,8.4 C12.4,10.9 10.3,12.7 7.9,12.7 C6.5,12.7 5.3,12.1 4.4,11.2";
     private const string SyncBottomHead = "M2.3,13.4 L2.6,9.5 L6.4,10.7 Z";
 
-    private static readonly Lazy<Geometry> SmbMarkGeometry = new(() =>
-        Frozen(Geometry.Parse(string.Join(' ', WindowTopLeft, WindowTopRight, WindowBottomLeft, WindowBottomRight))));
+    // ---- Contornos (botões do menu central): só linhas, desenhadas com traço de 1 na grade de 16x16 ----------------
+    // Ficam a pelo menos 0,5 das bordas para o traço não ser cortado.
 
-    // Uma cor só: a barriga, os olhos e o bico ficam vazados (preenchimento par-ímpar) e o fundo aparece por eles.
-    private static readonly Lazy<Geometry> NfsMarkGeometry = new(() =>
-        Frozen(Geometry.Parse("F0 " + string.Join(' ', PenguinBody, PenguinBelly, PenguinEyes, PenguinBeak, PenguinFeet))));
+    private const string FolderOutline = "M1.5,3.5 H6 L7.5,5 H14.5 V13 H1.5 Z";
+
+    private const string FtpOutlineArrows =
+        "M5.2,11.6 V7.4 M3.5,9.1 L5.2,7.4 L6.9,9.1 M10.8,7.4 V11.6 M9.1,9.9 L10.8,11.6 L12.5,9.9";
+
+    private const string SftpOutlineArrow = "M4.2,11.6 V7.6 M2.7,9.1 L4.2,7.6 L5.7,9.1";
+
+    private const string SftpOutlineLock =
+        "M9.5,8.7 V7.9 C9.5,6.4 12.1,6.4 12.1,7.9 V8.7 M8.8,8.7 H12.8 V11.9 H8.8 Z";
+
+    private const string ScpOutline =
+        "M2.5,2.5 H13.5 Q15,2.5 15,4 V12 Q15,13.5 13.5,13.5 H2.5 Q1,13.5 1,12 V4 Q1,2.5 2.5,2.5 Z " +
+        "M1,5.3 H15 M3.8,7.6 L6,9.2 L3.8,10.8 M8,11 H11.6";
+
+    // Duas setas em anel com a ponta aberta (um "L"): a de cima e a de baixo, esta a de cima girada 180 graus.
+    private const string TftpOutline =
+        "M3.4,7.6 C3.6,5.1 5.7,3.3 8.1,3.3 C9.5,3.3 10.7,3.9 11.9,5.1 M13.4,2.8 V5.9 H10.3 " +
+        "M12.6,8.4 C12.4,10.9 10.3,12.7 7.9,12.7 C6.5,12.7 5.3,12.1 4.1,10.9 M2.6,13.2 V10.1 H5.7";
+
+    private const string SmbOutline =
+        "M1.5,2.9 L6.8,2.2 L6.8,6.9 L1.5,7.6 Z M9.2,1.9 L14.5,1.2 L14.5,6.2 L9.2,6.9 Z " +
+        "M1.5,9.4 L6.8,8.7 L6.8,13.4 L1.5,14.1 Z M9.2,8.9 L14.5,8.2 L14.5,13 L9.2,13.7 Z";
+
+    // Pinguim: o corpo e a barriga do desenho colorido, olhos como pontos, o bico e os pés como dois traços.
+    private const string NfsOutlineDetails =
+        "M6.3,2.9 a0.4,0.4 0 1,0 0.8,0 a0.4,0.4 0 1,0 -0.8,0 M8.9,2.9 a0.4,0.4 0 1,0 0.8,0 a0.4,0.4 0 1,0 -0.8,0 " +
+        "M3.8,15.3 H6.2 M9.8,15.3 H12.2";
+
+    private static Lazy<Geometry> Outline(params string[] parts) => new(() => Frozen(Geometry.Parse(string.Join(' ', parts))));
+
+    private static readonly Lazy<Geometry> FtpMarkGeometry = Outline(FolderOutline, FtpOutlineArrows);
+
+    private static readonly Lazy<Geometry> SftpMarkGeometry = Outline(FolderOutline, SftpOutlineArrow, SftpOutlineLock);
+
+    private static readonly Lazy<Geometry> ScpMarkGeometry = Outline(ScpOutline);
+
+    private static readonly Lazy<Geometry> TftpMarkGeometry = Outline(TftpOutline);
+
+    private static readonly Lazy<Geometry> SmbMarkGeometry = Outline(SmbOutline);
+
+    private static readonly Lazy<Geometry> NfsMarkGeometry = Outline(PenguinBody, PenguinBelly, PenguinBeak, NfsOutlineDetails);
 
     private static readonly Lazy<ImageSource> SmbDrawing = new(() =>
         Drawing(
@@ -122,10 +161,22 @@ public static class NetworkProtocolIcons
             Shape.Stroked("#2563EB", 1.7, SyncBottomArc),
             Shape.Filled("#2563EB", SyncBottomHead)));
 
-    /// <summary>Janela do SMB numa cor só (botão do menu central).</summary>
+    /// <summary>Contorno da pasta com setas de ida e volta (FTP), para o botão do menu central.</summary>
+    public static Geometry FtpMark => FtpMarkGeometry.Value;
+
+    /// <summary>Contorno da pasta com cadeado (SFTP), para o botão do menu central.</summary>
+    public static Geometry SftpMark => SftpMarkGeometry.Value;
+
+    /// <summary>Contorno do terminal (SCP), para o botão do menu central.</summary>
+    public static Geometry ScpMark => ScpMarkGeometry.Value;
+
+    /// <summary>Contorno das duas setas em anel (TFTP), para o botão do menu central.</summary>
+    public static Geometry TftpMark => TftpMarkGeometry.Value;
+
+    /// <summary>Contorno da janela do SMB, para o botão do menu central.</summary>
     public static Geometry SmbMark => SmbMarkGeometry.Value;
 
-    /// <summary>Pinguim do NFS numa cor só (botão do menu central).</summary>
+    /// <summary>Contorno do pinguim do NFS, para o botão do menu central.</summary>
     public static Geometry NfsMark => NfsMarkGeometry.Value;
 
     /// <summary>Janela do SMB colorida (árvore).</summary>

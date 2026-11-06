@@ -9,48 +9,100 @@ namespace DoraExplorer.App.Tests;
 /// <summary>Os desenhos do SMB (janela) e do NFS (pinguim): formas dentro da grade de 16x16, uma cor só e uma versão colorida.</summary>
 public sealed class NetworkProtocolIconsTests
 {
+    private static Geometry[] AllMarks() =>
+    [
+        NetworkProtocolIcons.FtpMark, NetworkProtocolIcons.SftpMark, NetworkProtocolIcons.ScpMark,
+        NetworkProtocolIcons.TftpMark, NetworkProtocolIcons.SmbMark, NetworkProtocolIcons.NfsMark
+    ];
+
+    private static readonly Pen Hairline = new(Brushes.Black, 1);
+
+    private static bool Stroked(Geometry geometry, double x, double y) => geometry.StrokeContains(Hairline, new System.Windows.Point(x, y));
+
     [Fact]
-    public void The_marks_are_frozen_and_stay_inside_the_16_by_16_grid()
+    public void The_marks_are_frozen_and_stay_inside_the_grid_with_room_for_the_stroke()
     {
-        foreach (var mark in new[] { NetworkProtocolIcons.SmbMark, NetworkProtocolIcons.NfsMark })
+        foreach (var mark in AllMarks())
         {
             mark.IsFrozen.Should().BeTrue("congelado vale em qualquer thread");
             var bounds = mark.Bounds;
-            bounds.Left.Should().BeGreaterThanOrEqualTo(0);
-            bounds.Top.Should().BeGreaterThanOrEqualTo(0);
-            bounds.Right.Should().BeLessThanOrEqualTo(16);
-            bounds.Bottom.Should().BeLessThanOrEqualTo(16);
-            bounds.Width.Should().BeGreaterThan(10, "tem que ocupar a grade para ficar legível em 15 px");
-            bounds.Height.Should().BeGreaterThan(12);
+
+            // O traço tem 1 de espessura (0,5 para cada lado): o desenho fica a 0,5 das bordas para não ser cortado.
+            bounds.Left.Should().BeGreaterThanOrEqualTo(0.5);
+            bounds.Top.Should().BeGreaterThanOrEqualTo(0.5);
+            bounds.Right.Should().BeLessThanOrEqualTo(15.5);
+            bounds.Bottom.Should().BeLessThanOrEqualTo(15.5);
+            bounds.Width.Should().BeGreaterThanOrEqualTo(9, "tem que ocupar a grade para ficar legível em 15 px");
+            bounds.Height.Should().BeGreaterThanOrEqualTo(9);
         }
     }
 
-    [Fact]
-    public void The_penguin_is_filled_even_odd_so_the_belly_eyes_and_beak_are_cut_out()
+    /// <summary>Quais pontos de uma grade de meio em meio pixel o traço toca: um desenho tem sempre a mesma sequência de 0 e 1.</summary>
+    private static string Fingerprint(Geometry mark)
     {
-        // Geometry.Parse devolve um StreamGeometry.
-        ((StreamGeometry)NetworkProtocolIcons.NfsMark).FillRule.Should().Be(FillRule.EvenOdd);
-        var mark = NetworkProtocolIcons.NfsMark;
-        mark.FillContains(new System.Windows.Point(8, 10.5)).Should().BeFalse("a barriga é vazada");
-        mark.FillContains(new System.Windows.Point(8, 4.8)).Should().BeFalse("o bico é vazado");
-        mark.FillContains(new System.Windows.Point(6.7, 2.9)).Should().BeFalse("o olho esquerdo é vazado");
-        mark.FillContains(new System.Windows.Point(9.3, 2.9)).Should().BeFalse("o olho direito é vazado");
-        mark.FillContains(new System.Windows.Point(8, 2.0)).Should().BeTrue("a cabeça é cheia");
-        mark.FillContains(new System.Windows.Point(4.2, 11)).Should().BeTrue("o corpo ao redor da barriga é cheio");
+        var bits = new System.Text.StringBuilder();
+        for (var y = 0.0; y <= 16; y += 0.5)
+        {
+            for (var x = 0.0; x <= 16; x += 0.5)
+            {
+                bits.Append(Stroked(mark, x, y) ? '1' : '0');
+            }
+        }
+
+        return bits.ToString();
     }
 
     [Fact]
-    public void The_window_is_four_separate_panes()
+    public void The_six_marks_are_different_drawings()
+    {
+        var marks = AllMarks();
+
+        marks.Distinct().Should().HaveCount(6);
+        var prints = marks.Select(Fingerprint).ToList();
+        prints.Distinct().Should().HaveCount(6, "cada protocolo tem o seu contorno");
+        prints.Should().OnlyContain(print => print.Count(bit => bit == '1') > 40, "um contorno tem linha de verdade, não é vazio");
+
+        // O FTP e o SFTP são a mesma pasta; o cadeado e a seta única do SFTP é que os separam.
+        var ftp = prints[0];
+        var sftp = prints[1];
+        ftp.Zip(sftp, (a, b) => a != b).Count(different => different).Should().BeGreaterThan(10);
+    }
+
+    [Fact]
+    public void The_window_is_four_separate_hollow_panes()
     {
         var window = NetworkProtocolIcons.SmbMark;
 
-        window.GetFlattenedPathGeometry().Figures.Should().HaveCount(4);
-        foreach (var point in new[] { (4.0, 4.5), (11.8, 4.0), (4.0, 12.0), (11.8, 11.5) })
-        {
-            window.FillContains(new System.Windows.Point(point.Item1, point.Item2)).Should().BeTrue();
-        }
+        var figures = window.GetFlattenedPathGeometry().Figures;
+        figures.Should().HaveCount(4);
+        figures.Should().OnlyContain(figure => figure.IsClosed, "cada vidraça é um contorno fechado");
 
-        window.FillContains(new System.Windows.Point(8, 8)).Should().BeFalse("o espaço entre as vidraças é vazio");
+        Stroked(window, 1.5, 5.25).Should().BeTrue("a borda esquerda da primeira vidraça");
+        Stroked(window, 4.15, 5.2).Should().BeFalse("o centro da vidraça é vazio: só o contorno");
+        Stroked(window, 11.8, 4.0).Should().BeFalse("o centro da vidraça de cima à direita é vazio");
+        Stroked(window, 8, 8).Should().BeFalse("o espaço entre as vidraças é vazio");
+    }
+
+    [Fact]
+    public void The_penguin_is_an_outline_with_a_hollow_belly()
+    {
+        var penguin = NetworkProtocolIcons.NfsMark;
+
+        Stroked(penguin, 8, 0.8).Should().BeTrue("o topo da cabeça");
+        Stroked(penguin, 2.9, 10).Should().BeTrue("a lateral do corpo");
+        Stroked(penguin, 8, 7.3).Should().BeTrue("o alto da barriga");
+        Stroked(penguin, 8, 10.4).Should().BeFalse("dentro da barriga é vazio: só o contorno");
+        Stroked(penguin, 8, 14.1).Should().BeTrue("a base do corpo");
+    }
+
+    [Fact]
+    public void The_terminal_and_folder_marks_are_outlines_too()
+    {
+        Stroked(NetworkProtocolIcons.ScpMark, 8, 5.3).Should().BeTrue("a barra de título do terminal");
+        Stroked(NetworkProtocolIcons.ScpMark, 8, 8).Should().BeFalse("dentro da janela do terminal é vazio");
+        Stroked(NetworkProtocolIcons.FtpMark, 8, 13).Should().BeTrue("a base da pasta");
+        Stroked(NetworkProtocolIcons.FtpMark, 8, 6).Should().BeFalse("dentro da pasta, entre as setas, é vazio");
+        Stroked(NetworkProtocolIcons.SftpMark, 10.8, 8.7).Should().BeTrue("o alto do corpo do cadeado");
     }
 
     private static ImageSource[] AllTreeIcons() =>

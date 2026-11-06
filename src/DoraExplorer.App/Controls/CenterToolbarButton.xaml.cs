@@ -115,8 +115,9 @@ public partial class CenterToolbarButton
     }
 
     /// <summary>
-    /// Ícone desenhado (grade de 16x16, uma cor só, a do tema) no lugar do glifo da fonte, para o que a fonte de ícones do
-    /// Windows não tem (a janela do SMB e o pinguim do NFS). Com <see cref="IconData"/> o <see cref="IconGlyph"/> é ignorado.
+    /// Ícone desenhado só com o contorno (grade de 16x16, traço de 1 na cor do tema) no lugar do glifo da fonte de ícones. Com
+    /// <see cref="IconData"/> o <see cref="IconGlyph"/> é ignorado. Os botões de REDE SERVER usam os contornos de
+    /// <c>NetworkProtocolIcons</c> (os mesmos desenhos da árvore, sem cor e sem preenchimento).
     /// </summary>
     public Geometry? IconData
     {

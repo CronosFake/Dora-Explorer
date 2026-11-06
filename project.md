@@ -2,7 +2,7 @@
 
 > Auto-gerado por scripts/generate-project-map.ps1 (o Start.bat roda a cada execucao). Nao edite a mao.
 > Regras, comandos e armadilhas: AGENTS.md. Visao do produto e limitacoes conhecidas: README.md.
-> Ultima atualizacao: 2026-11-06 23:40
+> Ultima atualizacao: 2026-11-06 23:50
 
 ## Como usar este mapa
 
@@ -27,11 +27,11 @@ src/DoraExplorer.App/
   App.xaml.cs, MainWindow.xaml(.cs)   # inicializacao, DI, janela principal com dois paineis
   Assets/           0 arquivos      0 linhas  # Icones
   Contracts/       12 arquivos    339 linhas  # Interfaces dos servicos (DI e testes)
-  Controls/        15 arquivos   8565 linhas  # Controles WPF: paineis, toolbar, arvore, animacoes
+  Controls/        15 arquivos   8572 linhas  # Controles WPF: paineis, toolbar, arvore, animacoes
   Converters/       7 arquivos    187 linhas  # IValueConverter do WPF
-  Infrastructure/  25 arquivos   1905 linhas  # DI, caminhos seguros, timeouts, instancia unica, colecao em bloco, enxugador de memoria
+  Infrastructure/  25 arquivos   1956 linhas  # DI, caminhos seguros, timeouts, instancia unica, colecao em bloco, enxugador de memoria
   Models/          29 arquivos    851 linhas  # DTOs, enums e opcoes
-  Resources/        6 arquivos   1540 linhas  # Temas e estilos XAML
+  Resources/        6 arquivos   1536 linhas  # Temas e estilos XAML
   Services/        71 arquivos  23953 linhas  # Arquivos, rede, indice, tema, icones, logs, arquivos compactados
   ViewModels/      12 arquivos   7514 linhas  # MVVM (CommunityToolkit.Mvvm)
   Views/           23 arquivos   2570 linhas  # Dialogos do menu central
@@ -141,8 +141,8 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `Contracts/INetworkServerService.cs` (18) - **INetworkServerService**
 - `Contracts/INetworkSessionStore.cs` (16) - **INetworkSessionStore**
 - `Contracts/IRemoteFileService.cs` (62) - **IRemoteFileService**
-- `Controls/CenterToolbarButton.xaml` (134)
-- `Controls/CenterToolbarButton.xaml.cs` (147) - **CenterToolbarButton**
+- `Controls/CenterToolbarButton.xaml` (140)
+- `Controls/CenterToolbarButton.xaml.cs` (148) - **CenterToolbarButton**
 - `Controls/CenterToolbarControl.xaml` (458)
 - `Controls/CenterToolbarControl.xaml.cs` (269) - **CenterToolbarControl**
 - `Controls/FilePaneControl.xaml` (1161)
@@ -188,7 +188,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: Measure
 - `Infrastructure/NameWidthScanner.cs` (132) - **NameWidthScanner**
   - Metodos: HasColumnRows, WidestRowWidth
-- `Infrastructure/NetworkProtocolIcons.cs` (214) - **NetworkProtocolIcons**
+- `Infrastructure/NetworkProtocolIcons.cs` (265) - **NetworkProtocolIcons**
   - Metodos: TreeIconFor, Filled, Stroked
 - `Infrastructure/OperationTimeouts.cs` (93) - **OperationTimeouts**
   - Metodos: CreateLinked, RunAsync, RunWithInactivityAsync
@@ -251,7 +251,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `Models/TreeSortField.cs` (9) - **TreeSortField**
 - `Models/TreeSortMode.cs` (12) - **TreeSortMode**
 - `Models/TreeSortOptions.cs` (9) - **TreeSortOptions**
-- `Resources/CenterToolbarIcons.xaml` (28)
+- `Resources/CenterToolbarIcons.xaml` (24)
 - `Resources/DarkTheme.xaml` (24)
 - `Resources/LightTheme.xaml` (24)
 - `Resources/MenuStyles.xaml` (204)
@@ -482,9 +482,9 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `NavigationTests.cs` (277) - SortHeaderLogicTests, NavigationHistoryTests, PathNavigationTests, RowDensitySettingTests, XamlResourceTests
 - `NetworkClientTests.cs` (306) - FtpClientSecurityTests, SshAuthenticationTests
 - `NetworkGroupTests.cs` (146) - AppStaticsGroup, NetworkGroupTests
-- `NetworkKindsTests.cs` (234) - NetworkKindsTests, NetworkSharesSettingsTests, NetworkSharesXamlTests
+- `NetworkKindsTests.cs` (262) - NetworkKindsTests, NetworkSharesSettingsTests, NetworkSharesXamlTests
 - `NetworkPortGuardTests.cs` (316) - ExternalProcessesGroup, NetworkPortGuardTests
-- `NetworkProtocolIconsTests.cs` (165) - NetworkProtocolIconsTests
+- `NetworkProtocolIconsTests.cs` (217) - NetworkProtocolIconsTests
 - `NetworkServerTests.cs` (879) - FtpServerTests, TftpServerTests
 - `NfsTests.cs` (776) - NfsXdrTests, NfsExportResolutionTests, NfsServerTests
 - `PaneColumnsTests.cs` (1020) - PaneColumnsTests

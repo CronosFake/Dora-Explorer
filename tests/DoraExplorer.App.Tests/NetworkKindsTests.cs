@@ -206,9 +206,13 @@ public sealed class NetworkSharesXamlTests
     }
 
     [Theory]
+    [InlineData("FTP", "NetworkProtocolIcons.FtpMark", "IsFtpServiceActive", "FtpCommand")]
+    [InlineData("SFTP", "NetworkProtocolIcons.SftpMark", "IsSftpServiceActive", "SftpCommand")]
+    [InlineData("SCP", "NetworkProtocolIcons.ScpMark", "IsScpServiceActive", "ScpCommand")]
+    [InlineData("TFTP", "NetworkProtocolIcons.TftpMark", "IsTftpServiceActive", "TftpCommand")]
     [InlineData("SMB", "NetworkProtocolIcons.SmbMark", "IsSmbServiceActive", "SmbCommand")]
     [InlineData("NFS", "NetworkProtocolIcons.NfsMark", "IsNfsServiceActive", "NfsCommand")]
-    public void The_server_buttons_use_the_drawn_icons_and_show_the_service_state(string label, string icon, string active, string command)
+    public void The_server_buttons_use_the_drawn_outline_icons_and_show_the_service_state(string label, string icon, string active, string command)
     {
         var button = Load(@"src\DoraExplorer.App\Controls\CenterToolbarControl.xaml")
             .Descendants()
@@ -222,7 +226,31 @@ public sealed class NetworkSharesXamlTests
     }
 
     [Fact]
-    public void The_server_buttons_appear_after_the_older_four_in_the_network_section()
+    public void The_button_draws_the_icon_as_a_thin_outline_in_the_theme_colour_with_no_fill()
+    {
+        var path = Load(@"src\DoraExplorer.App\Controls\CenterToolbarButton.xaml")
+            .Descendants(Wpf + "Path")
+            .Single(element => ((string?)element.Attribute("Data"))?.Contains("IconData", StringComparison.Ordinal) == true);
+
+        ((string?)path.Attribute("Stroke")).Should().Be("{Binding IconForeground, ElementName=Root}", "o contorno segue a cor do tema, como os glifos");
+        ((string?)path.Attribute("Fill")).Should().Be("{x:Null}", "só o contorno: sem preenchimento");
+        ((string?)path.Attribute("StrokeThickness")).Should().Be("1");
+        ((string?)path.Attribute("StrokeLineJoin")).Should().Be("Round");
+    }
+
+    [Fact]
+    public void The_four_old_glyph_resources_of_the_network_buttons_are_gone()
+    {
+        var resources = File.ReadAllText(ShareTestSupport.LocateSource(@"src\DoraExplorer.App\Resources\CenterToolbarIcons.xaml"));
+
+        foreach (var name in new[] { "GlyphFtp", "GlyphSftp", "GlyphScp", "GlyphTftp" })
+        {
+            resources.Should().NotContain($"x:Key=\"{name}\"", "nenhum botão usa mais esse glifo");
+        }
+    }
+
+    [Fact]
+    public void The_six_server_buttons_are_in_the_network_section_in_this_order()
     {
         var labels = Load(@"src\DoraExplorer.App\Controls\CenterToolbarControl.xaml")
             .Descendants()

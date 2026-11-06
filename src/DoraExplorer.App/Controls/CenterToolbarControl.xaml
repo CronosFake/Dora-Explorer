@@ -185,28 +185,28 @@
                     <UniformGrid Columns="2" HorizontalAlignment="Center">
                         <controls:CenterToolbarButton Label="FTP"
                                                       Hint="Servidor FTP: configurar, iniciar ou parar"
-                                                      IconGlyph="{StaticResource GlyphFtp}"
+                                                      IconData="{x:Static infra:NetworkProtocolIcons.FtpMark}"
                                                       ShowServiceStatus="True"
                                                       IsServiceActive="{Binding IsFtpServiceActive}"
                                                       Command="{Binding FtpCommand}" />
 
                         <controls:CenterToolbarButton Label="SFTP"
                                                       Hint="Servidor SFTP: configurar, iniciar ou parar"
-                                                      IconGlyph="{StaticResource GlyphSftp}"
+                                                      IconData="{x:Static infra:NetworkProtocolIcons.SftpMark}"
                                                       ShowServiceStatus="True"
                                                       IsServiceActive="{Binding IsSftpServiceActive}"
                                                       Command="{Binding SftpCommand}" />
 
                         <controls:CenterToolbarButton Label="SCP"
                                                       Hint="Servidor SCP: configurar, iniciar ou parar"
-                                                      IconGlyph="{StaticResource GlyphScp}"
+                                                      IconData="{x:Static infra:NetworkProtocolIcons.ScpMark}"
                                                       ShowServiceStatus="True"
                                                       IsServiceActive="{Binding IsScpServiceActive}"
                                                       Command="{Binding ScpCommand}" />
 
                         <controls:CenterToolbarButton Label="TFTP"
                                                       Hint="Servidor TFTP: configurar, iniciar ou parar"
-                                                      IconGlyph="{StaticResource GlyphTftp}"
+                                                      IconData="{x:Static infra:NetworkProtocolIcons.TftpMark}"
                                                       ShowServiceStatus="True"
                                                       IsServiceActive="{Binding IsTftpServiceActive}"
                                                       Command="{Binding TftpCommand}" />

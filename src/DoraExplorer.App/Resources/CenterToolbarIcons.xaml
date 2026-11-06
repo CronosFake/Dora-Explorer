@@ -19,10 +19,6 @@
     <sys:String x:Key="GlyphDelete">&#xE74D;</sys:String>
     <sys:String x:Key="GlyphFavorite">&#xE734;</sys:String>
 
-    <!-- Rede -->
-    <sys:String x:Key="GlyphFtp">&#xE968;</sys:String>
-    <sys:String x:Key="GlyphSftp">&#xE72E;</sys:String>
-    <sys:String x:Key="GlyphScp">&#xE756;</sys:String>
-    <sys:String x:Key="GlyphTftp">&#xE895;</sys:String>
+    <!-- Rede: os seis botões de REDE SERVER (FTP, SFTP, SCP, TFTP, SMB e NFS) usam contornos desenhados (NetworkProtocolIcons), sem glifo. -->
 
 </ResourceDictionary>
