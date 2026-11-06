@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:controls="clr-namespace:DoraExplorer.App.Controls"
+             xmlns:infra="clr-namespace:DoraExplorer.App.Infrastructure"
              mc:Ignorable="d"
              d:DesignHeight="450"
              d:DesignWidth="88">
@@ -209,6 +210,20 @@
                                                       ShowServiceStatus="True"
                                                       IsServiceActive="{Binding IsTftpServiceActive}"
                                                       Command="{Binding TftpCommand}" />
+
+                        <controls:CenterToolbarButton Label="SMB"
+                                                      Hint="Servidor SMB (compartilhamento do Windows): configurar, iniciar ou parar"
+                                                      IconData="{x:Static infra:NetworkProtocolIcons.SmbMark}"
+                                                      ShowServiceStatus="True"
+                                                      IsServiceActive="{Binding IsSmbServiceActive}"
+                                                      Command="{Binding SmbCommand}" />
+
+                        <controls:CenterToolbarButton Label="NFS"
+                                                      Hint="Servidor NFS (compartilhamento do Linux): configurar, iniciar ou parar"
+                                                      IconData="{x:Static infra:NetworkProtocolIcons.NfsMark}"
+                                                      ShowServiceStatus="True"
+                                                      IsServiceActive="{Binding IsNfsServiceActive}"
+                                                      Command="{Binding NfsCommand}" />
                     </UniformGrid>
 
                 </StackPanel>

@@ -36,6 +36,8 @@ public sealed class NetworkFileServiceTests
     [InlineData(NetworkProtocol.Tftp, "10.0.0.2", "/boot")]
     [InlineData(NetworkProtocol.Sftp, "host", "/")]
     [InlineData(NetworkProtocol.Scp, "server", "/data")]
+    [InlineData(NetworkProtocol.Smb, "nas.local", "/Fotos/2024")]
+    [InlineData(NetworkProtocol.Nfs, "10.0.0.7", "/srv/dados")]
     public void TryParseRemotePath_roundtrips_BuildRemotePath(
         NetworkProtocol protocol,
         string host,
@@ -61,6 +63,19 @@ public sealed class NetworkFileServiceTests
     public void TryParseRemotePath_rejects_unknown_schemes(string path)
     {
         NetworkFileService.TryParseRemotePath(path, out _, out _, out _).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(NetworkProtocol.Smb, "dora-smb://nas/Fotos/a%20b.jpg")]
+    [InlineData(NetworkProtocol.Nfs, "dora-nfs://nas/srv/a%20b.jpg")]
+    public void SMB_and_NFS_paths_keep_spaces_and_name_their_protocol(NetworkProtocol protocol, string expected)
+    {
+        var path = NetworkFileService.BuildRemotePath(protocol, "nas", protocol == NetworkProtocol.Smb ? "/Fotos/a b.jpg" : "/srv/a b.jpg");
+
+        path.Should().Be(expected);
+        NetworkFileService.TryParseRemotePath(path, out var parsed, out _, out var remote).Should().BeTrue();
+        parsed.Should().Be(protocol);
+        remote.Should().EndWith("/a b.jpg");
     }
 
     [Fact]

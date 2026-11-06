@@ -5,7 +5,7 @@ using Renci.SshNet;
 namespace DoraExplorer.App.Services;
 
 /// <summary>Item de uma pasta remota. Links simbólicos ficam de fora das cópias para não seguir ciclos.</summary>
-internal sealed record RemoteEntry(string Name, bool IsDirectory, long Length, bool IsLink = false);
+internal sealed record RemoteEntry(string Name, bool IsDirectory, long Length, bool IsLink = false, DateTime? Modified = null);
 
 /// <summary>
 /// Uma conexão aberta com um servidor para operar em arquivos e pastas. Cada operação do usuário abre uma sessão,
@@ -37,13 +37,16 @@ internal static class RemoteSessionFactory
 {
     /// <summary>
     /// Abre a sessão do protocolo da conexão. SFTP e SCP usam o subsistema SFTP para listar, criar, apagar e
-    /// renomear (o SCP puro só copia arquivos); TFTP não tem nada disso e fica de fora.
+    /// renomear (o SCP puro só copia arquivos); SMB e NFS operam em pastas compartilhadas de verdade; TFTP não
+    /// tem nada disso e fica de fora.
     /// </summary>
     public static IRemoteSession Open(NetworkConnectionInfo connection) =>
         connection.Protocol switch
         {
             NetworkProtocol.Ftp => FtpRemoteSession.Open(connection),
             NetworkProtocol.Sftp or NetworkProtocol.Scp => SftpRemoteSession.Open(connection),
+            NetworkProtocol.Smb => SmbRemoteSession.Open(connection),
+            NetworkProtocol.Nfs => NfsRemoteSession.Open(connection),
             _ => throw new NotSupportedException($"O protocolo {connection.Protocol.ToString().ToUpperInvariant()} não permite operar em pastas remotas.")
         };
 }

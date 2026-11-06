@@ -1,11 +1,12 @@
 using System.Windows;
 using System.Windows.Controls;
 using DoraExplorer.App.Models;
+using DoraExplorer.App.Services;
 
 namespace DoraExplorer.App.Views.Dialogs;
 
 /// <summary>
-/// Diálogo de cliente remoto (nós FTP/SFTP/SCP/TFTP nos painéis).
+/// Diálogo de cliente remoto (nós FTP/SFTP/SCP/TFTP/SMB/NFS nos painéis).
 /// </summary>
 public partial class NetworkClientDialog : Window
 {
@@ -25,10 +26,12 @@ public partial class NetworkClientDialog : Window
             NetworkProtocol.Sftp => "Cliente SFTP",
             NetworkProtocol.Scp => "Cliente SCP",
             NetworkProtocol.Tftp => "Cliente TFTP",
+            NetworkProtocol.Smb => "Cliente SMB",
+            NetworkProtocol.Nfs => "Cliente NFS",
             _ => "Cliente de rede"
         };
 
-        var isTransferOnly = protocol is NetworkProtocol.Scp or NetworkProtocol.Tftp;
+        var isTransferOnly = NetworkKinds.IsTransferOnly(protocol);
         BrowsePanel.Visibility = isTransferOnly ? Visibility.Collapsed : Visibility.Visible;
         TransferPanel.Visibility = isTransferOnly ? Visibility.Visible : Visibility.Collapsed;
         ApplyProtocolFields();
@@ -107,16 +110,28 @@ public partial class NetworkClientDialog : Window
         PassphraseBox.Password = settings.PrivateKeyPassphrase ?? string.Empty;
     }
 
-    /// <summary>Mostra só o que o protocolo usa: criptografia no FTP, chave no SFTP/SCP, sem login no TFTP.</summary>
+    /// <summary>Mostra só o que o protocolo usa: criptografia no FTP, chave no SFTP/SCP, sem login no TFTP e sem senha no NFS.</summary>
     private void ApplyProtocolFields()
     {
         var isFtp = Protocol == NetworkProtocol.Ftp;
         var isSsh = Protocol is NetworkProtocol.Sftp or NetworkProtocol.Scp;
         var hasLogin = Protocol != NetworkProtocol.Tftp;
+        var hasPassword = hasLogin && Protocol != NetworkProtocol.Nfs;
 
-        SetVisible(hasLogin, UsernameLabel, UsernameTextBox, PasswordLabel, PasswordBox);
+        SetVisible(hasLogin, UsernameLabel, UsernameTextBox);
+        SetVisible(hasPassword, PasswordLabel, PasswordBox);
         SetVisible(isFtp, SecurityLabel, SecurityComboBox);
         SetVisible(isSsh, KeyLabel, KeyPanel, PassphraseLabel, PassphraseBox);
+
+        if (Protocol == NetworkProtocol.Nfs)
+        {
+            UsernameLabel.Text = "Usuário:grupo";
+            UsernameTextBox.ToolTip = "Números do usuário e do grupo no servidor (UID:GID), como 1000:1000. Vazio = 0:0. O NFS não usa senha.";
+        }
+        else if (Protocol == NetworkProtocol.Smb)
+        {
+            UsernameTextBox.ToolTip = "Usuário do servidor; use DOMINIO\\usuario para uma conta de domínio.";
+        }
     }
 
     private static void SetVisible(bool visible, params UIElement[] elements)
@@ -166,13 +181,7 @@ public partial class NetworkClientDialog : Window
         }
     }
 
-    private int DefaultPort() =>
-        Protocol switch
-        {
-            NetworkProtocol.Ftp => 21,
-            NetworkProtocol.Tftp => 69,
-            _ => 22
-        };
+    private int DefaultPort() => NetworkKinds.DefaultPort(Protocol);
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
@@ -189,7 +198,7 @@ public partial class NetworkClientDialog : Window
 
     private void Primary_Click(object sender, RoutedEventArgs e)
     {
-        var isTransferOnly = Protocol is NetworkProtocol.Scp or NetworkProtocol.Tftp;
+        var isTransferOnly = NetworkKinds.IsTransferOnly(Protocol);
         if (_isConnected && !isTransferOnly)
         {
             PersistCurrentFields();
@@ -258,6 +267,12 @@ public partial class NetworkClientDialog : Window
             string.IsNullOrWhiteSpace(UsernameTextBox.Text))
         {
             MessageDialog.Show(this, "Indique o utilizador.", Title);
+            return false;
+        }
+
+        if (Protocol == NetworkProtocol.Nfs && !RpcIdentity.TryParse(UsernameTextBox.Text, out _))
+        {
+            MessageDialog.Show(this, "Informe o usuário NFS como o número do usuário e do grupo no servidor, por exemplo 1000:1000, ou deixe vazio.", Title);
             return false;
         }
 

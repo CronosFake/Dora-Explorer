@@ -5,5 +5,7 @@ public enum NetworkProtocol
     Ftp,
     Sftp,
     Scp,
-    Tftp
+    Tftp,
+    Smb,
+    Nfs
 }

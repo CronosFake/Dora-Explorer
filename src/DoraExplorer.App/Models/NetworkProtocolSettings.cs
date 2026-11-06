@@ -51,7 +51,12 @@ public sealed class NetworkSettingsStore
 
     public NetworkProtocolSettings Tftp { get; set; } = new() { Port = 69 };
 
-    /// <summary>Configuração do cliente (nós FTP/SFTP/SCP/TFTP nos painéis).</summary>
+    public NetworkProtocolSettings Smb { get; set; } = new() { Port = 4445 };
+
+    // O NFS não tem senha: o servidor começa somente leitura (quem quiser gravar liga a opção de propósito).
+    public NetworkProtocolSettings Nfs { get; set; } = new() { Port = 2049, ReadOnly = true };
+
+    /// <summary>Configuração do cliente (nós FTP/SFTP/SCP/TFTP/SMB/NFS nos painéis).</summary>
     public NetworkProtocolSettings FtpClient { get; set; } = new() { Port = 21 };
 
     public NetworkProtocolSettings SftpClient { get; set; } = new() { Port = 22 };
@@ -59,6 +64,10 @@ public sealed class NetworkSettingsStore
     public NetworkProtocolSettings ScpClient { get; set; } = new() { Port = 22 };
 
     public NetworkProtocolSettings TftpClient { get; set; } = new() { Port = 69 };
+
+    public NetworkProtocolSettings SmbClient { get; set; } = new() { Port = 445 };
+
+    public NetworkProtocolSettings NfsClient { get; set; } = new() { Port = 2049 };
 
     public List<NetworkClientProfile> ClientProfiles { get; set; } = [];
 
@@ -71,6 +80,8 @@ public sealed class NetworkSettingsStore
             NetworkProtocol.Sftp => Sftp,
             NetworkProtocol.Scp => Scp,
             NetworkProtocol.Tftp => Tftp,
+            NetworkProtocol.Smb => Smb,
+            NetworkProtocol.Nfs => Nfs,
             _ => Ftp
         };
 
@@ -81,6 +92,8 @@ public sealed class NetworkSettingsStore
             NetworkProtocol.Sftp => SftpClient,
             NetworkProtocol.Scp => ScpClient,
             NetworkProtocol.Tftp => TftpClient,
+            NetworkProtocol.Smb => SmbClient,
+            NetworkProtocol.Nfs => NfsClient,
             _ => FtpClient
         };
 
@@ -103,6 +116,12 @@ public sealed class NetworkSettingsStore
             case NetworkProtocol.Tftp:
                 Tftp = settings;
                 break;
+            case NetworkProtocol.Smb:
+                Smb = settings;
+                break;
+            case NetworkProtocol.Nfs:
+                Nfs = settings;
+                break;
         }
     }
 
@@ -121,6 +140,12 @@ public sealed class NetworkSettingsStore
                 break;
             case NetworkProtocol.Tftp:
                 TftpClient = settings;
+                break;
+            case NetworkProtocol.Smb:
+                SmbClient = settings;
+                break;
+            case NetworkProtocol.Nfs:
+                NfsClient = settings;
                 break;
         }
     }

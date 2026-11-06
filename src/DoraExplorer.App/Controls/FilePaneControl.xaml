@@ -1122,6 +1122,22 @@
 
                                       IsChecked="{Binding DisplayMenu.ShowTftp, Mode=TwoWay}" />
 
+                            <MenuItem Header="SMB"
+
+                                      IsCheckable="True"
+
+                                      StaysOpenOnClick="True"
+
+                                      IsChecked="{Binding DisplayMenu.ShowSmb, Mode=TwoWay}" />
+
+                            <MenuItem Header="NFS"
+
+                                      IsCheckable="True"
+
+                                      StaysOpenOnClick="True"
+
+                                      IsChecked="{Binding DisplayMenu.ShowNfs, Mode=TwoWay}" />
+
                         </ContextMenu>
 
                     </Button.ContextMenu>

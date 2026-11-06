@@ -55,12 +55,20 @@ public partial class CenterToolbarViewModel : ObservableObject
     [ObservableProperty]
     private bool _isTftpServiceActive;
 
+    [ObservableProperty]
+    private bool _isSmbServiceActive;
+
+    [ObservableProperty]
+    private bool _isNfsServiceActive;
+
     public void RefreshNetworkServiceStatus()
     {
         IsFtpServiceActive = _networkServers.IsRunning(NetworkProtocol.Ftp);
         IsSftpServiceActive = _networkServers.IsRunning(NetworkProtocol.Sftp);
         IsScpServiceActive = _networkServers.IsRunning(NetworkProtocol.Scp);
         IsTftpServiceActive = _networkServers.IsRunning(NetworkProtocol.Tftp);
+        IsSmbServiceActive = _networkServers.IsRunning(NetworkProtocol.Smb);
+        IsNfsServiceActive = _networkServers.IsRunning(NetworkProtocol.Nfs);
     }
 
 
@@ -520,6 +528,12 @@ public partial class CenterToolbarViewModel : ObservableObject
 
     [RelayCommand]
     private void Tftp() => ConnectNetwork(NetworkProtocol.Tftp);
+
+    [RelayCommand]
+    private void Smb() => ConnectNetwork(NetworkProtocol.Smb);
+
+    [RelayCommand]
+    private void Nfs() => ConnectNetwork(NetworkProtocol.Nfs);
 
     private void ConnectNetwork(NetworkProtocol protocol)
     {

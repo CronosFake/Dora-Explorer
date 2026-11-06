@@ -1,4 +1,5 @@
 using System.Reflection;
+using DoraExplorer.App.Infrastructure;
 using DoraExplorer.App.Models;
 using DoraExplorer.App.Services;
 using FluentAssertions;
@@ -11,7 +12,7 @@ namespace DoraExplorer.App.Tests;
 public sealed class AppStaticsGroup;
 
 /// <summary>
-/// A pasta "Rede" da árvore agrupa os clientes FTP, SFTP, SCP e TFTP. Os perfis salvos aparecem dentro do protocolo
+/// A pasta "Rede" da árvore agrupa os clientes FTP, SFTP, SCP, TFTP, SMB e NFS. Os perfis salvos aparecem dentro do protocolo
 /// de cada um, e protocolos ocultos nas opções do painel somem. O teste usa um arquivo de configurações temporário
 /// no lugar do <c>App.SettingsService</c> (que só existe com o app rodando).
 /// </summary>
@@ -38,14 +39,15 @@ public sealed class NetworkGroupTests : IDisposable
         SshTestHelpers.DeleteDirectory(_directory);
     }
 
-    private static PaneDisplayOptions Only(bool ftp = false, bool sftp = false, bool scp = false, bool tftp = false) =>
-        new() { ShowFtp = ftp, ShowSftp = sftp, ShowScp = scp, ShowTftp = tftp };
+    private static PaneDisplayOptions Only(
+        bool ftp = false, bool sftp = false, bool scp = false, bool tftp = false, bool smb = false, bool nfs = false) =>
+        new() { ShowFtp = ftp, ShowSftp = sftp, ShowScp = scp, ShowTftp = tftp, ShowSmb = smb, ShowNfs = nfs };
 
     private void SaveProfile(NetworkProtocol protocol, string name) =>
         _settings.SaveNetworkClientProfile(new NetworkClientProfile { Protocol = protocol, DisplayName = name, Host = "servidor.local" });
 
     [Fact]
-    public void The_network_group_holds_the_four_protocols_in_order()
+    public void The_network_group_holds_the_six_protocols_in_order()
     {
         var group = NavigationTreeService.CreateNetworkGroup(new PaneDisplayOptions());
 
@@ -56,7 +58,23 @@ public sealed class NetworkGroupTests : IDisposable
             ("FTP", NavigationNodeKind.Ftp),
             ("SFTP", NavigationNodeKind.Sftp),
             ("SCP", NavigationNodeKind.Scp),
-            ("TFTP", NavigationNodeKind.Tftp));
+            ("TFTP", NavigationNodeKind.Tftp),
+            ("SMB", NavigationNodeKind.Smb),
+            ("NFS", NavigationNodeKind.Nfs));
+    }
+
+    [Fact]
+    public void The_new_protocols_follow_the_pane_option_and_have_their_own_icons()
+    {
+        var onlySmb = NavigationTreeService.CreateNetworkGroup(Only(smb: true))!;
+        onlySmb.Children.Select(c => c.Name).Should().Equal("SMB");
+
+        var onlyNfs = NavigationTreeService.CreateNetworkGroup(Only(nfs: true))!;
+        onlyNfs.Children.Select(c => c.Name).Should().Equal("NFS");
+
+        // SMB e NFS têm o desenho próprio (janela e pinguim); os outros usam o ícone de rede do Windows.
+        onlySmb.Children.Single().IconSource.Should().BeSameAs(NetworkProtocolIcons.SmbIcon);
+        onlyNfs.Children.Single().IconSource.Should().BeSameAs(NetworkProtocolIcons.NfsIcon);
     }
 
     [Fact]
@@ -79,6 +97,9 @@ public sealed class NetworkGroupTests : IDisposable
         SaveProfile(NetworkProtocol.Ftp, "zeta");
         SaveProfile(NetworkProtocol.Ftp, "Alfa");
         SaveProfile(NetworkProtocol.Sftp, "backup");
+        SaveProfile(NetworkProtocol.Smb, "nas");
+        SaveProfile(NetworkProtocol.Smb, "Escritório");
+        SaveProfile(NetworkProtocol.Nfs, "servidor-linux");
 
         var group = NavigationTreeService.CreateNetworkGroup(new PaneDisplayOptions())!;
 
@@ -86,6 +107,20 @@ public sealed class NetworkGroupTests : IDisposable
         group.Children.Single(c => c.Name == "SFTP").Children.Select(c => c.Name).Should().Equal("backup");
         group.Children.Single(c => c.Name == "SCP").Children.Should().BeEmpty();
         group.Children.Single(c => c.Name == "TFTP").Children.Should().BeEmpty();
+        group.Children.Single(c => c.Name == "SMB").Children.Select(c => c.Name).Should().Equal("Escritório", "nas");
+        group.Children.Single(c => c.Name == "NFS").Children.Select(c => c.Name).Should().Equal("servidor-linux");
+    }
+
+    [Fact]
+    public void SMB_and_NFS_profiles_can_be_browsed_so_they_start_with_an_expand_arrow()
+    {
+        SaveProfile(NetworkProtocol.Smb, "nas");
+        SaveProfile(NetworkProtocol.Tftp, "placa");
+
+        var group = NavigationTreeService.CreateNetworkGroup(new PaneDisplayOptions())!;
+
+        group.Children.Single(c => c.Name == "SMB").Children.Single().Children.Should().ContainSingle(c => c.IsPlaceholder);
+        group.Children.Single(c => c.Name == "TFTP").Children.Single().Children.Should().BeEmpty("o TFTP só transfere um arquivo");
     }
 
     [Fact]

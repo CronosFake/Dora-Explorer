@@ -23,6 +23,12 @@ public partial class PaneDisplayMenuViewModel : ObservableObject
     [ObservableProperty]
     private bool _showTftp;
 
+    [ObservableProperty]
+    private bool _showSmb;
+
+    [ObservableProperty]
+    private bool _showNfs;
+
     public void LoadFrom(PaneDisplayOptions options)
     {
         ShowFavorites = options.ShowFavorites;
@@ -31,6 +37,8 @@ public partial class PaneDisplayMenuViewModel : ObservableObject
         ShowSftp = options.ShowSftp;
         ShowScp = options.ShowScp;
         ShowTftp = options.ShowTftp;
+        ShowSmb = options.ShowSmb;
+        ShowNfs = options.ShowNfs;
     }
 
     public bool DiffersFrom(PaneDisplayOptions options) =>
@@ -39,7 +47,9 @@ public partial class PaneDisplayMenuViewModel : ObservableObject
             || ShowFtp != options.ShowFtp
             || ShowSftp != options.ShowSftp
             || ShowScp != options.ShowScp
-            || ShowTftp != options.ShowTftp;
+            || ShowTftp != options.ShowTftp
+            || ShowSmb != options.ShowSmb
+            || ShowNfs != options.ShowNfs;
 
     public void ApplyTo(PaneDisplayOptions options)
     {
@@ -49,5 +59,7 @@ public partial class PaneDisplayMenuViewModel : ObservableObject
         options.ShowSftp = ShowSftp;
         options.ShowScp = ShowScp;
         options.ShowTftp = ShowTftp;
+        options.ShowSmb = ShowSmb;
+        options.ShowNfs = ShowNfs;
     }
 }

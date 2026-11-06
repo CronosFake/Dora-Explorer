@@ -162,7 +162,7 @@ public sealed class NetworkClientHealthService : IDisposable
 
     private static async Task<bool> ProbeTcpAsync(NetworkClientProfile profile, CancellationToken cancellationToken)
     {
-        var port = profile.Port > 0 ? profile.Port : profile.Protocol == NetworkProtocol.Ftp ? 21 : 22;
+        var port = profile.Port > 0 ? profile.Port : NetworkKinds.DefaultPort(profile.Protocol);
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(ReachabilityTimeout);

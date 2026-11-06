@@ -6,7 +6,7 @@ using DoraExplorer.App.Models;
 namespace DoraExplorer.App.Services;
 
 /// <summary>
-/// Hosts local FTP/SFTP/SCP/TFTP listeners for the center-toolbar REDE SERVER.
+/// Hosts local FTP/SFTP/SCP/TFTP/SMB/NFS listeners for the center-toolbar REDE SERVER.
 /// </summary>
 public sealed class NetworkServerService : INetworkServerService
 {
@@ -64,8 +64,9 @@ public sealed class NetworkServerService : INetworkServerService
             return false;
         }
 
-        // Sem login, qualquer máquina da rede leria e gravaria na pasta compartilhada.
-        if (config.Protocol is NetworkProtocol.Ftp or NetworkProtocol.Sftp or NetworkProtocol.Scp &&
+        // Sem login, qualquer máquina da rede leria e gravaria na pasta compartilhada. O TFTP e o NFS não têm senha
+        // no protocolo: eles têm o modo somente leitura e o NFS só atende endereços de rede local.
+        if (config.Protocol is NetworkProtocol.Ftp or NetworkProtocol.Sftp or NetworkProtocol.Scp or NetworkProtocol.Smb &&
             (string.IsNullOrWhiteSpace(config.Username) || string.IsNullOrEmpty(config.Password)))
         {
             errorMessage = $"O servidor {config.Protocol.ToString().ToUpperInvariant()} exige usuário e senha.";
@@ -85,7 +86,9 @@ public sealed class NetworkServerService : INetworkServerService
 
         if (NetworkPortGuard.IsPortUsedByOtherProcess(config.Port, config.Protocol))
         {
-            errorMessage = $"A porta {config.Port} já está em uso por outro processo.";
+            errorMessage = config.Protocol == NetworkProtocol.Smb && config.Port == 445
+                ? "A porta 445 já está em uso, normalmente pelo próprio Windows (serviço Servidor). Use outra porta, como 4445, ou pare o compartilhamento do Windows."
+                : $"A porta {config.Port} já está em uso por outro processo.";
             return false;
         }
 
@@ -110,6 +113,8 @@ public sealed class NetworkServerService : INetworkServerService
                 NetworkProtocol.Ftp => new FtpServer(config, rootPath, _logs, _certificatePath),
                 NetworkProtocol.Sftp or NetworkProtocol.Scp => new SshFileServer(config, rootPath, _logs, _hostKeyPath),
                 NetworkProtocol.Tftp => new TftpServer(config, rootPath, _logs),
+                NetworkProtocol.Smb => new SmbFileServer(config, rootPath, _logs),
+                NetworkProtocol.Nfs => new NfsServer(config, rootPath, _logs),
                 _ => throw new ArgumentOutOfRangeException(nameof(config))
             };
 

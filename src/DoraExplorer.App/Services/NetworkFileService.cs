@@ -28,6 +28,7 @@ public sealed class NetworkFileService : INetworkFileService
                 NetworkProtocol.Ftp => ListFtp(connection),
                 NetworkProtocol.Sftp => ListSftp(connection),
                 NetworkProtocol.Scp => ListScpDirectory(connection),
+                NetworkProtocol.Smb or NetworkProtocol.Nfs => ListShare(connection),
                 NetworkProtocol.Tftp => [],
                 _ => []
             };
@@ -83,6 +84,7 @@ public sealed class NetworkFileService : INetworkFileService
                     NetworkProtocol.Ftp => ListFtp(connection),
                     NetworkProtocol.Sftp => ListSftp(connection),
                     NetworkProtocol.Scp => ListScpDirectory(connection),
+                    NetworkProtocol.Smb or NetworkProtocol.Nfs => ListShare(connection),
                     NetworkProtocol.Tftp => Array.Empty<FileSystemEntry>(),
                     _ => Array.Empty<FileSystemEntry>()
                 },
@@ -201,6 +203,8 @@ public sealed class NetworkFileService : INetworkFileService
             "dora-sftp" => NetworkProtocol.Sftp,
             "dora-scp" => NetworkProtocol.Scp,
             "dora-tftp" => NetworkProtocol.Tftp,
+            "dora-smb" => NetworkProtocol.Smb,
+            "dora-nfs" => NetworkProtocol.Nfs,
             _ => null
         };
 
@@ -318,6 +322,24 @@ public sealed class NetworkFileService : INetworkFileService
         }
     }
 
+    /// <summary>Lista uma pasta de um compartilhamento SMB ou de uma exportação NFS (a raiz "/" lista os compartilhamentos).</summary>
+    private static IReadOnlyList<FileSystemEntry> ListShare(NetworkConnectionInfo connection)
+    {
+        using var session = RemoteSessionFactory.Open(connection);
+        var remotePath = NormalizeRemotePath(connection.RemotePath);
+        return session.List(remotePath)
+            .OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(item => new FileSystemEntry
+            {
+                Name = item.Name,
+                FullPath = BuildRemotePath(connection.Protocol, connection.Host, CombineRemote(remotePath, item.Name)),
+                IsDirectory = item.IsDirectory,
+                SizeInBytes = item.IsDirectory ? null : item.Length,
+                LastModified = item.Modified
+            })
+            .ToList();
+    }
+
     private static IReadOnlyList<FileSystemEntry> ListScpDirectory(NetworkConnectionInfo connection)
     {
         using var client = CreateSftpClient(connection);
@@ -386,6 +408,15 @@ public sealed class NetworkFileService : INetworkFileService
                             client.Disconnect();
                         }
                     }
+                }
+
+                break;
+
+            case NetworkProtocol.Smb:
+            case NetworkProtocol.Nfs:
+                // Abrir a sessão já valida o que importa: no SMB o login, no NFS a conversa com o servidor.
+                using (RemoteSessionFactory.Open(connection))
+                {
                 }
 
                 break;

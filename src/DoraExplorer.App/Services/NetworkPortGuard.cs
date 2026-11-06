@@ -14,7 +14,7 @@ public static class NetworkPortGuard
     public static bool IsPortUsedByOtherProcess(int port) => IsUsedByOtherProcess(port, tcp: true, udp: true);
 
     /// <summary>
-    /// Porta ocupada por outro processo <b>no transporte do servidor</b>: FTP, SFTP e SCP usam TCP, TFTP usa UDP. Um socket UDP
+    /// Porta ocupada por outro processo <b>no transporte do servidor</b>: FTP, SFTP, SCP, SMB e NFS usam TCP, TFTP usa UDP. Um socket UDP
     /// de qualquer programa na mesma porta não impede um servidor TCP de subir (e vice-versa), então olhar os dois recusava
     /// servidor sem motivo, e era o que fazia testes e o app falharem de vez em quando com "porta em uso".
     /// </summary>

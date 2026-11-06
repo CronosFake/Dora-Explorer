@@ -1048,9 +1048,7 @@ public partial class FilePaneControl : UserControl
                 return;
             }
 
-            if (e.ClickCount == 2 &&
-                targetNode.Kind is NavigationNodeKind.Ftp or NavigationNodeKind.Sftp
-                    or NavigationNodeKind.Scp or NavigationNodeKind.Tftp)
+            if (e.ClickCount == 2 && NetworkKinds.IsClientRoot(targetNode.Kind))
             {
                 e.Handled = true;
                 ViewModel?.OpenNetworkClient(targetNode.Kind);

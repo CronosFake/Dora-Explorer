@@ -1,6 +1,6 @@
 # Dora Explorer - Book de Testes
 
-> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-05 09:21
+> Auto-gerado por scripts/generate-booktest.ps1. Nao edite a mao. Atualizacao: 2026-11-06 23:16
 > Regras de trabalho (testar sempre que mudar uma area): AGENTS.md. Mapa do codigo: project.md.
 
 ## Como usar
@@ -22,10 +22,10 @@ Teste nunca toca em %AppData%\DoraExplorer do usuario nem na rede real; use past
 
 | Item | Valor |
 |------|-------|
-| Areas | 34 |
-| Classes de teste | 78 |
-| Metodos de teste | 813 |
-| Casos (cada InlineData conta um) | 1189 |
+| Areas | 37 |
+| Classes de teste | 88 |
+| Metodos de teste | 897 |
+| Casos (cada InlineData conta um) | 1360 |
 
 O numero de casos e estimado pelo codigo; o que vale e o total que o `dotnet test` informa.
 
@@ -76,7 +76,7 @@ Opcoes blksize e tsize, retransmissao, volta do contador de blocos, somente leit
 Pasta raiz ampla demais e caminhos fora dela sao recusados; o app nunca encerra processo de terceiros que ocupa uma porta.
 
 - Codigo: NetworkServerService, NetworkPortGuard
-- Testes (24 casos): NetworkServerHardeningTests [SecurityTests.cs], NetworkPortGuardTests [NetworkPortGuardTests.cs]
+- Testes (25 casos): NetworkServerHardeningTests [SecurityTests.cs], NetworkPortGuardTests [NetworkPortGuardTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~NetworkServerHardeningTests|FullyQualifiedName~NetworkPortGuardTests"`
 
 ### Clientes de rede (sessoes, copia entre servidores, saude dos perfis)
@@ -84,16 +84,40 @@ Pasta raiz ampla demais e caminhos fora dela sao recusados; o app nunca encerra 
 Caminhos remotos, download e envio com progresso e limpeza, copia entre servidores, perfis iguais, indicador de saude sem travar a conta.
 
 - Codigo: RemoteFileService, RemoteTransferEngine, NetworkFileService, NetworkClientHealthService
-- Testes (44 casos): RemoteFileServiceTests [RemoteFileTests.cs], RemoteFileServiceFtpTests [RemoteFileTests.cs], RemoteTransferEngineTests [RemoteFileTests.cs], NetworkFileServiceTests [InfrastructureTests.cs], HealthServiceTests [HealthServiceTests.cs]
+- Testes (48 casos): RemoteFileServiceTests [RemoteFileTests.cs], RemoteFileServiceFtpTests [RemoteFileTests.cs], RemoteTransferEngineTests [RemoteFileTests.cs], NetworkFileServiceTests [InfrastructureTests.cs], HealthServiceTests [HealthServiceTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~RemoteFileServiceTests|FullyQualifiedName~RemoteFileServiceFtpTests|FullyQualifiedName~RemoteTransferEngineTests|FullyQualifiedName~NetworkFileServiceTests|FullyQualifiedName~HealthServiceTests"`
 
 ### Pasta Rede na arvore
 
-A pasta "Rede" agrupa FTP, SFTP, SCP e TFTP; protocolos ocultos somem e os perfis salvos entram no protocolo certo.
+A pasta "Rede" agrupa FTP, SFTP, SCP, TFTP, SMB e NFS; protocolos ocultos somem, o SMB e o NFS tem icone proprio e os perfis salvos entram no protocolo certo (SMB e NFS abrem como pastas).
 
 - Codigo: NavigationTreeService, NavigationNodeKind, PaneDisplayOptions
-- Testes (5 casos): NetworkGroupTests [NetworkGroupTests.cs]
+- Testes (7 casos): NetworkGroupTests [NetworkGroupTests.cs]
 - Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~NetworkGroupTests"`
+
+### SMB (servidor e cliente)
+
+Servidor SMB 2 e 3 (SMBLibrary, SMB 1 desligado) com usuario e senha, somente leitura e a pasta compartilhada confinada (.., atalho para fora, nomes reservados); cliente com compartilhamentos na raiz, listar, baixar, enviar, criar pasta, renomear e apagar contra o servidor do proprio app, e a porta diferente de 445 (sobrecargas internas da biblioteca, com o contrato travado e o pacote fixado).
+
+- Codigo: SmbFileServer, SmbDirectoryFileStore, SmbRemoteSession, SmbLibraryAccess, SmbWildcard
+- Testes (55 casos): SmbLibraryContractTests [SmbTests.cs], SmbHelperTests [SmbTests.cs], SmbServerTests [SmbTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~SmbLibraryContractTests|FullyQualifiedName~SmbHelperTests|FullyQualifiedName~SmbServerTests"`
+
+### NFS (servidor e cliente)
+
+ONC RPC e XDR com limites, NFS versao 3 sobre TCP (portmap, MOUNT e NFS na mesma porta), servidor so para rede local e somente leitura por padrao, pasta confinada, identificadores que morrem ao reiniciar, e o cliente com exportacoes como pastas virtuais, listagem em paginas, arquivos grandes, uid:gid e os erros do protocolo em portugues, contra o servidor do proprio app.
+
+- Codigo: NfsServer, NfsHandleTable, NfsClient, NfsRemoteSession, NfsProtocol, RpcClient, Rpc, XdrWriter, XdrReader, RpcIdentity, NetworkAddressPolicy, ShareNames
+- Testes (75 casos): NfsXdrTests [NfsTests.cs], NfsExportResolutionTests [NfsTests.cs], NfsServerTests [NfsTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~NfsXdrTests|FullyQualifiedName~NfsExportResolutionTests|FullyQualifiedName~NfsServerTests"`
+
+### Protocolos de rede: tipos, configuracao, menu Exibir e icones (SMB e NFS)
+
+Todo protocolo tem o seu no da arvore e volta ao protocolo; quais navegam por pastas; portas padrao (o servidor SMB comeca na 4445); configuracoes do servidor e do cliente separadas, padroes seguros (NFS somente leitura), arquivo de configuracoes antigo sem os campos novos, perfis que mantem o protocolo; itens do menu de exibicao do painel e botoes do menu central lidos do XAML; os desenhos da janela e do pinguim (dentro da grade, uma cor, areas vazadas, sem as cores do logotipo da Microsoft).
+
+- Codigo: NetworkKinds, NetworkSettingsStore, PaneDisplayMenuViewModel, NetworkProtocolIcons
+- Testes (34 casos): NetworkKindsTests [NetworkKindsTests.cs], NetworkSharesSettingsTests [NetworkKindsTests.cs], NetworkSharesXamlTests [NetworkKindsTests.cs], NetworkProtocolIconsTests [NetworkProtocolIconsTests.cs]
+- Rodar: `dotnet test tests\DoraExplorer.App.Tests --filter "FullyQualifiedName~NetworkKindsTests|FullyQualifiedName~NetworkSharesSettingsTests|FullyQualifiedName~NetworkSharesXamlTests|FullyQualifiedName~NetworkProtocolIconsTests"`
 
 ### Arquivos compactados (abrir como pasta)
 
@@ -359,13 +383,23 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | NavigationNodeKind | Pasta Rede na arvore |
 | NavigationTreeNodeViewModel | Painel de arquivos (um lado da janela); Arrastar e soltar: onde cai e o destaque da pasta de destino; Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
 | NavigationTreeService | Pasta Rede na arvore; Arquivos compactados (abrir como pasta); Menu superior: Exibir (unidades bloqueadas) e Preferencia; Localizar e Duplicados: duplo clique leva ao arquivo |
+| NetworkAddressPolicy | NFS (servidor e cliente) |
 | NetworkClientHealthService | Clientes de rede (sessoes, copia entre servidores, saude dos perfis) |
 | NetworkFileService | Clientes de rede (sessoes, copia entre servidores, saude dos perfis) |
+| NetworkKinds | Protocolos de rede: tipos, configuracao, menu Exibir e icones (SMB e NFS) |
 | NetworkPortGuard | Travas dos servidores locais (pasta raiz e portas) |
+| NetworkProtocolIcons | Protocolos de rede: tipos, configuracao, menu Exibir e icones (SMB e NFS) |
 | NetworkServerService | Travas dos servidores locais (pasta raiz e portas) |
+| NetworkSettingsStore | Protocolos de rede: tipos, configuracao, menu Exibir e icones (SMB e NFS) |
+| NfsClient | NFS (servidor e cliente) |
+| NfsHandleTable | NFS (servidor e cliente) |
+| NfsProtocol | NFS (servidor e cliente) |
+| NfsRemoteSession | NFS (servidor e cliente) |
+| NfsServer | NFS (servidor e cliente) |
 | OperationTimeouts | Copiar, mover e compactar (progresso, cancelamento, tempo limite) |
 | OperationTracker | Copiar, mover e compactar (progresso, cancelamento, tempo limite) |
 | PaneColumnWidths | Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
+| PaneDisplayMenuViewModel | Protocolos de rede: tipos, configuracao, menu Exibir e icones (SMB e NFS) |
 | PaneDisplayOptions | Pasta Rede na arvore; Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
 | PaneDisplaySettingsService | Janela principal (copiar e colar entre os paineis) |
 | PathNavigation | Navegacao e caminhos |
@@ -382,6 +416,9 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | RemoteTransferEngine | Clientes de rede (sessoes, copia entre servidores, saude dos perfis) |
 | RenameSelection | Renomear (F2, clique devagar, nome sem a extensao) |
 | RowHitTest | Arrastar e soltar: onde cai e o destaque da pasta de destino |
+| Rpc | NFS (servidor e cliente) |
+| RpcClient | NFS (servidor e cliente) |
+| RpcIdentity | NFS (servidor e cliente) |
 | ScpServerSession | Servidor SFTP e SCP |
 | SearchDialog | Localizar (colunas ajustaveis e nova janela) |
 | SearchPopupSizing | Localizar (colunas ajustaveis e nova janela) |
@@ -389,7 +426,13 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | ServerVirtualPath | Servidor SFTP e SCP |
 | ServiceRegistration | Registro de servicos (injecao de dependencia) |
 | SftpServerSession | Servidor SFTP e SCP |
+| ShareNames | NFS (servidor e cliente) |
 | ShellIconService | Icones de arquivos |
+| SmbDirectoryFileStore | SMB (servidor e cliente) |
+| SmbFileServer | SMB (servidor e cliente) |
+| SmbLibraryAccess | SMB (servidor e cliente) |
+| SmbRemoteSession | SMB (servidor e cliente) |
+| SmbWildcard | SMB (servidor e cliente) |
 | SortHeaderLogic | Tema, cores e interface |
 | SshFileServer | Servidor SFTP e SCP |
 | SshHostKeyStore | Servidor SFTP e SCP |
@@ -407,6 +450,8 @@ Volume bloqueado (BitLocker) e erros de E/S que o app trata sem registrar como e
 | TransferProgressFormatter | Copiar, mover e compactar (progresso, cancelamento, tempo limite) |
 | TransferScanner | Copiar, mover e compactar (progresso, cancelamento, tempo limite) |
 | TreeScrollHelper | Localizar e Duplicados: duplo clique leva ao arquivo; Visao em colunas: Nome alargavel, barra do maior nome, touchpad, barras mais grossas e linha da unidade parada |
+| XdrReader | NFS (servidor e cliente) |
+| XdrWriter | NFS (servidor e cliente) |
 
 ## Conferido so na tela ou sem teste automatico
 
@@ -436,6 +481,8 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 | Renomear na tela: F2 e clique devagar abrem a caixa com o foco e o nome sem a extensao selecionado, selecionar o texto com o mouse | O trecho selecionado e a regra do clique devagar sao testados, mas o foco, o mouse e o temporizador so existem com a janela aberta. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario rename (app fechado; AGENTS.md, armadilha 27): F2 e clique devagar (le a selecao pelo UI Automation), arrasto do mouse dentro da caixa (o arquivo nao pode sair do lugar), Enter renomeia no disco e deixa o item com o novo nome selecionado e com o foco (a pasta que o contem nao), e Esc cancela. |
 | Menu da Lixeira na tela, Localizar (Abrir em Janela e coluna ajustada com o mouse) e a janela Itens duplicados aberta pelo botao do grupo Pasta | As regras sao testadas sem janela, mas o menu, o botao, as janelas e o arrasto da borda do cabecalho so existem com o app aberto. | powershell -NoProfile -File scripts\dev\ui-capture.ps1 -Scenario newfeatures (app fechado; AGENTS.md, armadilhas 28 a 30): botao direito na Lixeira (so le o menu e recusa a pergunta de esvaziar), Localizar e Abrir em Janela, largura da coluna Nome antes e depois de arrastar a borda, Duplicados nos tipos Padrao e Profundo; cada verificacao sai [OK] ou [FALHOU]. |
 | Esvaziar a Lixeira de verdade (SHEmptyRecycleBin) | Apaga para sempre a Lixeira do usuario; os testes trocam a chamada do Windows por uma de mentira e os roteiros de tela recusam a pergunta. | Numa maquina de teste, jogar arquivos de teste na Lixeira, botao direito na Lixeira > Esvaziar Lixeira > Sim e conferir que a Lixeira ficou vazia nos dois paineis. |
+| SMB e NFS na tela: icones (janela e pinguim) nos botoes do menu central e nos nos da arvore, nos temas claro e escuro, itens SMB e NFS no menu de exibicao do painel, dialogos de cliente e servidor, navegar e copiar numa pasta de verdade | O desenho (geometria), os itens do XAML e o protocolo sao testados, mas como o icone aparece em 15 px, a troca de tema e os dialogos so existem com o app aberto. | Abrir o app: REDE SERVER mostra SMB e NFS com a janela e o pinguim legiveis nos dois temas; o menu de exibicao do painel liga e desliga SMB e NFS na arvore; em Rede, duplo clique em SMB ou NFS abre o cliente; iniciar o servidor SMB (porta 4445) e o NFS (somente leitura) e abrir cada um pelo outro painel; confira o log sem [ERR] nem [WRN]. |
+| SMB e NFS contra implementacoes de terceiros (Samba, libnfs, nfs-ganesha) e com o Windows e o Linux de verdade | Os testes automaticos ligam o cliente ao servidor do proprio app; um engano de leitura da especificacao poderia estar nos dois lados. | Foi conferido no Linux (cloud): smbclient e nfs-ls/nfs-cat/nfs-cp contra o servidor do app, e o cliente do app contra o smbd (Samba 4.19) e o nfs-ganesha 4, com hash identico nos envios e nas copias. Falta conferir no Windows: Explorer em \\IP\pasta (porta 445) contra o servidor SMB, e o Cliente para NFS do Windows ou um mount -t nfs contra o servidor NFS. |
 | Janelas de dialogo (progresso, conexao de rede, ordenar, excluir) | Janelas WPF; sem teste automatico. | Abrir cada uma no app. |
 | Restaurar e excluir de verdade da Lixeira | Mexe na lixeira real do usuario; so as travas sao testadas. | Com arquivos de teste, na tela. |
 | Start.bat e scripts de apoio | O fechamento do app esta em teste automatico (StopDoraScriptTests, com processos de mentira); o Start.bat inteiro (compilar e abrir) e o caso de um app aberto como administrador, que pede o UAC, nao. | Rodar Start.bat e conferir que o app abre. Com o app aberto, rodar de novo: ele fecha sozinho (o log termina com "encerrado") e reabre. Com o app aberto como administrador (Reiniciar como administrador), o Start.bat deve parar com o aviso de que nao consegue fecha-lo, sem compilar. |
@@ -455,12 +502,12 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### AdministratorStartupServiceTests (AdministratorStartupServiceTests.cs)
 
-- A_failure_to_restart_leaves_the_option_off_and_reports_why
 - An_app_that_was_just_reopened_by_the_elevation_never_asks_again_so_there_is_no_loop
 - At_startup_refusing_the_windows_confirmation_opens_the_app_normally_and_keeps_the_option
 - At_startup_with_the_option_off_nothing_is_asked
 - At_startup_with_the_option_on_and_already_administrator_nothing_is_asked
 - At_startup_with_the_option_on_and_no_administrator_access_it_asks_for_it_and_stops_this_start
+- A_failure_to_restart_leaves_the_option_off_and_reports_why
 - It_is_off_by_default_and_a_settings_file_from_before_the_option_keeps_it_off
 - On_the_next_run_the_saved_choice_is_loaded
 - Refusing_the_windows_confirmation_leaves_the_option_off_so_the_check_matches_reality
@@ -471,9 +518,9 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### ApplicationNameTests (InterfaceTests.cs)
 
+- Application_names_never_show_the_executable_extension (8 casos)
 - A_friendly_shell_name_is_kept_when_the_description_is_missing_the_same_or_already_listed
 - A_raw_executable_name_from_the_shell_is_replaced_by_the_description_of_the_program
-- Application_names_never_show_the_executable_extension (8 casos)
 - Packaged_app_ids_are_told_apart_from_programs_and_paths (7 casos)
 
 ### AppVersionTests (AppVersionTests.cs)
@@ -489,18 +536,18 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### ArchiveListingTests (ArchiveListingTests.cs)
 
+- Archive_node_gives_its_folders_the_expander_arrow_and_the_right_counts
 - A_gz_shorter_than_its_own_header_does_not_crash_the_listing
 - A_gz_that_is_not_gzip_is_reported_instead_of_listed
-- Archive_node_gives_its_folders_the_expander_arrow_and_the_right_counts
 - Backslash_names_are_counted_like_slash_names
 - Entries_cannot_be_removed_from_read_only_archives (2 casos)
 - Files_have_no_folder_counts_and_the_counts_follow_the_level_being_listed
 - Folders_of_a_7z_node_get_the_arrow_and_gz_and_7z_files_become_archive_nodes
-- Gz_and_7z_are_read_only_like_rar
 - Gzip_entry_name_drops_only_the_last_extension (3 casos)
 - Gzip_extraction_does_not_overwrite_an_existing_file
 - Gzip_file_can_be_extracted_with_its_original_content
 - Gzip_opens_as_a_folder_with_the_one_file_inside
+- Gz_and_7z_are_read_only_like_rar
 - SevenZip_files_and_folders_can_be_extracted
 - SevenZip_folders_report_what_they_hold_directly
 - SevenZip_inner_folder_can_be_listed
@@ -540,13 +587,13 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### DirectoryIndexTests (DirectoryIndexTests.cs)
 
+- An_empty_or_blank_path_never_reaches_the_database
 - A_folder_that_was_never_read_is_not_in_the_index
 - A_folder_the_user_cannot_list_is_reported_and_is_never_stored_as_empty
 - A_large_folder_is_stored_and_read_back_completely
 - A_listing_stored_empty_by_an_older_session_is_forgotten_on_startup
 - A_read_made_after_invalidating_is_stored_as_usual
 - A_write_still_waiting_in_the_queue_cannot_bring_back_a_folder_that_was_invalidated
-- An_empty_or_blank_path_never_reaches_the_database
 - Computing_counts_from_the_disk_returns_them_and_indexes_the_folder
 - Counting_a_folder_the_user_cannot_list_does_not_store_it_either
 - Counts_and_listing_are_served_from_the_index_even_after_the_disk_changes
@@ -569,17 +616,17 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### DropTargetTests (DropTargetTests.cs)
 
+- An_empty_tree_has_no_row
 - A_drive_row_receives_the_items_at_the_root_of_the_drive
 - A_file_is_never_highlighted_as_the_target
 - A_file_row_sends_the_items_to_the_folder_that_holds_the_file
 - A_folder_row_receives_the_items_inside_that_folder
 - A_folder_that_does_not_exist_is_refused_with_a_reason
-- An_empty_tree_has_no_row
 - Blank_space_above_or_below_the_rows_is_no_row_at_all (3 casos)
 - Blank_space_sends_the_items_to_the_folder_open_in_the_pane
 - Clearing_the_target_removes_the_highlight_and_a_folder_the_pane_does_not_show_highlights_nothing
-- Dropping_a_folder_on_the_root_of_its_own_drive_moves_it_and_never_into_itself
 - Dropping_an_item_that_already_sits_at_the_root_on_that_root_is_refused
+- Dropping_a_folder_on_the_root_of_its_own_drive_moves_it_and_never_into_itself
 - Highlighting_the_same_folder_twice_changes_nothing
 - The_folder_that_would_receive_the_items_is_highlighted_and_only_that_one
 - The_line_of_an_open_drive_is_the_drive_and_not_its_nearest_folder
@@ -587,6 +634,9 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### DuplicateFinderTests (DuplicateFinderTests.cs)
 
+- An_ssd_gets_one_read_per_processor_up_to_sixteen_and_a_hard_disk_or_an_unknown_disk_keeps_four (8 casos)
+- Asking_the_disk_kind_never_throws_and_gives_up_on_paths_it_cannot_ask_about
+- At_a_drive_root_the_system_folders_are_left_out_and_named_in_the_result
 - A_big_file_reports_while_it_is_being_read_and_not_only_when_it_ends
 - A_blank_folder_gives_an_empty_result
 - A_cancelled_search_stops_with_an_operation_cancelled_exception
@@ -594,9 +644,6 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - A_folder_called_windows_is_searched_normally_when_the_search_does_not_start_at_a_drive_root
 - A_folder_that_does_not_exist_gives_an_empty_result_instead_of_failing
 - A_junction_to_another_folder_is_not_followed_so_nothing_is_counted_twice
-- An_ssd_gets_one_read_per_processor_up_to_sixteen_and_a_hard_disk_or_an_unknown_disk_keeps_four (8 casos)
-- Asking_the_disk_kind_never_throws_and_gives_up_on_paths_it_cannot_ask_about
-- At_a_drive_root_the_system_folders_are_left_out_and_named_in_the_result
 - Deep_catches_a_difference_in_the_first_byte_without_reading_the_whole_file
 - Deep_catches_a_difference_in_the_very_last_byte_of_a_large_file
 - Deep_confirms_a_large_file_that_is_really_identical
@@ -677,10 +724,10 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### ElevationTests (ElevationTests.cs)
 
-- A_failure_to_launch_keeps_the_app_open_and_explains_in_portuguese
-- A_plain_message_never_asks_for_elevation
 - An_access_denied_message_offers_elevation_only_when_not_elevated
 - An_app_that_is_already_elevated_does_not_restart_again
+- A_failure_to_launch_keeps_the_app_open_and_explains_in_portuguese
+- A_plain_message_never_asks_for_elevation
 - Declining_the_windows_confirmation_keeps_the_app_open_and_is_not_an_error
 - Restarting_launches_the_same_program_as_administrator_and_then_closes_this_one
 - The_parent_process_id_is_read_from_the_arguments (6 casos)
@@ -698,11 +745,11 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### FavoritesServiceTests (FavoritesServiceTests.cs)
 
+- Adding_the_same_path_again_keeps_a_single_entry
+- An_added_favorite_is_found_ignoring_case_and_survives_a_restart
 - A_corrupt_file_loads_as_empty_and_is_replaced_by_the_next_save
 - A_favorite_that_disappeared_stays_listed_instead_of_vanishing
 - A_new_store_has_no_favorites
-- Adding_the_same_path_again_keeps_a_single_entry
-- An_added_favorite_is_found_ignoring_case_and_survives_a_restart
 - Blank_and_repeated_entries_in_the_file_are_ignored_on_load
 - Entries_tell_folders_from_files_and_carry_name_size_and_date
 - Removing_a_favorite_forgets_it_for_good
@@ -714,14 +761,14 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### FileErrorTextTests (FileErrorTextTests.cs)
 
+- Access_denied_names_the_inner_path_in_portuguese_and_is_marked
+- Access_denied_texts_built_without_an_exception_are_marked_too
+- Anything_else_keeps_the_original_text_after_a_portuguese_lead_in
 - A_missing_item_is_explained
 - A_path_that_is_too_long_is_explained
 - A_plain_IO_exception_about_something_else_is_not_taken_for_access_denied
 - A_plain_IO_exception_that_says_the_path_is_denied_is_access_denied (2 casos)
 - A_read_only_file_is_explained_and_is_not_offered_elevation
-- Access_denied_names_the_inner_path_in_portuguese_and_is_marked
-- Access_denied_texts_built_without_an_exception_are_marked_too
-- Anything_else_keeps_the_original_text_after_a_portuguese_lead_in
 - Common_io_failures_are_explained_in_portuguese_and_are_not_access_denied (5 casos)
 - Shell_and_win32_codes_that_mean_access_denied_are_recognized (5 casos)
 - The_long_path_prefix_is_not_shown (4 casos)
@@ -731,13 +778,13 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### FileOpenServiceTests (InfrastructureTests.cs)
 
-- The_open_with_window_refuses_a_missing_file_instead_of_showing_anything
 - The_open_with_window_refuses_an_empty_path
+- The_open_with_window_refuses_a_missing_file_instead_of_showing_anything
 
 ### FileOperationProgressTests (TransferTests.cs)
 
-- A_cancelled_copy_reports_cancellation_and_leaves_nothing_behind
 - Aggregator_adds_finished_items_to_the_current_one
+- A_cancelled_copy_reports_cancellation_and_leaves_nothing_behind
 - Copying_a_folder_reports_totals_files_and_ends_complete
 - Moving_a_file_reports_progress_and_the_source_disappears
 - Scanner_totals_the_tree_and_does_not_follow_junctions
@@ -762,20 +809,20 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### FilePaneViewModelTests (FilePaneViewModelTests.cs)
 
-- A_folder_name_that_is_empty_or_cannot_exist_is_refused (5 casos)
-- A_folder_that_can_be_listed_is_not_marked
-- A_path_that_is_not_in_the_list_gives_no_neighbour
-- A_range_made_with_Shift_keeps_its_anchor_when_the_other_end_moves
-- A_subfolder_the_user_may_not_list_is_marked_from_the_parent_listing_without_opening_it
 - After_removing_an_item_the_next_one_in_the_list_is_the_one_to_select
 - After_removing_an_open_folder_the_items_inside_it_are_skipped
 - After_removing_every_item_the_folder_that_held_them_is_the_one_to_select
 - After_removing_several_items_the_neighbour_is_outside_the_removed_group
 - After_removing_the_last_item_the_previous_one_is_the_one_to_select
-- An_entry_in_the_favorites_folder_offers_to_remove_it_from_the_favorites
 - An_entry_inside_an_archive_has_no_file_on_the_disk_to_drag_out
+- An_entry_in_the_favorites_folder_offers_to_remove_it_from_the_favorites
 - An_entry_of_a_read_only_archive_cannot_be_deleted_and_the_archive_stays_intact
 - An_entry_of_a_zip_can_be_deleted_and_leaves_the_rest
+- A_folder_name_that_is_empty_or_cannot_exist_is_refused (5 casos)
+- A_folder_that_can_be_listed_is_not_marked
+- A_path_that_is_not_in_the_list_gives_no_neighbour
+- A_range_made_with_Shift_keeps_its_anchor_when_the_other_end_moves
+- A_subfolder_the_user_may_not_list_is_marked_from_the_parent_listing_without_opening_it
 - Copying_a_file_leaves_the_original_and_never_overwrites_the_destination
 - Copying_or_moving_into_an_archive_is_refused
 - Creating_a_folder_makes_it_on_disk_and_shows_it_in_the_tree
@@ -798,8 +845,8 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Moving_a_file_takes_it_out_of_the_source
 - Moving_out_of_a_read_only_archive_only_copies_and_the_archive_keeps_the_entry
 - Moving_out_of_a_zip_extracts_the_entry_and_removes_it_from_the_zip
-- Navigating_to_a_file_leaves_the_pane_in_the_folder_that_holds_it
 - Navigating_to_another_folder_changes_where_the_pane_is
+- Navigating_to_a_file_leaves_the_pane_in_the_folder_that_holds_it
 - Nothing_selected_means_no_properties_to_show
 - Only_files_that_can_really_be_deleted_are_offered_for_deletion
 - Only_paths_that_exist_on_this_computer_count_as_local_paths
@@ -843,9 +890,9 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### FtpClientSecurityTests (NetworkClientTests.cs)
 
+- Auto_mode_uses_tls_when_the_server_offers_it_and_plain_ftp_when_it_does_not
 - A_certificate_that_changed_since_it_was_trusted_triggers_a_warning
 - A_missing_certificate_is_never_accepted
-- Auto_mode_uses_tls_when_the_server_offers_it_and_plain_ftp_when_it_does_not
 - Certificates_with_policy_errors_need_the_users_confirmation (3 casos)
 - Declining_the_certificate_refuses_the_connection_and_stores_nothing
 - Explicit_ftps_asks_once_to_trust_a_self_signed_certificate_and_remembers_it
@@ -854,9 +901,9 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### FtpServerTests (NetworkServerTests.cs)
 
-- A_real_client_can_list_upload_download_rename_and_delete
 - Active_mode_connects_back_only_to_the_client_on_a_high_port
 - An_invalid_passive_range_is_refused_when_starting
+- A_real_client_can_list_upload_download_rename_and_delete
 - Disabled_ftps_does_not_advertise_tls
 - Explicit_ftps_protects_login_and_data_and_required_mode_refuses_plain_login
 - Folders_can_be_created_listed_and_removed_only_when_empty
@@ -897,6 +944,10 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### ItemPropertiesServiceTests (ItemPropertiesServiceTests.cs)
 
+- An_empty_folder_has_nothing_inside
+- An_executable_or_library_reports_its_version_details
+- An_image_reports_its_width_and_height_in_pixels
+- Attributes_reflect_what_is_set_on_the_file
 - A_broken_image_does_not_break_reading_the_other_properties
 - A_cancelled_count_stops_instead_of_finishing
 - A_cancelled_sha256_stops_instead_of_finishing
@@ -911,10 +962,6 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - A_missing_file_fails_with_a_file_system_error_for_both_sums
 - A_path_that_no_longer_exists_has_no_properties
 - A_plain_text_file_has_no_executable_details_and_no_image_size
-- An_empty_folder_has_nothing_inside
-- An_executable_or_library_reports_its_version_details
-- An_image_reports_its_width_and_height_in_pixels
-- Attributes_reflect_what_is_set_on_the_file
 - Cancelled_sums_stop_instead_of_finishing
 - Loose_files_in_the_selection_count_as_files_next_to_the_folder_contents
 - Rounding_a_size_up_to_the_cluster (5 casos)
@@ -928,6 +975,11 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### ItemPropertiesViewModelTests (ItemPropertiesViewModelTests.cs)
 
+- An_empty_folder_says_it_is_empty
+- An_item_inside_an_archive_shows_only_what_the_listing_knows_and_explains_why
+- Asking_again_while_the_sha256_runs_cancels_it
+- Attributes_are_listed_by_name_in_portuguese
+- Attribute_names (4 casos)
 - A_drive_shows_its_format_and_how_full_it_is
 - A_file_shows_the_general_dates_attributes_security_and_verification_sections
 - A_file_that_cannot_be_read_explains_it_in_the_sha256_row
@@ -936,11 +988,6 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - A_folder_has_neither_the_sha256_nor_the_md5_row
 - A_folder_shows_what_is_inside_it_once_the_count_finishes
 - A_library_shows_a_details_section_with_its_version
-- An_empty_folder_says_it_is_empty
-- An_item_inside_an_archive_shows_only_what_the_listing_knows_and_explains_why
-- Asking_again_while_the_sha256_runs_cancels_it
-- Attribute_names (4 casos)
-- Attributes_are_listed_by_name_in_portuguese
 - Closing_the_window_while_a_folder_is_being_counted_stops_quietly
 - Computing_fills_the_md5_row_together_with_the_sha256_row
 - Computing_the_sha256_fills_its_row_and_gives_the_button_back
@@ -982,20 +1029,20 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### MainWindowViewModelTests (MainWindowViewModelTests.cs)
 
+- Activating_the_right_pane_swaps_source_and_destination_and_tells_the_screen
 - A_failure_to_restart_as_administrator_shows_the_reason
 - A_folder_that_was_empty_gets_its_expand_arrow_in_both_panes_after_a_drop_between_them
 - A_folder_that_was_empty_gets_its_expand_arrow_in_both_panes_after_a_drop_from_another_program
 - A_remembered_folder_that_no_longer_exists_falls_back_to_a_drive_instead_of_failing
 - A_transfer_takes_the_selection_of_the_active_pane_to_the_folder_of_the_other
 - A_transfer_without_a_selection_says_what_is_missing
-- Activating_the_right_pane_swaps_source_and_destination_and_tells_the_screen
 - Checking_always_administrator_asks_for_access_right_away_and_keeps_the_check_on
-- Copy_and_paste_puts_a_copy_in_the_other_pane_and_keeps_the_clipboard
 - Copying_to_the_other_pane_leaves_both_panes_in_the_folders_they_were_in
+- Copy_and_paste_puts_a_copy_in_the_other_pane_and_keeps_the_clipboard
 - Cut_and_paste_moves_the_file_and_empties_the_clipboard
 - Dropping_files_on_the_other_pane_copies_or_moves_them_there
-- Dropping_on_the_other_pane_leaves_both_panes_in_the_folders_they_were_in
 - Dropping_onto_the_same_folder_is_refused_without_touching_the_file
+- Dropping_on_the_other_pane_leaves_both_panes_in_the_folders_they_were_in
 - Moving_to_the_other_pane_leaves_both_panes_in_the_folders_they_were_in
 - Panes_open_where_they_were_left_when_remembering_the_path_is_on_and_the_folder_still_exists
 - Pasting_into_the_other_pane_leaves_both_panes_in_the_folders_they_were_in
@@ -1035,20 +1082,31 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### NetworkFileServiceTests (InfrastructureTests.cs)
 
+- SMB_and_NFS_paths_keep_spaces_and_name_their_protocol (2 casos)
 - TryParseRemotePath_rejects_local_paths
 - TryParseRemotePath_rejects_unknown_schemes (3 casos)
-- TryParseRemotePath_roundtrips_BuildRemotePath (5 casos)
+- TryParseRemotePath_roundtrips_BuildRemotePath (7 casos)
 
 ### NetworkGroupTests (NetworkGroupTests.cs)
 
 - Protocols_hidden_in_the_pane_options_do_not_appear
 - Saved_profiles_appear_under_their_own_protocol_sorted_by_name
+- SMB_and_NFS_profiles_can_be_browsed_so_they_start_with_an_expand_arrow
 - The_group_and_its_protocols_are_already_loaded_so_they_never_wait_for_a_listing
-- The_network_group_holds_the_four_protocols_in_order
+- The_network_group_holds_the_six_protocols_in_order
+- The_new_protocols_follow_the_pane_option_and_have_their_own_icons
 - With_every_protocol_hidden_there_is_no_network_group
+
+### NetworkKindsTests (NetworkKindsTests.cs)
+
+- Browsable_and_transfer_only_protocols (6 casos)
+- Default_ports_differ_only_for_the_smb_server_which_avoids_the_windows_port (6 casos)
+- Every_protocol_has_its_own_tree_node_kind_and_maps_back
+- Only_smb_and_nfs_are_file_shares_and_other_nodes_are_not_network_clients
 
 ### NetworkPortGuardTests (NetworkPortGuardTests.cs)
 
+- An_ftp_server_starts_even_when_another_process_holds_the_same_number_on_udp
 - A_port_another_process_listens_on_is_reported_as_used_by_another_process
 - A_port_nobody_listens_on_is_free
 - A_port_this_process_listens_on_is_listening_but_not_used_by_another_process
@@ -1057,9 +1115,16 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - A_tftp_server_starts_even_when_another_process_holds_the_same_number_on_tcp
 - A_udp_port_this_process_uses_is_listening
 - A_udp_socket_of_another_process_does_not_block_a_tcp_server_on_the_same_number
-- An_ftp_server_starts_even_when_another_process_holds_the_same_number_on_udp
 - Cleaning_up_at_startup_never_ends_other_processes
 - Ports_outside_the_valid_range_are_never_reported_as_used_by_another_process (3 casos)
+
+### NetworkProtocolIconsTests (NetworkProtocolIconsTests.cs)
+
+- Only_smb_and_nfs_have_their_own_tree_icon
+- The_marks_are_frozen_and_stay_inside_the_16_by_16_grid
+- The_penguin_is_filled_even_odd_so_the_belly_eyes_and_beak_are_cut_out
+- The_tree_icons_are_frozen_16_by_16_images_and_are_not_the_logo_colors
+- The_window_is_four_separate_panes
 
 ### NetworkServerHardeningTests (SecurityTests.cs)
 
@@ -1069,20 +1134,86 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - Ftp_lists_over_a_passive_connection_from_the_same_client
 - Ftp_server_requires_username_and_password
 - Overly_broad_or_missing_roots_are_refused
-- Ssh_servers_require_username_and_password (2 casos)
+- Ssh_and_SMB_servers_require_username_and_password (3 casos)
 - Tftp_completed_write_replaces_the_file_and_ignores_repeated_blocks
 - Tftp_rejects_paths_outside_the_root_but_accepts_a_leading_slash
 - Tftp_write_that_never_completes_does_not_truncate_the_existing_file
 
+### NetworkSharesSettingsTests (NetworkKindsTests.cs)
+
+- A_client_profile_keeps_its_protocol_across_a_restart (2 casos)
+- A_settings_file_from_before_smb_and_nfs_loads_with_them_visible_and_default
+- Server_and_client_settings_of_smb_and_nfs_are_separate_and_start_with_safe_defaults
+- The_pane_menu_loads_compares_and_applies_the_smb_and_nfs_options
+- The_pane_options_for_smb_and_nfs_are_saved_per_pane
+
+### NetworkSharesXamlTests (NetworkKindsTests.cs)
+
+- The_pane_display_menu_has_a_checkable_item_for_each_protocol (6 casos)
+- The_server_buttons_appear_after_the_older_four_in_the_network_section
+- The_server_buttons_use_the_drawn_icons_and_show_the_service_state (2 casos)
+
+### NfsExportResolutionTests (NfsTests.cs)
+
+- An_export_of_the_server_root_covers_everything
+- A_path_outside_every_export_has_no_export_and_names_must_match_whole_segments
+- Paths_are_split_into_segments_regardless_of_slashes (3 casos)
+- The_most_specific_export_covers_the_path_when_one_export_contains_another
+- Virtual_folders_list_the_next_segment_of_each_export_once
+
+### NfsServerTests (NfsTests.cs)
+
+- An_empty_file_is_uploaded_and_downloaded
+- An_invalid_nfs_user_is_reported_before_connecting
+- A_client_can_list_create_download_rename_and_delete
+- A_file_of_several_megabytes_round_trips_in_many_blocks_with_progress
+- A_folder_with_hundreds_of_entries_is_listed_completely_across_pages
+- A_forged_or_foreign_handle_is_refused_as_stale
+- A_garbled_call_is_answered_with_garbage_args_and_a_runt_record_closes_the_connection
+- A_link_that_points_outside_is_hidden_and_cannot_be_followed
+- A_read_only_server_serves_reads_and_refuses_every_change
+- A_record_above_the_size_limit_is_dropped_without_waiting_for_its_body
+- Cancelling_a_download_stops_it_and_reports_the_cancellation
+- Dangerous_names_are_refused_and_nothing_is_created (6 casos)
+- Drive_letters_and_alternate_streams_are_refused_where_windows_would_honour_them (2 casos)
+- Folder_operations_report_the_right_errors
+- Handles_from_a_previous_server_instance_are_stale_and_mounting_again_works
+- Looking_up_dot_dot_from_the_root_stays_in_the_shared_folder
+- Mounting_a_subfolder_gives_a_handle_for_that_folder
+- Moving_a_folder_into_itself_is_refused
+- Renaming_a_folder_keeps_the_handles_of_what_is_inside_it
+- Stopping_the_server_closes_open_connections
+- The_caller_uid_and_gid_are_reported_as_the_owner_of_everything
+- The_client_lists_the_exports_and_mounts_only_what_the_server_offers
+- The_mount_port_comes_from_the_portmap_or_falls_back_to_the_nfs_port
+- The_nfs_server_starts_without_a_login_and_rejects_a_second_start_and_a_missing_folder
+- The_plain_readdir_also_hides_the_name_of_a_link_that_points_outside
+- The_plain_readdir_pages_through_a_big_folder_and_matches_readdirplus
+- The_portmap_on_the_same_port_points_back_at_the_server
+- The_root_and_the_folders_above_the_export_are_virtual_folders
+- Unsupported_versions_and_procedures_are_answered_with_the_proper_rpc_errors
+- Uploading_over_a_longer_file_leaves_only_the_new_content
+
+### NfsXdrTests (NfsTests.cs)
+
+- Share_names_come_from_the_folder_name (4 casos)
+- The_nfs_server_only_serves_local_network_addresses (17 casos)
+- The_nfs_user_is_a_uid_and_gid_pair_and_anything_else_is_refused (9 casos)
+- Xdr_reader_refuses_fields_above_the_limit_and_truncated_messages
+- Xdr_values_round_trip_and_variable_data_is_padded_to_four_bytes
+
 ### OperationTrackerTests (InfrastructureTests.cs)
 
-- A_failed_or_already_disposed_operation_does_not_break_cancelling_the_others
 - An_operation_counts_as_active_only_while_it_is_registered
+- A_failed_or_already_disposed_operation_does_not_break_cancelling_the_others
 - Cancelling_all_gives_up_after_the_timeout_when_an_operation_never_stops
 - Cancelling_all_waits_for_the_operation_to_finish_its_cleanup
 
 ### PaneColumnsTests (PaneColumnsTests.cs)
 
+- An_element_that_starts_inside_the_viewport_gets_only_the_width_that_is_left
+- An_element_with_no_visible_area_is_left_alone
+- An_open_root_with_only_protocols_has_no_row_with_columns
 - A_closed_folder_does_not_count_what_is_inside_it
 - A_closed_top_level_row_does_not_count_its_children
 - A_deeper_row_counts_its_larger_indent
@@ -1092,9 +1223,6 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - A_new_pane_has_the_fixed_widths_and_an_automatic_name
 - A_settings_file_with_the_old_per_column_widths_loads_with_an_automatic_name
 - A_swipe_to_the_right_scrolls_right_and_to_the_left_scrolls_left_inside_the_scrollable_range
-- An_element_that_starts_inside_the_viewport_gets_only_the_width_that_is_left
-- An_element_with_no_visible_area_is_left_alone
-- An_open_root_with_only_protocols_has_no_row_with_columns
 - Comfortable_rows_still_drop_the_date_when_the_pane_gets_narrow_and_the_columns_come_back_in_columns_mode
 - Double_clicking_the_edge_goes_back_to_automatic_and_saves
 - Dragging_all_the_way_to_the_left_stops_at_the_minimum_and_does_not_jump_back_to_automatic
@@ -1122,9 +1250,9 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - The_default_application_box_fits_inside_the_comfortable_row
 - The_drag_starts_from_the_width_the_column_has_now (5 casos)
 - The_drive_row_converters_leave_roots_and_protocols_alone
-- The_fixed_column_headers_take_their_widths_from_the_pane
 - The_fixed_columns_add_up_to_what_sits_to_the_right_of_the_name
 - The_fixed_columns_are_wide_enough_for_their_content
+- The_fixed_column_headers_take_their_widths_from_the_pane
 - The_header_is_always_there_but_hidden_while_there_are_no_column_rows
 - The_header_moves_with_the_horizontal_scroll_of_the_list
 - The_header_tells_the_screen_when_it_empties_and_when_it_fills
@@ -1184,11 +1312,11 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### RecycleBinMenuTests (RecycleBinMenuTests.cs)
 
+- An_exception_from_the_shell_is_reported_instead_of_crashing
 - A_failure_still_refreshes_because_part_of_the_bin_may_have_been_emptied
 - A_refusal_from_windows_becomes_a_message_in_portuguese
-- An_exception_from_the_shell_is_reported_instead_of_crashing
-- Emptying_a_bin_that_is_already_empty_is_not_an_error_and_does_not_bother_windows
 - Emptying_asks_windows_once_and_succeeds
+- Emptying_a_bin_that_is_already_empty_is_not_an_error_and_does_not_bother_windows
 - Emptying_from_a_pane_clears_its_selection_and_reports_success
 - Emptying_the_bin_refreshes_the_row_in_both_panes
 - Restoring_everything_from_an_empty_bin_says_it_is_empty
@@ -1230,14 +1358,14 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### RenameTests (RenameTests.cs)
 
-- A_drive_or_a_recycle_bin_entry_is_never_renamed_by_a_slow_click
-- A_file_starts_with_the_name_selected_but_not_the_extension_and_a_folder_with_everything (11 casos)
-- A_folder_can_be_renamed_by_a_slow_click_too
-- A_slow_click_renames_the_item_that_was_already_the_only_one_selected
 - After_renaming_a_file_the_item_with_the_new_name_is_the_only_one_selected
 - After_renaming_a_folder_the_folder_with_the_new_name_is_selected
 - An_item_inside_a_selection_of_several_does_not_start_renaming
 - An_item_that_was_not_selected_yet_does_not_start_renaming
+- A_drive_or_a_recycle_bin_entry_is_never_renamed_by_a_slow_click
+- A_file_starts_with_the_name_selected_but_not_the_extension_and_a_folder_with_everything (11 casos)
+- A_folder_can_be_renamed_by_a_slow_click_too
+- A_slow_click_renames_the_item_that_was_already_the_only_one_selected
 - Cancelling_leaves_the_name_untouched
 - Cancelling_or_keeping_the_same_name_announces_nothing
 - Committing_a_new_name_renames_the_file_on_disk
@@ -1369,6 +1497,39 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 - The_drawn_icon_replaces_a_generic_or_missing_windows_icon
 - The_icon_from_windows_is_kept_when_it_is_a_real_one
 
+### SmbHelperTests (SmbTests.cs)
+
+- A_missing_account_is_an_empty_user_without_domain
+- Directory_search_patterns_follow_the_dos_wildcards (13 casos)
+- Smb_status_codes_are_described_in_portuguese (6 casos)
+- The_first_part_of_the_path_is_the_share (6 casos)
+- The_smb_account_may_carry_a_domain (6 casos)
+
+### SmbLibraryContractTests (SmbTests.cs)
+
+- The_internal_overloads_that_take_a_port_still_exist
+- The_package_is_pinned_to_the_exact_version_the_contract_was_checked_against
+
+### SmbServerTests (SmbTests.cs)
+
+- An_empty_shared_folder_lists_as_empty
+- A_client_can_list_download_create_rename_and_delete
+- A_file_of_several_megabytes_round_trips_in_many_blocks_with_progress
+- A_folder_that_is_not_empty_cannot_be_deleted
+- A_folder_with_hundreds_of_entries_is_listed_completely
+- A_link_that_points_outside_is_hidden_and_cannot_be_followed
+- A_read_only_server_serves_reads_and_refuses_every_change
+- A_server_that_nobody_listens_to_is_reported_as_unreachable
+- A_share_that_does_not_exist_is_reported
+- A_wrong_user_or_password_is_refused_with_a_clear_message (3 casos)
+- Cancelling_a_download_stops_it_and_reports_the_cancellation
+- Creating_a_folder_that_already_exists_fails
+- Paths_with_dot_dot_cannot_reach_outside_the_shared_folder
+- Reserved_and_ambiguous_names_are_refused_and_nothing_is_created (3 casos)
+- The_smb_server_reports_its_share_and_refuses_a_second_start
+- The_user_name_is_not_case_sensitive_but_the_password_is
+- Uploading_over_a_longer_file_leaves_only_the_new_content_and_an_empty_file_works
+
 ### SolidArchiveTests (SolidArchiveTests.cs)
 
 - A_folder_of_a_solid_archive_is_extracted_whole_and_correct (2 casos)
@@ -1378,8 +1539,8 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### SortHeaderLogicTests (NavigationTests.cs)
 
-- Clicking_a_header_keeps_folders_first_as_configured
 - Clicking_another_column_starts_in_its_natural_direction (4 casos)
+- Clicking_a_header_keeps_folders_first_as_configured
 - Clicking_the_sorted_column_flips_the_direction
 - Indicator_marks_only_the_sorted_column
 
@@ -1401,9 +1562,9 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### SshAuthenticationTests (NetworkClientTests.cs)
 
+- An_unreadable_key_explains_which_file_failed
 - A_key_without_password_does_not_add_password_methods
 - A_private_key_is_tried_first_then_password_and_keyboard_interactive
-- An_unreadable_key_explains_which_file_failed
 - Old_profiles_without_the_new_fields_keep_working_with_safe_defaults
 - The_key_passphrase_is_stored_protected_and_round_trips
 - Without_a_key_the_password_methods_are_used
@@ -1452,8 +1613,8 @@ Itens que nenhum teste automatico protege. Ao mexer neles, confira na tela e dig
 
 ### TftpServerTests (NetworkServerTests.cs)
 
-- A_lost_ack_makes_the_server_retransmit_the_same_block
 - An_upload_declaring_more_than_the_limit_is_refused_up_front
+- A_lost_ack_makes_the_server_retransmit_the_same_block
 - Block_numbers_wrap_around_after_65535_for_big_files
 - Block_size_is_limited_to_what_the_protocol_allows (2 casos)
 - Options_blksize_and_tsize_are_negotiated_with_an_OACK

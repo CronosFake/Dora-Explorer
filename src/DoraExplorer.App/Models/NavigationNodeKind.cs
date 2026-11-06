@@ -9,10 +9,12 @@ public enum NavigationNodeKind
     Sftp,
     Scp,
     Tftp,
+    Smb,
+    Nfs,
     Directory,
     File,
     Archive,
 
-    /// <summary>Pasta "Rede": agrupa os clientes FTP, SFTP, SCP e TFTP na árvore.</summary>
+    /// <summary>Pasta "Rede": agrupa os clientes FTP, SFTP, SCP, TFTP, SMB e NFS na árvore.</summary>
     NetworkGroup
 }

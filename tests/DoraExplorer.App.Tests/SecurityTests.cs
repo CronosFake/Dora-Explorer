@@ -358,7 +358,8 @@ public sealed class NetworkServerHardeningTests : IDisposable
     [Theory]
     [InlineData(NetworkProtocol.Sftp)]
     [InlineData(NetworkProtocol.Scp)]
-    public void Ssh_servers_require_username_and_password(NetworkProtocol protocol)
+    [InlineData(NetworkProtocol.Smb)]
+    public void Ssh_and_SMB_servers_require_username_and_password(NetworkProtocol protocol)
     {
         _service.TryStart(Config(protocol, FreeTcpPort(), null, null), out var error).Should().BeFalse();
         error.Should().Contain("usuário e senha");

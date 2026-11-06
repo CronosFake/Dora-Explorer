@@ -2,7 +2,7 @@
 
 > Auto-gerado por scripts/generate-project-map.ps1 (o Start.bat roda a cada execucao). Nao edite a mao.
 > Regras, comandos e armadilhas: AGENTS.md. Visao do produto e limitacoes conhecidas: README.md.
-> Ultima atualizacao: 2026-11-05 09:21
+> Ultima atualizacao: 2026-11-06 23:16
 
 ## Como usar este mapa
 
@@ -27,14 +27,14 @@ src/DoraExplorer.App/
   App.xaml.cs, MainWindow.xaml(.cs)   # inicializacao, DI, janela principal com dois paineis
   Assets/           0 arquivos      0 linhas  # Icones
   Contracts/       12 arquivos    339 linhas  # Interfaces dos servicos (DI e testes)
-  Controls/        15 arquivos   8443 linhas  # Controles WPF: paineis, toolbar, arvore, animacoes
+  Controls/        15 arquivos   8518 linhas  # Controles WPF: paineis, toolbar, arvore, animacoes
   Converters/       7 arquivos    187 linhas  # IValueConverter do WPF
-  Infrastructure/  23 arquivos   1648 linhas  # DI, caminhos seguros, timeouts, instancia unica, colecao em bloco, enxugador de memoria
-  Models/          28 arquivos    741 linhas  # DTOs, enums e opcoes
+  Infrastructure/  24 arquivos   1761 linhas  # DI, caminhos seguros, timeouts, instancia unica, colecao em bloco, enxugador de memoria
+  Models/          29 arquivos    851 linhas  # DTOs, enums e opcoes
   Resources/        6 arquivos   1540 linhas  # Temas e estilos XAML
-  Services/        62 arquivos  19134 linhas  # Arquivos, rede, indice, tema, icones, logs, arquivos compactados
-  ViewModels/      12 arquivos   7493 linhas  # MVVM (CommunityToolkit.Mvvm)
-  Views/           23 arquivos   2554 linhas  # Dialogos do menu central
+  Services/        71 arquivos  23953 linhas  # Arquivos, rede, indice, tema, icones, logs, arquivos compactados
+  ViewModels/      12 arquivos   7514 linhas  # MVVM (CommunityToolkit.Mvvm)
+  Views/           23 arquivos   2570 linhas  # Dialogos do menu central
 tests/DoraExplorer.App.Tests/   # testes xUnit
 scripts/                        # stop-dora.ps1, generate-project-map.ps1
 scripts/dev/                    # ui-capture.ps1 (roteiros na tela), bench.ps1 (medicao), make-test-folder.ps1
@@ -70,8 +70,11 @@ Itens com (?) apontam para algo que nao existe mais no codigo: atualize a lista 
 | Arquivos compactados (ZIP, TAR, RAR) como pastas | ArchiveService, ArchivePathHelper |
 | Unidades e particoes | VolumeEnumerationService, LocalFileSystemService |
 | Icones e miniaturas | ShellIconService, FileThumbnailService |
-| Cliente de rede (FTP, SFTP, SCP, TFTP) | NetworkFileService, NetworkSessionStore, NetworkClientDialog, NetworkClientHealthService, TftpClient, HostKeyVerifier, KnownHostsStore, FtpCertificateVerifier |
+| Cliente de rede (FTP, SFTP, SCP, TFTP, SMB, NFS) | NetworkFileService, NetworkSessionStore, NetworkClientDialog, NetworkClientHealthService, TftpClient, HostKeyVerifier, KnownHostsStore, FtpCertificateVerifier, NetworkKinds, RemoteSessionFactory |
 | Servidores embutidos (FTP, TFTP) | NetworkServerService, ProtocolServerBase, FtpServer, TftpServer, FtpTlsCertificate, NetworkPortGuard, NetworkConnectionDialog |
+| SMB (cliente e servidor, SMBLibrary) | SmbRemoteSession, SmbFileServer, SmbDirectoryFileStore, SmbLibraryAccess, SmbWildcard, ShareNames |
+| NFS v3 (cliente e servidor proprios: ONC RPC, XDR, MOUNT, portmap) | NfsClient, NfsRemoteSession, NfsServer, NfsHandleTable, NfsProtocol, RpcClient, Rpc, XdrWriter, XdrReader, RpcIdentity, NetworkAddressPolicy |
+| Icones do SMB (janela) e do NFS (pinguim), no menu central e na arvore | NetworkProtocolIcons, CenterToolbarButton, NavigationTreeService.CreateNetworkGroup, Resources/CenterToolbarIcons.xaml |
 | Tema claro/escuro e cor de destaque | ThemeManager, ExplorerThemeResources, WindowsAccentColorService, Resources/Theme.xaml, Resources/DarkTheme.xaml, Resources/LightTheme.xaml |
 | Configuracoes e senhas | AppSettingsService, ProtectedStringJsonConverter, RememberPathSettingsService (settings.json em %AppData%/DoraExplorer; senhas cifradas com DPAPI) |
 | Registro de servicos (DI) | ServiceRegistration.AddDoraExplorerServices |
@@ -93,28 +96,30 @@ App.OnStartup
 
 ## Pacotes NuGet
 
-CommunityToolkit.Mvvm 8.4.2, FluentFTP 51.1.0, Microsoft.Data.Sqlite 10.0.14, Microsoft.DevTunnels.Ssh 3.12.42, Microsoft.Extensions.DependencyInjection 8.0.1, Microsoft.Extensions.Hosting 8.0.1, Serilog 4.2.0, Serilog.Sinks.File 6.0.0, SharpCompress 0.49.1, SSH.NET 2026.0.0, System.Management 9.0.0, System.Security.Cryptography.ProtectedData 8.0.0
+CommunityToolkit.Mvvm 8.4.2, FluentFTP 51.1.0, Microsoft.Data.Sqlite 10.0.14, Microsoft.DevTunnels.Ssh 3.12.42, Microsoft.Extensions.DependencyInjection 8.0.1, Microsoft.Extensions.Hosting 8.0.1, Serilog 4.2.0, Serilog.Sinks.File 6.0.0, SharpCompress 0.49.1, SMBLibrary [1.5.8.1], SSH.NET 2026.0.0, System.Management 9.0.0, System.Security.Cryptography.ProtectedData 8.0.0
 
 ## Arquivos grandes (>= 600 linhas): ler por trechos
 
 Metodos com numero de linha: project-metodos.md.
 
-- `src/DoraExplorer.App/Controls/FilePaneControl.xaml.cs` - 4180 linhas
-- `src/DoraExplorer.App/ViewModels/FilePaneViewModel.cs` - 3859 linhas
-- `src/DoraExplorer.App/Services/NavigationTreeService.cs` - 1709 linhas
+- `src/DoraExplorer.App/Controls/FilePaneControl.xaml.cs` - 4178 linhas
+- `src/DoraExplorer.App/ViewModels/FilePaneViewModel.cs` - 3849 linhas
+- `src/DoraExplorer.App/Services/NavigationTreeService.cs` - 1721 linhas
 - `src/DoraExplorer.App/Services/FtpServer.cs` - 1588 linhas
-- `src/DoraExplorer.App/Controls/FilePaneControl.xaml` - 1145 linhas
+- `src/DoraExplorer.App/Services/NfsServer.cs` - 1428 linhas
+- `src/DoraExplorer.App/Controls/FilePaneControl.xaml` - 1161 linhas
 - `src/DoraExplorer.App/Resources/Theme.xaml` - 1132 linhas
 - `src/DoraExplorer.App/Services/ArchiveService.cs` - 1111 linhas
 - `src/DoraExplorer.App/Services/FileAssociationService.cs` - 1011 linhas
+- `src/DoraExplorer.App/Services/SmbDirectoryFileStore.cs` - 998 linhas
 - `src/DoraExplorer.App/Services/SftpServerSession.cs` - 945 linhas
 - `src/DoraExplorer.App/Services/FileOperationService.cs` - 929 linhas
 - `src/DoraExplorer.App/ViewModels/MainWindowViewModel.cs` - 861 linhas
 - `src/DoraExplorer.App/Services/DirectoryIndexService.cs` - 754 linhas
 - `src/DoraExplorer.App/Services/ScpServerSession.cs` - 712 linhas
+- `src/DoraExplorer.App/ViewModels/NavigationTreeNodeViewModel.cs` - 683 linhas
 - `src/DoraExplorer.App/Services/TftpServer.cs` - 680 linhas
-- `src/DoraExplorer.App/ViewModels/NavigationTreeNodeViewModel.cs` - 678 linhas
-- `src/DoraExplorer.App/Services/NetworkFileService.cs` - 616 linhas
+- `src/DoraExplorer.App/Services/NetworkFileService.cs` - 647 linhas
 - `src/DoraExplorer.App/Services/RecycleBinService.cs` - 615 linhas
 
 ## Indice de arquivos fonte
@@ -136,12 +141,12 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `Contracts/INetworkServerService.cs` (18) - **INetworkServerService**
 - `Contracts/INetworkSessionStore.cs` (16) - **INetworkSessionStore**
 - `Contracts/IRemoteFileService.cs` (62) - **IRemoteFileService**
-- `Controls/CenterToolbarButton.xaml` (120)
-- `Controls/CenterToolbarButton.xaml.cs` (115) - **CenterToolbarButton**
-- `Controls/CenterToolbarControl.xaml` (443)
+- `Controls/CenterToolbarButton.xaml` (134)
+- `Controls/CenterToolbarButton.xaml.cs` (147) - **CenterToolbarButton**
+- `Controls/CenterToolbarControl.xaml` (458)
 - `Controls/CenterToolbarControl.xaml.cs` (269) - **CenterToolbarControl**
-- `Controls/FilePaneControl.xaml` (1145)
-- `Controls/FilePaneControl.xaml.cs` (4180) - **FilePaneControl**
+- `Controls/FilePaneControl.xaml` (1161)
+- `Controls/FilePaneControl.xaml.cs` (4178) - **FilePaneControl**
 - `Controls/SearchPopupSizing.cs` (9) - **SearchPopupSizing**
   - Metodos: Clamp
 - `Controls/SmoothScrollAnimator.cs` (355) - **SmoothScrollAnimator**
@@ -183,6 +188,8 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: Measure
 - `Infrastructure/NameWidthScanner.cs` (132) - **NameWidthScanner**
   - Metodos: HasColumnRows, WidestRowWidth
+- `Infrastructure/NetworkProtocolIcons.cs` (113) - **NetworkProtocolIcons**
+  - Metodos: TreeIconFor
 - `Infrastructure/OperationTimeouts.cs` (93) - **OperationTimeouts**
   - Metodos: CreateLinked, RunAsync, RunWithInactivityAsync
 - `Infrastructure/OperationTracker.cs` (96) - **OperationTracker**
@@ -227,13 +234,14 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `Models/FileTransferOperation.cs` (7) - **FileTransferOperation**
 - `Models/ItemProperties.cs` (39) - **ItemProperties, ExecutableDetails, DriveDetails, FolderTotals, FileHashes**
 - `Models/LocalNetworkAddressOption.cs` (12) - **LocalNetworkAddressOption**
-- `Models/NavigationNodeKind.cs` (18) - **NavigationNodeKind**
+- `Models/NavigationNodeKind.cs` (20) - **NavigationNodeKind**
 - `Models/NetworkClientProfile.cs` (76) - **NetworkClientProfile**
 - `Models/NetworkConnectionInfo.cs` (43) - **NetworkConnectionInfo**
-- `Models/NetworkProtocol.cs` (9) - **NetworkProtocol**
-- `Models/NetworkProtocolSettings.cs` (135) - **NetworkProtocolSettings, NetworkSettingsStore, NetworkDialogAction**
+- `Models/NetworkKinds.cs` (77) - **NetworkKinds**
+- `Models/NetworkProtocol.cs` (11) - **NetworkProtocol**
+- `Models/NetworkProtocolSettings.cs` (160) - **NetworkProtocolSettings, NetworkSettingsStore, NetworkDialogAction**
 - `Models/NetworkSecurity.cs` (30) - **FtpServerSecurity, FtpClientSecurity**
-- `Models/PaneDisplayOptions.cs` (21) - **PaneDisplayOptions**
+- `Models/PaneDisplayOptions.cs` (25) - **PaneDisplayOptions**
 - `Models/SearchListingEntry.cs` (3) - **SearchListingEntry**
 - `Models/SearchResultItem.cs` (12) - **SearchResultItem**
 - `Models/StorageUsage.cs` (22) - **StorageUsageLevel, StorageUsage**
@@ -306,11 +314,11 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: TryPickFolder
 - `Services/NavigationHistory.cs` (68) - **NavigationHistory**
   - Metodos: Visit, Back, Forward
-- `Services/NavigationTreeService.cs` (1709) - **NavigationTreeService**
+- `Services/NavigationTreeService.cs` (1721) - **NavigationTreeService**
   - Metodos: CreateVisibleRoots, TryMaterializeChild, TryMaterializeDirectoryByName, LoadDirectoryChildren, RefreshCollapsedDirectoryPlaceholder, CompleteChunkedFill, TryRevalidateLoadedDirectory, ResortDirectoryChildren
 - `Services/NetworkClientHealthService.cs` (264) - **NetworkClientHealthService**
   - Metodos: Start, GetHealth, TestAndUpdateAsync, Remove, SetHealth, Dispose
-- `Services/NetworkFileService.cs` (616) - **NetworkFileService**
+- `Services/NetworkFileService.cs` (647) - **NetworkFileService**
   - Metodos: TryConnectAndList, TryExecuteTransfer, ConnectAndListAsync, ExecuteTransferAsync, TestConnectionAsync, BuildRemotePath, TryParseRemotePath
 - `Services/NetworkPortGuard.cs` (271) - **NetworkPortGuard**
   - Metodos: IsPortUsedByOtherProcess, IsPortListening, ForceStopOwnedListeners
@@ -318,10 +326,20 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: Start, DisposeWithoutClosingExternalPort, Dispose, IsInside, TryParse
 - `Services/NetworkServerLogStore.cs` (57) - **NetworkServerLogStore**
   - Metodos: Clear, Append, GetText
-- `Services/NetworkServerService.cs` (235) - **NetworkServerService**
+- `Services/NetworkServerService.cs` (240) - **NetworkServerService**
   - Metodos: IsRunning, GetRunningConfig, TryStart, StopServer, StopAll, Dispose
 - `Services/NetworkSessionStore.cs` (99) - **NetworkSessionStore**
   - Metodos: Register, TryGetForPath, HasProtocol, UnregisterProtocol, ClearAll
+- `Services/NfsClient.cs` (432) - **NfsClient**
+  - Metodos: Connect, ListExports, Mount, Unmount, GetAttributes, Lookup, ReadDirectory, Read, Write, CreateOrTruncate, SetAttributes, MakeDirectory (+4)
+- `Services/NfsProtocol.cs` (294) - **NfsStatus, NfsFileType, NfsException, NfsAttributes, NfsDirectoryEntry, NfsSetAttributes, NfsProtocol**
+  - Metodos: From, Describe, FromNfsTime, ToNfsTime, ReadAttributes, ReadPostOpAttributes, SkipWccData, WriteAttributes, WriteSetAttributes, ReadSetAttributes
+- `Services/NfsRemoteSession.cs` (350) - **NfsRemoteSession**
+  - Metodos: Open, Stat, List, CreateDirectory, DeleteFile, DeleteEmptyDirectory, Rename, Download, Upload, Dispose
+- `Services/NfsRpc.cs` (562) - **XdrException, RpcException, XdrWriter, XdrReader, RpcIdentity, Rpc, CallMessage, RpcClient**
+  - Metodos: AsSpan, ToArray, UInt32, Int32, UInt64, Bool, Opaque, Fixed, String, Raw, OpaqueSpan, FixedSpan (+12)
+- `Services/NfsServer.cs` (1428) - **NfsServer, NfsHandleTable, ShareNames, NetworkAddressPolicy**
+  - Metodos: Start, IdFor, HandleFor, TryGetPath, FromFolder, IsLocalNetwork
 - `Services/PaneDisplaySettingsService.cs` (27) - **PaneDisplaySettingsService**
   - Metodos: Load, SaveLeftPane, SaveRightPane
 - `Services/RecycleBinService.cs` (615) - **RecycleBinService**
@@ -332,7 +350,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: Load, SetEnabled, SavePanePaths
 - `Services/RemoteFileService.cs` (338) - **RemoteFileService**
   - Metodos: CreateDirectoryAsync, DeleteAsync, RenameAsync, DownloadAsync, UploadAsync, TransferBetweenAsync, DownloadForOpenAsync
-- `Services/RemoteSession.cs` (215) - **RemoteEntry, IRemoteSession, RemoteSessionFactory, FtpRemoteSession, SftpRemoteSession**
+- `Services/RemoteSession.cs` (218) - **RemoteEntry, IRemoteSession, RemoteSessionFactory, FtpRemoteSession, SftpRemoteSession**
   - Metodos: Stat, List, CreateDirectory, DeleteFile, DeleteEmptyDirectory, Rename, Download, Upload, Open, Dispose
 - `Services/RemoteTransferEngine.cs` (356) - **RemoteTransferEngine**
   - Metodos: UniqueName, Scan, Download, Upload, Delete, Rename, Combine, ParentOf, LastSegment, SafeName
@@ -346,6 +364,14 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: RunAsync, UInt32, UInt64, BytesView, String, Attributes, SkipAttributes, Byte, Bytes, ToArray
 - `Services/ShellIconService.cs` (457) - **ShellIconService**
   - Metodos: GetCachedFileIcon, GetRemoteItemIcon, GetNetworkLocationIcon, GetNetworkServerIcon, GetGenericFolderIcon, GetGenericFileIcon, GetFileIcon, GetDriveIcon, GetFolderIcon, GetNetworkIcon, GetSpecialIcon, GetRecycleBinIcon (+3)
+- `Services/SmbDirectoryFileStore.cs` (998) - **SmbDirectoryFileStore, SmbWildcard**
+  - Metodos: CreateFile, CloseFile, ReadFile, WriteFile, FlushFileBuffers, LockFile, UnlockFile, QueryDirectory, GetFileInformation, SetFileInformation, GetFileSystemInformation, SetFileSystemInformation, GetSecurityInformation, SetSecurityInformation, NotifyChange, Cancel, DeviceIOControl, IsMatch
+- `Services/SmbFileServer.cs` (117) - **SmbFileServer**
+  - Metodos: Start
+- `Services/SmbLibraryAccess.cs` (124) - **SmbLibraryAccess**
+  - Metodos: Connect, Resolve, Start, Describe
+- `Services/SmbRemoteSession.cs` (463) - **SmbRemoteSession**
+  - Metodos: Open, Stat, List, CreateDirectory, DeleteFile, DeleteEmptyDirectory, Rename, Download, Upload, Dispose
 - `Services/SortHeaderLogic.cs` (29) - **SortHeaderLogic**
   - Metodos: Toggle, Indicator
 - `Services/SshFileServer.cs` (449) - **SubsystemRequestMessage, SshFileServer**
@@ -372,21 +398,21 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
   - Metodos: Apply, ApplyToAllWindows
 - `ViewModels/AccentColorMenuItemViewModel.cs` (38) - **AccentColorMenuItemViewModel**
 - `ViewModels/BreadcrumbSegmentViewModel.cs` (23) - **BreadcrumbSegmentViewModel**
-- `ViewModels/CenterToolbarViewModel.cs` (572) - **CenterToolbarViewModel**
+- `ViewModels/CenterToolbarViewModel.cs` (586) - **CenterToolbarViewModel**
   - Metodos: RefreshNetworkServiceStatus, RefreshSearchContext, RunSearchWithPattern, OpenSearchResult, TryCreateDuplicates, LocateDuplicate, ApplySortOptions
 - `ViewModels/DuplicatesViewModel.cs` (389) - **DuplicateRowViewModel, DuplicatesViewModel, DuplicateSortField, DuplicateSorter, DuplicateText**
   - Metodos: SortBy, StartAsync, Cancel, Sort, Size, Header, Row, Progress, Fraction, Summary, Finished
 - `ViewModels/FileItemViewModel.cs` (72) - **FileItemViewModel**
-- `ViewModels/FilePaneViewModel.cs` (3859) - **FilePaneViewModel**
+- `ViewModels/FilePaneViewModel.cs` (3849) - **FilePaneViewModel**
   - Metodos: RestorePath, CompleteInitialPathRestore, ClearCenterNavigatedNode, ResizeNameColumn, ResetNameColumnWidth, RefreshColumnHeader, RefreshWidestNameRow, CommitColumnWidths, UpdateResponsiveLayout, OnNavigationNodeExpanding, OnNavigationNodeExpanded, OnNavigationNodeCollapsed, OnNavigationNodeSelected, NavigateToPath, RefreshForViewOptionsChange, BeginDisplayMenu, CommitDisplayMenu, ClearItemSelection, SetSingleItemSelection, ToggleItemSelection, HandleShiftItemSelection, SelectSiblingItems, ShareSelectionParent, GetSelectableSiblings, GetParentNode, GetVisibleSelectableNodes, SelectSiblingRange, HasOpenableFilesInSelection, GetPrimarySelectedNode, HasActivatableSelection (+57)
 - `ViewModels/FilePaneViewModel.Remote.cs` (392) - **FilePaneViewModel**
 - `ViewModels/ItemPropertiesViewModel.cs` (549) - **PropertyRowViewModel, PropertySectionViewModel, ItemPropertiesViewModel**
   - Metodos: Create, LoadAsync, Dispose, ComputeHashAsync
 - `ViewModels/MainWindowViewModel.cs` (861) - **MainWindowViewModel**
   - Metodos: OppositePane, EmptyRecycleBinAsync, RestoreAllFromRecycleBin, GetPaneWithSelection, ApplyGlobalSortOptions, TryResolveTransfer, TryValidateTransfer, ExecuteDropTransferAsync, TryStageTransfer, TryPasteTransferAsync, ExecuteTransferAsync, ExecuteCompressAsync, ClearTransferClipboard, OnWindowLoaded, PersistPanePaths
-- `ViewModels/NavigationTreeNodeViewModel.cs` (678) - **NavigationTreeNodeViewModel**
+- `ViewModels/NavigationTreeNodeViewModel.cs` (683) - **NavigationTreeNodeViewModel**
   - Metodos: SetName, SetIconFactory, SetDefaultApplication, RefreshDefaultApplication, SetHierarchyMetadata
-- `ViewModels/PaneDisplayMenuViewModel.cs` (53) - **PaneDisplayMenuViewModel**
+- `ViewModels/PaneDisplayMenuViewModel.cs` (65) - **PaneDisplayMenuViewModel**
   - Metodos: LoadFrom, DiffersFrom, ApplyTo
 - `ViewModels/PathRenamedEventArgs.cs` (7) - **PathRenamedEventArgs**
 - `Views/Dialogs/AboutDialog.xaml` (59)
@@ -404,10 +430,10 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `Views/Dialogs/MessageDialog.xaml.cs` (95) - **MessageDialog**
   - Metodos: Show, Confirm, Ask
 - `Views/Dialogs/NetworkClientDialog.xaml` (141)
-- `Views/Dialogs/NetworkClientDialog.xaml.cs` (337) - **NetworkClientDialog**
+- `Views/Dialogs/NetworkClientDialog.xaml.cs` (352) - **NetworkClientDialog**
   - Metodos: TryShow
 - `Views/Dialogs/NetworkConnectionDialog.xaml` (133)
-- `Views/Dialogs/NetworkConnectionDialog.xaml.cs` (385) - **NetworkConnectionDialog**
+- `Views/Dialogs/NetworkConnectionDialog.xaml.cs` (386) - **NetworkConnectionDialog**
   - Metodos: ShowOrActivate, SetRunningState, NotifyRunningState
 - `Views/Dialogs/PromptDialog.xaml` (37)
 - `Views/Dialogs/PromptDialog.xaml.cs` (44) - **PromptDialog**
@@ -444,7 +470,7 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `FileOperationTests.cs` (342) - FileOperationTests
 - `FilePaneViewModelTests.cs` (985) - FilePaneViewModelTests
 - `HealthServiceTests.cs` (186) - HealthServiceTests
-- `InfrastructureTests.cs` (379) - PathSafetyServiceTests, NetworkFileServiceTests, FileOpenServiceTests, OperationTrackerTests, ExpectedFailuresTests, SqliteSecurityTests, MemoryTrimmerTests, RangeObservableCollectionTests
+- `InfrastructureTests.cs` (394) - PathSafetyServiceTests, NetworkFileServiceTests, FileOpenServiceTests, OperationTrackerTests, ExpectedFailuresTests, SqliteSecurityTests, MemoryTrimmerTests, RangeObservableCollectionTests
 - `InterfaceTests.cs` (374) - StorageUsageTests, DeniedFolderRowTests, SelectionStatusFormatterTests, ThemeUsageColorsTests, ApplicationNameTests, DefaultApplicationOverridesTests
 - `ItemPropertiesServiceTests.cs` (408) - ItemPropertiesServiceTests
 - `ItemPropertiesViewModelTests.cs` (330) - ItemPropertiesViewModelTests
@@ -453,19 +479,24 @@ Formato: arquivo (linhas) - tipos. Metodos: so os publicos, ate 12 (30 nos arqui
 - `MainWindowViewModelTests.cs` (519) - MainWindowViewModelTests
 - `NavigationTests.cs` (277) - SortHeaderLogicTests, NavigationHistoryTests, PathNavigationTests, RowDensitySettingTests, XamlResourceTests
 - `NetworkClientTests.cs` (306) - FtpClientSecurityTests, SshAuthenticationTests
-- `NetworkGroupTests.cs` (99) - AppStaticsGroup, NetworkGroupTests
+- `NetworkGroupTests.cs` (134) - AppStaticsGroup, NetworkGroupTests
+- `NetworkKindsTests.cs` (234) - NetworkKindsTests, NetworkSharesSettingsTests, NetworkSharesXamlTests
 - `NetworkPortGuardTests.cs` (316) - ExternalProcessesGroup, NetworkPortGuardTests
+- `NetworkProtocolIconsTests.cs` (89) - NetworkProtocolIconsTests
 - `NetworkServerTests.cs` (879) - FtpServerTests, TftpServerTests
+- `NfsTests.cs` (776) - NfsXdrTests, NfsExportResolutionTests, NfsServerTests
 - `PaneColumnsTests.cs` (1020) - PaneColumnsTests
-- `PaneTestHarness.cs` (235) - PaneTestHarness
+- `PaneTestHarness.cs` (239) - PaneTestHarness
 - `RecycleBinMenuTests.cs` (200) - RecycleBinMenuTests
 - `RemoteFileTests.cs` (618) - FakeRemoteServer, CapturingProgress, RemoteTransferEngineTests, RemoteFileServiceTests, RemoteFileServiceFtpTests
 - `RenameTests.cs` (282) - RenameTests
 - `SearchNavigationTests.cs` (387) - SearchNavigationTests
 - `SearchWindowTests.cs` (192) - SearchWindowTests
-- `SecurityTests.cs` (664) - ArchiveExtractionPathTests, ArchiveServiceExtractionTests, ProtectedPasswordTests, LegacyPasswordMigrationTests, HostKeyTests, NetworkServerHardeningTests
+- `SecurityTests.cs` (665) - ArchiveExtractionPathTests, ArchiveServiceExtractionTests, ProtectedPasswordTests, LegacyPasswordMigrationTests, HostKeyTests, NetworkServerHardeningTests
 - `ServiceRegistrationTests.cs` (69) - ServiceRegistrationTests
+- `ShareTestSupport.cs` (94) - ShareTestSupport
 - `ShellIconTests.cs` (158) - ShellIconTests
+- `SmbTests.cs` (435) - SmbLibraryContractTests, SmbHelperTests, SmbServerTests
 - `SolidArchiveTests.cs` (175) - SolidArchiveTests
 - `SpecialFolderGuardTests.cs` (111) - SpecialFolderGuardTests
 - `SshServerTests.cs` (1586) - ServerVirtualPathTests, LoginThrottleTests, ScpCommandTests, SftpServerSessionTests, ScpServerSessionTests, SshServerEndToEndTests, SshTestHelpers, PipePair, RawSftp, Reply

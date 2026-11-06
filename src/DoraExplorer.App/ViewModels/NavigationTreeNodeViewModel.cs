@@ -338,7 +338,8 @@ public partial class NavigationTreeNodeViewModel : ObservableObject
             NavigationNodeKind.Favorites => true,
 
             NavigationNodeKind.Ftp or NavigationNodeKind.Sftp or NavigationNodeKind.Scp
-                or NavigationNodeKind.Tftp or NavigationNodeKind.NetworkGroup => true,
+                or NavigationNodeKind.Tftp or NavigationNodeKind.Smb or NavigationNodeKind.Nfs
+                or NavigationNodeKind.NetworkGroup => true,
 
             _ => false
 
@@ -366,7 +367,11 @@ public partial class NavigationTreeNodeViewModel : ObservableObject
 
             or NavigationNodeKind.Scp
 
-            or NavigationNodeKind.Tftp;
+            or NavigationNodeKind.Tftp
+
+            or NavigationNodeKind.Smb
+
+            or NavigationNodeKind.Nfs;
 
 
 

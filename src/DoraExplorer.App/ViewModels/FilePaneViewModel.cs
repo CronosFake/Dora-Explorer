@@ -177,6 +177,10 @@ public partial class FilePaneViewModel : ObservableObject
 
     public bool IsTftpServiceActive => _networkSessions.HasProtocol(NetworkProtocol.Tftp);
 
+    public bool IsSmbServiceActive => _networkSessions.HasProtocol(NetworkProtocol.Smb);
+
+    public bool IsNfsServiceActive => _networkSessions.HasProtocol(NetworkProtocol.Nfs);
+
     public event EventHandler? NetworkServicesChanged;
 
     public ObservableCollection<NavigationTreeNodeViewModel> NavigationRoots { get; } = [];
@@ -620,8 +624,7 @@ public partial class FilePaneViewModel : ObservableObject
 
     private void ExpandedCore(NavigationTreeNodeViewModel node)
     {
-        if (node.Kind is NavigationNodeKind.Ftp or NavigationNodeKind.Sftp or NavigationNodeKind.Scp
-            or NavigationNodeKind.Tftp)
+        if (NetworkKinds.IsClientRoot(node.Kind))
         {
             // Nó contentor do cliente — as ligações aparecem como pastas filhas.
             if (string.IsNullOrWhiteSpace(node.TargetPath))
@@ -641,7 +644,8 @@ public partial class FilePaneViewModel : ObservableObject
             or NavigationNodeKind.Archive
             or NavigationNodeKind.RecycleBin
             or NavigationNodeKind.Favorites
-            or NavigationNodeKind.Ftp or NavigationNodeKind.Sftp or NavigationNodeKind.Scp))
+            or NavigationNodeKind.Ftp or NavigationNodeKind.Sftp or NavigationNodeKind.Scp
+            or NavigationNodeKind.Smb or NavigationNodeKind.Nfs))
         {
             return;
         }
@@ -964,8 +968,7 @@ public partial class FilePaneViewModel : ObservableObject
             return;
         }
 
-        if (node.Kind is NavigationNodeKind.Ftp or NavigationNodeKind.Sftp
-            or NavigationNodeKind.Scp or NavigationNodeKind.Tftp)
+        if (NetworkKinds.IsClientRoot(node.Kind))
         {
             ClearItemSelection();
             if (!string.IsNullOrWhiteSpace(node.TargetPath))
@@ -1354,6 +1357,8 @@ public partial class FilePaneViewModel : ObservableObject
         OnPropertyChanged(nameof(IsSftpServiceActive));
         OnPropertyChanged(nameof(IsScpServiceActive));
         OnPropertyChanged(nameof(IsTftpServiceActive));
+        OnPropertyChanged(nameof(IsSmbServiceActive));
+        OnPropertyChanged(nameof(IsNfsServiceActive));
         NetworkServicesChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -2087,7 +2092,8 @@ public partial class FilePaneViewModel : ObservableObject
             or NavigationNodeKind.Archive
             or NavigationNodeKind.RecycleBin
             or NavigationNodeKind.Favorites
-            or NavigationNodeKind.Ftp or NavigationNodeKind.Sftp or NavigationNodeKind.Scp)
+            or NavigationNodeKind.Ftp or NavigationNodeKind.Sftp or NavigationNodeKind.Scp
+            or NavigationNodeKind.Smb or NavigationNodeKind.Nfs)
         {
             if (!string.IsNullOrWhiteSpace(node.TargetPath))
             {
@@ -2908,8 +2914,7 @@ public partial class FilePaneViewModel : ObservableObject
 
     public void OpenNetworkClient(NavigationNodeKind kind)
     {
-        if (kind is not (NavigationNodeKind.Ftp or NavigationNodeKind.Sftp
-            or NavigationNodeKind.Scp or NavigationNodeKind.Tftp))
+        if (!NetworkKinds.IsClientRoot(kind))
         {
             return;
         }
@@ -3177,7 +3182,7 @@ public partial class FilePaneViewModel : ObservableObject
         connectionNode.Children.Clear();
         connectionNode.ChildrenLoaded = false;
 
-        var canBrowse = connection.Protocol is NetworkProtocol.Ftp or NetworkProtocol.Sftp or NetworkProtocol.Scp;
+        var canBrowse = NetworkKinds.IsBrowsable(connection.Protocol);
         if (canBrowse)
         {
             if (entries is not null)
@@ -3284,7 +3289,7 @@ public partial class FilePaneViewModel : ObservableObject
                 child.ChildrenLoaded = false;
                 child.FolderCount = 0;
                 child.FileCount = 0;
-                if (protocol is NetworkProtocol.Ftp or NetworkProtocol.Sftp or NetworkProtocol.Scp)
+                if (NetworkKinds.IsBrowsable(protocol))
                 {
                     child.Children.Add(
                         new NavigationTreeNodeViewModel(string.Empty, NavigationNodeKind.Directory) { IsPlaceholder = true });
@@ -3351,8 +3356,7 @@ public partial class FilePaneViewModel : ObservableObject
     {
         for (var parent = GetParentNode(node); parent is not null; parent = GetParentNode(parent))
         {
-            if (parent.Kind is NavigationNodeKind.Ftp or NavigationNodeKind.Sftp
-                or NavigationNodeKind.Scp or NavigationNodeKind.Tftp)
+            if (NetworkKinds.IsClientRoot(parent.Kind))
             {
                 return MapKindToProtocol(parent.Kind);
             }
@@ -3735,7 +3739,7 @@ public partial class FilePaneViewModel : ObservableObject
         return null;
     }
 
-    /// <summary>Nó FTP/SFTP/SCP/TFTP, que vive dentro da pasta "Rede" da árvore.</summary>
+    /// <summary>Nó FTP/SFTP/SCP/TFTP/SMB/NFS, que vive dentro da pasta "Rede" da árvore.</summary>
     private NavigationTreeNodeViewModel? FindNetworkRoot(NetworkProtocol protocol)
     {
         var kind = MapProtocolToKind(protocol);
@@ -3745,25 +3749,9 @@ public partial class FilePaneViewModel : ObservableObject
             .FirstOrDefault(node => node.Kind == kind);
     }
 
-    private static NavigationNodeKind MapProtocolToKind(NetworkProtocol protocol) =>
-        protocol switch
-        {
-            NetworkProtocol.Ftp => NavigationNodeKind.Ftp,
-            NetworkProtocol.Sftp => NavigationNodeKind.Sftp,
-            NetworkProtocol.Scp => NavigationNodeKind.Scp,
-            NetworkProtocol.Tftp => NavigationNodeKind.Tftp,
-            _ => NavigationNodeKind.Ftp
-        };
+    private static NavigationNodeKind MapProtocolToKind(NetworkProtocol protocol) => NetworkKinds.ToKind(protocol);
 
-    private static NetworkProtocol MapKindToProtocol(NavigationNodeKind kind) =>
-        kind switch
-        {
-            NavigationNodeKind.Ftp => NetworkProtocol.Ftp,
-            NavigationNodeKind.Sftp => NetworkProtocol.Sftp,
-            NavigationNodeKind.Scp => NetworkProtocol.Scp,
-            NavigationNodeKind.Tftp => NetworkProtocol.Tftp,
-            _ => NetworkProtocol.Ftp
-        };
+    private static NetworkProtocol MapKindToProtocol(NavigationNodeKind kind) => NetworkKinds.ToProtocol(kind);
 
     private void RebuildNavigationTree()
     {
@@ -3853,7 +3841,9 @@ public partial class FilePaneViewModel : ObservableObject
                 or NavigationNodeKind.Ftp
                 or NavigationNodeKind.Sftp
                 or NavigationNodeKind.Scp
-                or NavigationNodeKind.Tftp => node.TargetPath ?? node.Name,
+                or NavigationNodeKind.Tftp
+                or NavigationNodeKind.Smb
+                or NavigationNodeKind.Nfs => node.TargetPath ?? node.Name,
             _ => node.Name
         };
 }

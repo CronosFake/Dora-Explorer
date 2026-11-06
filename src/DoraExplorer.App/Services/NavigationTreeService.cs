@@ -163,6 +163,16 @@ public sealed class NavigationTreeService : INavigationTreeService
             group.Children.Add(CreateNetworkNode("TFTP", NavigationNodeKind.Tftp, NetworkProtocol.Tftp));
         }
 
+        if (options.ShowSmb)
+        {
+            group.Children.Add(CreateNetworkNode("SMB", NavigationNodeKind.Smb, NetworkProtocol.Smb));
+        }
+
+        if (options.ShowNfs)
+        {
+            group.Children.Add(CreateNetworkNode("NFS", NavigationNodeKind.Nfs, NetworkProtocol.Nfs));
+        }
+
         if (group.Children.Count == 0)
         {
             return null;
@@ -490,7 +500,8 @@ public sealed class NavigationTreeService : INavigationTreeService
         if (string.IsNullOrWhiteSpace(node.TargetPath) ||
             node.Kind is not (NavigationNodeKind.Drive or NavigationNodeKind.Directory
                 or NavigationNodeKind.Archive
-                or NavigationNodeKind.Ftp or NavigationNodeKind.Sftp or NavigationNodeKind.Scp))
+                or NavigationNodeKind.Ftp or NavigationNodeKind.Sftp or NavigationNodeKind.Scp
+                or NavigationNodeKind.Smb or NavigationNodeKind.Nfs))
         {
             return;
         }
@@ -1444,7 +1455,8 @@ public sealed class NavigationTreeService : INavigationTreeService
     {
         var node = new NavigationTreeNodeViewModel(name, kind)
         {
-            IconSource = ShellIconService.GetNetworkIcon()
+            // SMB e NFS têm ícone próprio (janela e pinguim); os demais usam o ícone de rede do Windows.
+            IconSource = NetworkProtocolIcons.TreeIconFor(protocol) ?? ShellIconService.GetNetworkIcon()
         };
 
         foreach (var profile in App.SettingsService.LoadNetworkClientProfiles(protocol)
@@ -1467,7 +1479,7 @@ public sealed class NavigationTreeService : INavigationTreeService
             NetworkProfileId = profile.Id
         };
 
-        if (profile.Protocol is NetworkProtocol.Ftp or NetworkProtocol.Sftp or NetworkProtocol.Scp)
+        if (NetworkKinds.IsBrowsable(profile.Protocol))
         {
             node.Children.Add(CreateLazyPlaceholder());
         }

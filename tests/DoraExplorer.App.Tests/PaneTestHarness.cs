@@ -95,7 +95,9 @@ internal sealed class PaneTestHarness : IDisposable
         ShowFtp = false,
         ShowSftp = false,
         ShowScp = false,
-        ShowTftp = false
+        ShowTftp = false,
+        ShowSmb = false,
+        ShowNfs = false
     };
 
     public string Folder(string name) => Directory.CreateDirectory(Path.Combine(Data, name)).FullName;
@@ -158,6 +160,8 @@ internal sealed class PaneTestHarness : IDisposable
             options.ShowSftp = false;
             options.ShowScp = false;
             options.ShowTftp = false;
+            options.ShowSmb = false;
+            options.ShowNfs = false;
         }
 
         return new MainWindowViewModel(

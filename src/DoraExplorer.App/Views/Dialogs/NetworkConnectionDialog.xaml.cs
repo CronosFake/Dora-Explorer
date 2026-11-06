@@ -32,6 +32,8 @@ public partial class NetworkConnectionDialog : Window
             NetworkProtocol.Sftp => "Servidor SFTP",
             NetworkProtocol.Scp => "Servidor SCP",
             NetworkProtocol.Tftp => "Servidor TFTP",
+            NetworkProtocol.Smb => "Servidor SMB",
+            NetworkProtocol.Nfs => "Servidor NFS",
             _ => "Servidor de rede"
         };
 
@@ -113,14 +115,7 @@ public partial class NetworkConnectionDialog : Window
     private void LoadPersistedSettings()
     {
         var settings = App.SettingsService.LoadNetworkProtocolSettings(Protocol);
-        var defaultPort = Protocol switch
-        {
-            NetworkProtocol.Ftp => 21,
-            NetworkProtocol.Sftp => 22,
-            NetworkProtocol.Scp => 22,
-            NetworkProtocol.Tftp => 69,
-            _ => 22
-        };
+        var defaultPort = NetworkKinds.DefaultServerPort(Protocol);
 
         PopulateHostAddresses(settings.Host);
         PortTextBox.Text = (settings.Port > 0 ? settings.Port : defaultPort).ToString();
@@ -139,11 +134,11 @@ public partial class NetworkConnectionDialog : Window
         ReadOnlyCheckBox.IsChecked = settings.ReadOnly;
     }
 
-    /// <summary>Mostra só o que o servidor usa: o TFTP não tem login nem FTPS; portas passivas são do FTP.</summary>
+    /// <summary>Mostra só o que o servidor usa: TFTP e NFS não têm login; FTPS e portas passivas são do FTP.</summary>
     private void ApplyProtocolFields()
     {
         var isFtp = Protocol == NetworkProtocol.Ftp;
-        var hasLogin = Protocol != NetworkProtocol.Tftp;
+        var hasLogin = HasLogin(Protocol);
 
         SetVisible(hasLogin, UsernameLabel, UsernameTextBox, PasswordLabel, PasswordBox);
         SetVisible(isFtp, SecurityLabel, SecurityComboBox, PassiveLabel, PassivePortsTextBox);
@@ -152,7 +147,18 @@ public partial class NetworkConnectionDialog : Window
         {
             ReadOnlyCheckBox.ToolTip = "O TFTP não tem senha: com esta opção ligada ninguém na rede consegue gravar arquivos.";
         }
+        else if (Protocol == NetworkProtocol.Nfs)
+        {
+            ReadOnlyCheckBox.ToolTip = "O NFS não tem senha: com esta opção ligada ninguém na rede consegue alterar os arquivos. O servidor só atende endereços de rede local.";
+        }
+        else if (Protocol == NetworkProtocol.Smb)
+        {
+            PortTextBox.ToolTip = "O SMB padrão é a porta 445, que o próprio Windows costuma usar; a 4445 sobe sem mexer no sistema.";
+        }
     }
+
+    /// <summary>TFTP e NFS não têm usuário e senha no protocolo.</summary>
+    private static bool HasLogin(NetworkProtocol protocol) => protocol is not (NetworkProtocol.Tftp or NetworkProtocol.Nfs);
 
     private static void SetVisible(bool visible, params UIElement[] elements)
     {
@@ -239,18 +245,13 @@ public partial class NetworkConnectionDialog : Window
         if (requireValidPort && port is < 1 or > 65535)
         {
             var fallback = App.SettingsService.LoadNetworkProtocolSettings(Protocol).Port;
-            port = fallback > 0 ? fallback : Protocol switch
-            {
-                NetworkProtocol.Ftp => 21,
-                NetworkProtocol.Tftp => 69,
-                _ => 22
-            };
+            port = fallback > 0 ? fallback : NetworkKinds.DefaultServerPort(Protocol);
         }
 
         App.SettingsService.SaveNetworkProtocolSettings(Protocol, new NetworkProtocolSettings
         {
             Host = GetSelectedHost() ?? string.Empty,
-            Port = port is >= 1 and <= 65535 ? port : 22,
+            Port = port is >= 1 and <= 65535 ? port : NetworkKinds.DefaultServerPort(Protocol),
             Username = UsernameTextBox.Text.Trim(),
             Password = PasswordBox.Password,
             RemotePath = RootPathTextBox.Text.Trim(),
@@ -285,10 +286,10 @@ public partial class NetworkConnectionDialog : Window
             return false;
         }
 
-        if (Protocol != NetworkProtocol.Tftp &&
+        if (HasLogin(Protocol) &&
             (string.IsNullOrWhiteSpace(UsernameTextBox.Text) || string.IsNullOrEmpty(PasswordBox.Password)))
         {
-            MessageDialog.Show(this, $"O servidor {Protocol.ToString().ToUpperInvariant()} exige usuário e senha.", Title);
+            MessageDialog.Show(this, $"O servidor {NetworkKinds.DisplayName(Protocol)} exige usuário e senha.", Title);
             return false;
         }
 
